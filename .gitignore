@@ -13,3 +13,10 @@ node_modules/
 # NOTE: the built SPA artifact (/index.html and /assets/) is intentionally
 # NOT ignored — the committed build output at the repo root IS the GitSite
 # deploy artifact. Do not add it here.
+
+# Internal spec — NOT for the public repo.
+# This GitSite repo must stay PUBLIC for the deploy to work, and the spec carries
+# org structure, unit/record ids, user counts and the security-group recipe.
+# Keep it local (it lives in OneDrive, so it is still backed up and synced).
+# Remove this line only if the contents have been reviewed for public release.
+Project Details/
