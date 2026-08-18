@@ -219,6 +219,7 @@ export default function My90() {
                         {data.measurables[0].cells.slice(-6).map(c => (
                           <th key={c.periodKey} title={c.periodKey}>{shortPeriod(c.periodKey)}</th>
                         ))}
+                        <th className="c-fill" aria-hidden="true" />
                       </tr>
                     </thead>
                     <tbody>
@@ -240,6 +241,7 @@ export default function My90() {
                               <div className="cell__in">{c.value === null ? '' : c.value}</div>
                             </td>
                           ))}
+                          <td className="c-fill" aria-hidden="true" />
                         </tr>
                       ))}
                     </tbody>

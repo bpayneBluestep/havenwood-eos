@@ -23,7 +23,7 @@ import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
  * The durations are LABELS. Nothing counts down.
  */
 export default function L10() {
-  const { company } = useApp()
+  const { company, nameOf } = useApp()
   const [data, setData] = useState<L10Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [drop, setDrop] = useState<{ kind: string; id: string; label: string; title: string } | null>(null)
@@ -160,6 +160,7 @@ export default function L10() {
                       {issue.description && <div className="rowitem__meta">{issue.description}</div>}
                     </div>
                     <div className="rowitem__end">
+                      {issue.ownerId && <Avatar name={nameOf(issue.ownerId)} id={issue.ownerId} sm />}
                       <span className="mono faint">P{issue.priority ?? '–'}</span>
                       <button className="btn btn--sm" onClick={() => setLinkFor(issue)}>Solve → To-Do</button>
                     </div>
@@ -285,6 +286,7 @@ function ScorecardSection({
                 {p === scorecard.currentPeriod && <div className="faint" style={{ fontSize: 9, fontWeight: 700 }}>NOW</div>}
               </th>
             ))}
+            <th className="c-fill" aria-hidden="true" />
           </tr>
         </thead>
         <tbody>
@@ -325,6 +327,7 @@ function ScorecardSection({
                   />
                 )
               })}
+              <td className="c-fill" aria-hidden="true" />
             </tr>
           ))}
         </tbody>

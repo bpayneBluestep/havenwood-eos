@@ -99,13 +99,14 @@ export default function Scorecard() {
                       {p === sc.currentPeriod && <div className="faint" style={{ fontSize: 9, fontWeight: 700 }}>NOW</div>}
                     </th>
                   ))}
+                  <th className="c-fill" aria-hidden="true" />
                 </tr>
               </thead>
               <tbody>
                 {withGroupHeaders(sc.rows).map(item =>
                   item.kind === 'group' ? (
                     <tr className="grid__group" key={'g-' + item.label}>
-                      <td colSpan={sc.periods.length + 1}>{item.label}</td>
+                      <td colSpan={sc.periods.length + 2}>{item.label}</td>
                     </tr>
                   ) : (
                     <Row
@@ -224,6 +225,7 @@ function Row({
           onError={onError}
         />
       ))}
+      <td className="c-fill" aria-hidden="true" />
     </tr>
   )
 }

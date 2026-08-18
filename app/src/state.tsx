@@ -20,6 +20,8 @@ interface Ctx {
   multiCompany: boolean
   setCompanyId: (id: string) => void
   reload: () => void
+  /** ownerId -> display name, via the derived roster. '' when unknown. */
+  nameOf: (id: string) => string
 }
 
 const AppCtx = createContext<Ctx | null>(null)
@@ -57,13 +59,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(() => setNonce(n => n + 1), [])
 
-  // Prefer an active company; fall back to the first so a fully-deactivated org
-  // still renders something rather than crashing.
+  /*
+   * Which company to show, in order of preference:
+   *   1. the one this browser last chose
+   *   2. the one in the caller's OWN unit — for an operating-unit leader that is
+   *      the only one there is, and for a corporate leader it means corporate
+   *      rather than whichever company happens to sort first
+   *   3. any active one, then anything at all, so a fully deactivated org still
+   *      renders instead of crashing
+   * This mirrors the server's own default; the two must agree or a corporate
+   * user sees one company's header above another company's data.
+   */
   const company = useMemo(() => {
     if (!data || !data.companies.length) return null
     const saved = data.companies.find(c => c.id === companyId)
     if (saved) return saved
-    return data.companies.find(c => c.settings.eosActive) || data.companies[0]
+    const home = data.me.unitId
+    return (
+      data.companies.find(c => c.unitId === home && c.settings.eosActive) ||
+      data.companies.find(c => c.unitId === home) ||
+      data.companies.find(c => c.settings.eosActive) ||
+      data.companies[0]
+    )
   }, [data, companyId])
 
   if (err) return <GateError err={err} onRetry={reload} />
@@ -91,6 +108,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const nameOf = (id: string) => {
+    if (!id) return ''
+    const hit = data.team.find(p => p.id === id)
+    if (hit) return hit.name
+    return data.me.id === id ? data.me.name : ''
+  }
+
   const value: Ctx = {
     me: data.me,
     companies: data.companies,
@@ -99,6 +123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     multiCompany: data.multiCompany,
     setCompanyId,
     reload,
+    nameOf,
   }
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>

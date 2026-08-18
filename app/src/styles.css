@@ -256,6 +256,10 @@ input, select, textarea { font: inherit; color: inherit; }
 /* Wide content scrolls inside its own container — the page body never does. */
 .gridwrap { overflow-x: auto; }
 
+/* Auto layout, deliberately. `table-layout: fixed` was tried and is wrong here:
+   the first row's widths govern, so .c-fill (width:100%) claims everything and
+   starves the period columns to nothing. Auto layout plus the .c-fill slack
+   column gives the right result at every column count we render. */
 .grid { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
 .grid th, .grid td { border-bottom: 1px solid var(--border); padding: 0; }
 
@@ -270,7 +274,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .grid .c-meas {
   position: sticky; left: 0; z-index: 4;
   background: var(--panel); border-right: 1px solid var(--border-2);
-  min-width: 268px; max-width: 340px; text-align: left; padding: 8px 11px;
+  width: 320px; min-width: 268px; max-width: 340px; text-align: left; padding: 8px 11px;
 }
 .grid thead .c-meas { z-index: 5; background: var(--panel-2); }
 .grid tbody tr:hover .c-meas { background: var(--panel-2); }
@@ -286,6 +290,10 @@ input, select, textarea { font: inherit; color: inherit; }
 }
 
 .cell { width: 66px; min-width: 66px; text-align: center; position: relative; }
+/* Absorbs the table's leftover width. Without it, a grid with only a few period
+   columns lets the sticky measurable column swell to fill the row. */
+.c-fill { width: 100%; min-width: 0; padding: 0; border-bottom: 1px solid var(--border); }
+.grid thead .c-fill { background: var(--panel-2); border-bottom: 1px solid var(--border-2); }
 .cell__in {
   width: 100%; border: 0; background: transparent; color: inherit;
   text-align: center; padding: 8px 3px; font-size: 13px;
@@ -469,8 +477,16 @@ input, select, textarea { font: inherit; color: inherit; }
   .nav__section, .nav__foot, .nav__count { display: none; }
   .nav__list a { white-space: nowrap; }
   .page { padding: 14px 12px 48px; }
-  .topbar { padding: 9px 12px; }
+  .topbar { padding: 9px 12px; overflow: hidden; }
+  .topbar__meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row2, .row3 { grid-template-columns: 1fr; }
-  .grid .c-meas { min-width: 190px; max-width: 210px; }
+  .grid .c-meas { width: 190px; min-width: 190px; max-width: 210px; }
+
   .rowitem { padding: 10px 11px; }
+  .rowitem__expand { padding-left: 13px; }
+  /* Bigger tap targets: checking off a to-do and setting a rock's status are two
+     of the three things a phone is actually used for here. Measured at 415px the
+     rows do NOT overflow, so they stay on one line and stay dense. */
+  .seg button { padding: 6px 13px; }
+  .check { width: 20px; height: 20px; flex-basis: 20px; }
 }

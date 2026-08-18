@@ -16,7 +16,7 @@ import { LinkedTodoModal } from '../components/DropToIssue'
  * the software owes it is: an order, and a solve action whose output is a To-Do.
  */
 export default function Issues() {
-  const { company, team, me } = useApp()
+  const { company, team, me, nameOf } = useApp()
   const [term, setTerm] = useState<'short' | 'long'>('short')
   const [showSolved, setShowSolved] = useState(false)
   const [rows, setRows] = useState<Issue[] | null>(null)
@@ -142,7 +142,7 @@ export default function Issues() {
                   )}
                 </div>
                 <div className="rowitem__end">
-                  {issue.ownerId && <Avatar name={''} id={issue.ownerId} sm />}
+                  {issue.ownerId && <Avatar name={nameOf(issue.ownerId)} id={issue.ownerId} sm />}
                   {issue.status === 'open' && (
                     <button className="btn btn--sm" onClick={() => setSolving(issue)}>Solve</button>
                   )}
