@@ -202,6 +202,12 @@ export interface Rock {
   carriedFrom?: string
   completedAt: string | null
   rev: number
+  /** Raised into the parent unit's roll-up view. Visibility only — grants nothing. */
+  rollUp: boolean
+  /** Which company the rock actually lives on. Present on every row. */
+  companyId?: string
+  /** True when the row came from a company other than the selected one. */
+  foreign?: boolean
   companyName?: string
 }
 
@@ -298,11 +304,30 @@ export const bulkSetScores = (
 
 export const archiveMeasurable = (id: string): Promise<unknown> => post('archiveMeasurable', { id })
 
-export const getRocks = (companyId: string, quarterKey?: string, includeArchived = false): Promise<{ quarterKey: string; rows: Rock[] }> =>
-  get('rocks', { companyId, quarterKey, includeArchived })
+/*
+ * Rock scope — how far up the org tree a list reaches.
+ *   own     the selected company only                       (everyone's default)
+ *   rolled  the selected company + rocks raised from beneath it
+ *   all     every company the caller resolves to
+ * Scope can only narrow what the server's tenancy pin already returned, so an
+ * operating-unit user gets the same single company whichever one they ask for.
+ */
+export type RockScope = 'own' | 'rolled' | 'all'
 
-export const getRocksBoard = (companyId: string, quarterKey?: string): Promise<{ columns: { quarterKey: string; rows: Rock[] }[]; longTermIssues: Issue[] }> =>
-  get('rocksBoard', { companyId, quarterKey })
+export interface RockScopeCounts { own: number; rolled: number; all: number; companies: number }
+
+export const getRocks = (
+  companyId: string, quarterKey?: string, includeArchived = false, scope: RockScope = 'own',
+): Promise<{ quarterKey: string; scope: RockScope; rows: Rock[]; counts: RockScopeCounts }> =>
+  get('rocks', { companyId, quarterKey, includeArchived, scope })
+
+export const getRocksBoard = (
+  companyId: string, quarterKey?: string, scope: RockScope = 'own',
+): Promise<{ columns: { quarterKey: string; rows: Rock[] }[]; longTermIssues: Issue[]; scope: RockScope }> =>
+  get('rocksBoard', { companyId, quarterKey, scope })
+
+export const setRockRollUp = (id: string, rollUp: boolean, rev: number): Promise<Rock> =>
+  post('setRockRollUp', { id, rollUp, rev })
 
 export const saveRock = (fields: Record<string, unknown>): Promise<Rock> => post('saveRock', fields)
 

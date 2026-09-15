@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getRocks, getRocksBoard, saveRock, setRockStatus, saveMilestone, addRockNote, carryForwardRocks } from '../api'
-import type { Rock, Milestone } from '../api'
+import { getRocks, getRocksBoard, saveRock, setRockStatus, setRockRollUp, saveMilestone, addRockNote, carryForwardRocks } from '../api'
+import type { Rock, Milestone, RockScope, RockScopeCounts } from '../api'
 import { useApp } from '../state'
 import {
   Avatar, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu, StatusPill,
@@ -17,6 +17,8 @@ import { DropToIssueModal } from '../components/DropToIssue'
 export default function Rocks() {
   const { company, team, me } = useApp()
   const [view, setView] = useState<'list' | 'board'>('list')
+  const [scope, setScope] = useState<RockScope>('own')
+  const [counts, setCounts] = useState<RockScopeCounts | null>(null)
   const [rows, setRows] = useState<Rock[] | null>(null)
   const [board, setBoard] = useState<{ columns: { quarterKey: string; rows: Rock[] }[] } | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -28,11 +30,13 @@ export default function Rocks() {
   const load = useCallback(() => {
     setErr(null)
     if (view === 'list') {
-      getRocks(company.id).then(r => setRows(r.rows)).catch(e => setErr(e.message))
+      getRocks(company.id, undefined, false, scope)
+        .then(r => { setRows(r.rows); setCounts(r.counts) })
+        .catch(e => setErr(e.message))
     } else {
-      getRocksBoard(company.id).then(setBoard).catch(e => setErr(e.message))
+      getRocksBoard(company.id, undefined, scope).then(setBoard).catch(e => setErr(e.message))
     }
-  }, [company.id, view])
+  }, [company.id, view, scope])
 
   useEffect(() => { setRows(null); setBoard(null); load() }, [load])
 
@@ -44,16 +48,51 @@ export default function Rocks() {
         <div>
           <h1>Rocks</h1>
           <div className="page__sub">
-            3–7 priorities for {quarter}, each with one accountable owner. The owner declares status.
+            {scope === 'own'
+              ? `3–7 priorities for ${quarter}, each with one accountable owner. The owner declares status.`
+              : scope === 'rolled'
+                ? `${quarter} — this company's rocks, plus the ones raised up from the companies beneath it.`
+                : `${quarter} — every rock in every company you can see.`}
           </div>
         </div>
         <div className="page__actions">
+          {/*
+            Only a unit with something beneath it ever sees this. An operating
+            company resolves to exactly one company, so the server returns
+            companies === 1 and there is nothing to switch between.
+          */}
+          {counts && counts.companies > 1 && (
+            <div className="seg" role="group" aria-label="Which rocks">
+              <button
+                aria-pressed={scope === 'own'}
+                onClick={() => setScope('own')}
+                title="Only this company's rocks"
+              >
+                This company <span className="faint">{counts.own}</span>
+              </button>
+              <button
+                aria-pressed={scope === 'rolled'}
+                onClick={() => setScope('rolled')}
+                title="This company, plus rocks raised up from the companies beneath it"
+              >
+                Rolled up <span className="faint">{counts.rolled}</span>
+              </button>
+              <button
+                aria-pressed={scope === 'all'}
+                onClick={() => setScope('all')}
+                title="Every rock in every company you can see"
+              >
+                All companies <span className="faint">{counts.all}</span>
+              </button>
+            </div>
+          )}
           <div className="seg" role="group" aria-label="View">
             <button aria-pressed={view === 'list'} onClick={() => setView('list')}>List</button>
             <button aria-pressed={view === 'board'} onClick={() => setView('board')}>Planning board</button>
           </div>
-          {view === 'list' && rows && rows.some(r => r.status !== 'done') && (
-            <button className="btn" onClick={() => setCarry(rows.filter(r => r.status !== 'done'))}>
+          {/* Carry-forward is a per-company act — never offer it for rolled-up rows. */}
+          {view === 'list' && rows && rows.some(r => !r.foreign && r.status !== 'done') && (
+            <button className="btn" onClick={() => setCarry(rows.filter(r => !r.foreign && r.status !== 'done'))}>
               Carry forward…
             </button>
           )}
@@ -108,6 +147,7 @@ export default function Rocks() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                       <Avatar name={r.ownerName} id={r.ownerId} sm />
                       <StatusPill status={r.status} />
+                      {r.foreign && r.companyName && <span className="pill pill--muted">{r.companyName}</span>}
                       {r.companyRock && <span className="pill pill--muted">company</span>}
                     </div>
                   </div>
@@ -188,6 +228,20 @@ function RockRow({
     finally { setBusy(false) }
   }
 
+  /*
+   * Raise a rock into the parent unit's roll-up view, or lower it again. This is
+   * visibility, not access: it can only ever surface the rock to a unit ABOVE
+   * the one it lives on, and a sibling company never had it in view to begin
+   * with. Either side can do it — the company that owns the rock, or the parent
+   * watching it — because both can already see it.
+   */
+  const toggleRollUp = async () => {
+    setBusy(true)
+    try { await setRockRollUp(rock.id, !rock.rollUp, rock.rev); onChanged() }
+    catch (e: any) { onError(e.message) }
+    finally { setBusy(false) }
+  }
+
   return (
     <>
       <div className="rowitem">
@@ -204,6 +258,17 @@ function RockRow({
         <div className="rowitem__main">
           <div className="rowitem__title">
             {rock.title}
+            {/* Where it lives — only shown once the list spans more than one company. */}
+            {rock.foreign && rock.companyName && (
+              <span className="pill pill--muted" title={`This rock lives on ${rock.companyName}`}>
+                {rock.companyName}
+              </span>
+            )}
+            {rock.rollUp && (
+              <span className="pill pill--amber" title="Raised into the parent unit's roll-up view">
+                <span className="pill__glyph" aria-hidden="true">↑</span> rolled up
+              </span>
+            )}
             {rock.companyRock && <span className="pill pill--muted">company</span>}
             {rock.carriedFrom && (
               <span className="pill pill--amber" title="Carried forward from a previous quarter">
@@ -235,6 +300,10 @@ function RockRow({
                 <button onClick={() => { close(); onEdit() }}>Edit rock</button>
                 <button onClick={() => { close(); setOpen(true); setAdding(true) }}>Add milestone</button>
                 <button onClick={() => { close(); onNote() }}>Add a note</button>
+                <hr />
+                <button onClick={() => { close(); toggleRollUp() }} disabled={busy}>
+                  {rock.rollUp ? 'Remove from the roll-up' : 'Raise into the roll-up'}
+                </button>
                 <hr />
                 <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>
               </>
