@@ -71,15 +71,13 @@ function Shell() {
             </NavLink>
           ))}
 
-          {me.isSuper && (
-            <>
-              <div className="nav__section">Admin</div>
-              <NavLink to="/settings">
-                <span className="nav__ico" aria-hidden="true">⚙</span>
-                Settings
-              </NavLink>
-            </>
-          )}
+          {/* Settings is open to the whole EOS group — the EOS checkbox is the
+              only permission Traction has. No admin tier. */}
+          <div className="nav__section">Admin</div>
+          <NavLink to="/settings">
+            <span className="nav__ico" aria-hidden="true">⚙</span>
+            Settings
+          </NavLink>
         </div>
 
         <div className="nav__foot">

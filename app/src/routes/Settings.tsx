@@ -10,11 +10,12 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
  * Company settings. Each Hope Group company is a separate legal entity, so the
  * fiscal year and week end are per company rather than org-wide.
  *
- * Gated on global super, which is the only admin distinction the model has:
- * everyone with the EOS box in a unit can edit everything else in their company.
+ * Not gated. The EOS checkbox is the only permission Traction has, so anyone who
+ * can open the app can edit their own company's settings — same as a rock or an
+ * issue. The tenancy pin still decides which company that is.
  */
 export default function Settings() {
-  const { company, companies, me, team, reload, multiCompany } = useApp()
+  const { company, companies, team, reload, multiCompany } = useApp()
   const st = company.settings
 
   const [displayName, setDisplayName] = useState(st.displayName)
@@ -26,22 +27,6 @@ export default function Settings() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
-
-  if (!me.isSuper) {
-    return (
-      <div className="page">
-        <div className="page__head"><div><h1>Settings</h1></div></div>
-        <div className="banner banner--warn">
-          <div>
-            <div className="banner__b">Company settings are administrator-only.</div>
-            Everything else in Traction is open to your whole leadership team — rocks, issues,
-            to-dos, measurables and headlines.
-          </div>
-        </div>
-        <TeamCard team={team} />
-      </div>
-    )
-  }
 
   const submit = async () => {
     setBusy(true); setErr(null); setSaved(false)
