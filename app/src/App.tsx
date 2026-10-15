@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './state'
 import { Avatar, firstLast } from './lib/ui'
+import { logout } from './api'
 import My90 from './routes/My90'
 import Scorecard from './routes/Scorecard'
 import Rocks from './routes/Rocks'
@@ -118,8 +119,14 @@ function Shell() {
           )}
 
           <div className="topbar__end">
+            {me.isSuper && (
+              <button className="btn" onClick={openTemporaryLogin} title="Sign in as another user to test what they see">
+                Log in as…
+              </button>
+            )}
             <span className="topbar__meta nowrap" title={me.email}>{firstLast({ name: me.name })}</span>
             <Avatar name={me.name} id={me.id || me.userId} />
+            <button className="btn" onClick={signOut}>Sign out</button>
           </div>
         </header>
 
@@ -139,4 +146,25 @@ function Shell() {
       </div>
     </div>
   )
+}
+
+/*
+ * Super-only: BlueStep's Temporary Login (ported from ec-crm's Tools menu). It
+ * switches this browser's session to another user. Traction isn't mounted in a
+ * BlueStep page, so there's no doPopup global — open it ourselves, and reload
+ * when it closes so the app re-reads who the session now belongs to.
+ */
+function openTemporaryLogin() {
+  const w = window.open('/shared/login/templogin.jsp', 'traction-templogin', 'width=550,height=400,resizable=yes,scrollbars=yes')
+  if (!w) { alert('Allow pop-ups for this site to use Temporary Login.'); return }
+  const t = window.setInterval(() => {
+    if (w.closed) { window.clearInterval(t); window.location.reload() }
+  }, 500)
+}
+
+// Ends the BlueStep session and reloads into Traction's own sign-in form. After
+// a Temporary Login, this is how you get back to your own account.
+async function signOut() {
+  await logout()
+  window.location.reload()
 }
