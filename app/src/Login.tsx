@@ -52,6 +52,12 @@ export function Login({ onSignedIn, onNoAccess }: { onSignedIn: (d: Bootstrap) =
         <button type="submit" className="btn btn--primary auth-btn" disabled={busy || !username.trim() || !password}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <div className="auth-or"><span>or</span></div>
+        <div className="auth-sso">
+          <button type="button" className="btn auth-btn" onClick={() => goSSO('microsoft')}>Sign in with Microsoft</button>
+          <button type="button" className="btn auth-btn" onClick={() => goSSO('google')}>Sign in with Google</button>
+        </div>
       </form>
     </div>
   )
@@ -71,4 +77,17 @@ export function NoAccess({ message, onSignedOut }: { message: string; onSignedOu
       </div>
     </div>
   )
+}
+
+/*
+ * Microsoft / Google sign-in, ported from ec-crm's goSSO(). The provider
+ * round-trip has to be a full-page navigation: BlueStep's OAuth starter sends
+ * the user to the provider, then back to this exact Traction URL, signed in.
+ */
+function goSSO(provider: 'microsoft' | 'google') {
+  const oauth2Host = location.hostname.endsWith('.myassn.com') ? 'oauth2.myassn.com' : 'oauth2.bluestep.net'
+  const dest = location.origin + location.pathname + location.search + location.hash
+  location.href = 'https://' + oauth2Host + '/v1/login/initiate/' + provider
+    + '?host=' + encodeURIComponent(location.host)
+    + '&destUrl=' + encodeURIComponent(dest)
 }
