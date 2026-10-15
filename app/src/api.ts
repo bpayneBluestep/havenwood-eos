@@ -128,12 +128,15 @@ export interface CompanyBrief {
   periods: { week: string; month: string; quarter: string; year: string }
 }
 
-export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean }
+export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean }
 
 export interface Bootstrap {
   me: Me
   companies: CompanyBrief[]
+  /** Roster of the default company. Prefer `teams[companyId]`. */
   team: Person[]
+  /** Per company: the people with access to it (their EOS Teams form). */
+  teams?: Record<string, Person[]>
   multiCompany: boolean
 }
 
@@ -215,6 +218,9 @@ export interface Origin { kind: string; id: string; label: string }
 
 export interface Issue {
   id: string
+  /** Set when the item belongs to a private meeting. */
+  meetingId?: string
+  occurrenceDate?: string | null
   term: 'short' | 'long'
   status: 'open' | 'solved'
   priority: number | null
@@ -234,6 +240,9 @@ export interface Issue {
 
 export interface Todo {
   id: string
+  /** Set when the item belongs to a private meeting. */
+  meetingId?: string
+  occurrenceDate?: string | null
   ownerId: string
   ownerName: string
   status: 'open' | 'done'
@@ -251,6 +260,9 @@ export interface Todo {
 
 export interface Headline {
   id: string
+  /** Set when the item belongs to a private meeting. */
+  meetingId?: string
+  occurrenceDate?: string | null
   type: 'customer' | 'employee'
   readDate: string | null
   archivedAt: string | null
@@ -380,4 +392,65 @@ export const getL10 = (companyId: string): Promise<L10> => get('l10', { companyI
 
 export const saveSettings = (fields: Record<string, unknown>): Promise<Settings> => post('saveSettings', fields)
 
-export const searchStaff = (q: string): Promise<{ rows: Person[] }> => get('searchStaff', { q })
+/** Only people with access to the company — an owner must be able to see what they own. */
+export const searchStaff = (q: string, companyId?: string): Promise<{ rows: Person[] }> => get('searchStaff', { q, companyId })
+
+// ---------------------------------------------------------- private meetings
+
+/*
+ * A meeting is visible to its attendees only, like a Google Calendar invite:
+ * the series list sees every date; someone added to one date sees that date.
+ * The server decides all of it — this file only carries the answers.
+ */
+
+export type MeetingFreq = 'none' | 'weekly' | 'biweekly' | 'monthly'
+
+export interface Recurrence { freq: MeetingFreq; start: string; until: string }
+
+export interface PersonRef { id: string; name: string }
+
+export interface Meeting {
+  id: string
+  companyId: string
+  companyName: string
+  kind: string
+  title: string
+  attendees: PersonRef[]
+  recurrence: Recurrence
+  nextDate: string | null
+  archivedAt: string | null
+  /** Series attendees may edit; someone added to one date may not. */
+  canEdit: boolean
+  rev: number
+}
+
+export interface Occurrence { date: string; cancelled: boolean; attendees: PersonRef[]; changed: boolean }
+
+export interface MeetingOccurrence {
+  meeting: Meeting
+  date: string
+  cancelled: boolean
+  attendees: PersonRef[]
+  issues: Issue[]
+  todos: Todo[]
+  headlines: Headline[]
+}
+
+export const getMeetings = (companyId: string, includeArchived = false): Promise<{ rows: Meeting[] }> =>
+  get('meetings', { companyId, includeArchived })
+
+export const getMeeting = (id: string, from?: string, to?: string): Promise<{ meeting: Meeting; occurrences: Occurrence[]; roster: Person[] }> =>
+  get('meeting', { id, from, to })
+
+export const getMeetingOccurrence = (id: string, date: string): Promise<MeetingOccurrence> =>
+  get('meetingOccurrence', { id, date })
+
+export const saveMeeting = (fields: {
+  id?: string; companyId?: string; title: string; attendeeIds: string[]; recurrence: Recurrence; rev?: number
+}): Promise<Meeting> => post('saveMeeting', fields)
+
+export const setOccurrenceAttendees = (fields: {
+  id: string; date: string; add: string[]; remove: string[]; cancelled?: boolean; rev: number
+}): Promise<Meeting> => post('setOccurrenceAttendees', fields)
+
+export const archiveMeeting = (id: string, restore = false): Promise<Meeting> => post('archiveMeeting', { id, restore })

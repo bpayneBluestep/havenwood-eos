@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CellStatus, Goal, Person } from '../api'
 import { searchStaff } from '../api'
+import { useApp } from '../state'
 
 /* ------------------------------------------------------------------ format */
 
@@ -239,8 +240,8 @@ export function RowMenu({ children }: { children: (close: () => void) => ReactNo
 }
 
 /*
- * Owner picker. Offers the leadership team first (the derived roster), and falls
- * back to a staff search for anyone outside it.
+ * Owner picker. Offers the company's roster (everyone with access to it). The
+ * search covers the same people: an owner must be able to see what they own.
  */
 export function OwnerPicker({
   team, value, valueName, onChange,
@@ -250,6 +251,7 @@ export function OwnerPicker({
   valueName?: string
   onChange: (id: string, name: string) => void
 }) {
+  const { company } = useApp()
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<Person[] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -259,13 +261,13 @@ export function OwnerPicker({
     let live = true
     setBusy(true)
     const t = setTimeout(() => {
-      searchStaff(q.trim())
+      searchStaff(q.trim(), company.id)
         .then(r => { if (live) setHits(r.rows) })
         .catch(() => { if (live) setHits([]) })
         .finally(() => { if (live) setBusy(false) })
     }, 250)
     return () => { live = false; clearTimeout(t) }
-  }, [q])
+  }, [q, company.id])
 
   const inTeam = team.some(p => p.id === value)
 
@@ -289,7 +291,7 @@ export function OwnerPicker({
       <div style={{ marginTop: 6 }}>
         <input
           className="input"
-          placeholder="…or search all staff by name"
+          placeholder="…or search everyone with access by name"
           value={q}
           onChange={e => setQ(e.target.value)}
         />

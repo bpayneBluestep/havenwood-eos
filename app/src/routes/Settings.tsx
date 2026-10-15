@@ -10,9 +10,8 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
  * Company settings. Each Hope Group company is a separate legal entity, so the
  * fiscal year and week end are per company rather than org-wide.
  *
- * Not gated. The EOS checkbox is the only permission Traction has, so anyone who
- * can open the app can edit their own company's settings — same as a rock or an
- * issue. The tenancy pin still decides which company that is.
+ * Not gated. Anyone with access to a company (it is checked on their EOS Teams
+ * form) can edit that company's settings — same as a rock or an issue.
  */
 export default function Settings() {
   const { company, companies, team, reload, multiCompany } = useApp()
@@ -169,10 +168,10 @@ export default function Settings() {
 }
 
 /*
- * The roster is DERIVED from the EOS security group, never stored here — so it
- * can't drift from the thing that actually controls access. This card is
- * read-only on purpose: access is granted by checking the EOS box on someone's
- * Employment Info record, and it self-revokes when they're terminated.
+ * The roster is DERIVED from the EOS Teams security group, never stored here — so
+ * it can't drift from the thing that actually controls access. This card is
+ * read-only on purpose: access is granted by checking this company on someone's
+ * EOS Teams form, and it self-revokes when they're marked Former Staff.
  */
 function TeamCard({ team }: { team: { id: string; name: string; displayName: string; email: string }[] }) {
   return (
@@ -184,11 +183,11 @@ function TeamCard({ team }: { team: { id: string; name: string; displayName: str
       <div className="card__body--flush">
         {team.length === 0 ? (
           <div className="empty">
-            <div className="empty__t">Nobody has EOS access in your unit yet</div>
+            <div className="empty__t">Nobody has access to this company yet</div>
             <div className="empty__d">
-              Access is granted by checking the <strong>EOS</strong> box under Security Groups on
-              someone's Staff — Employment Info record. They appear here automatically, and drop off
-              automatically when they're marked Former Staff.
+              Access is granted by checking this company on someone's <strong>EOS Teams</strong> form
+              (on their Staff record). They appear here automatically, and drop off automatically when
+              they're marked Former Staff.
             </div>
           </div>
         ) : (

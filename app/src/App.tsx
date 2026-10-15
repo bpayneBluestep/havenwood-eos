@@ -8,6 +8,8 @@ import Issues from './routes/Issues'
 import Todos from './routes/Todos'
 import Headlines from './routes/Headlines'
 import L10 from './routes/L10'
+import Meetings from './routes/Meetings'
+import Meeting from './routes/Meeting'
 import Settings from './routes/Settings'
 import NotFound from './routes/NotFound'
 
@@ -26,6 +28,7 @@ const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
 
 const MEETING: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: '/l10', label: 'Level 10', icon: '▶' },
+  { to: '/meetings', label: 'Meetings', icon: '◎' },
 ]
 
 export default function App() {
@@ -71,8 +74,8 @@ function Shell() {
             </NavLink>
           ))}
 
-          {/* Settings is open to the whole EOS group — the EOS checkbox is the
-              only permission Traction has. No admin tier. */}
+          {/* Settings is open to everyone with access to the company. No admin
+              tier; access itself is the EOS Teams form on each person's record. */}
           <div className="nav__section">Admin</div>
           <NavLink to="/settings">
             <span className="nav__ico" aria-hidden="true">⚙</span>
@@ -128,6 +131,8 @@ function Shell() {
           <Route path="/todos" element={<Todos />} />
           <Route path="/headlines" element={<Headlines />} />
           <Route path="/l10" element={<L10 />} />
+          <Route path="/meetings" element={<Meetings />} />
+          <Route path="/meetings/:id" element={<Meeting />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -5,8 +5,8 @@ import type { Bootstrap, CompanyBrief, Me, Person } from './api'
 
 /*
  * One bootstrap call carries the whole app shell: who I am, which companies I
- * resolve to, and my leadership team (the derived roster from Security - EOS,
- * used only to populate owner pickers — never to gate anything).
+ * can see (the ones checked on my EOS Teams form), and each company's roster (the
+ * people with access to it), used only to populate pickers — never to gate.
  *
  * The selected company lives here because almost every user resolves to exactly
  * one and should never learn the concept exists.
@@ -108,9 +108,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  // Owner pickers are per company: only people with access to the selected one.
+  const team = (data.teams && data.teams[company.id]) || data.team
+
   const nameOf = (id: string) => {
     if (!id) return ''
-    const hit = data.team.find(p => p.id === id)
+    const hit = team.find(p => p.id === id)
     if (hit) return hit.name
     return data.me.id === id ? data.me.name : ''
   }
@@ -119,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     me: data.me,
     companies: data.companies,
     company,
-    team: data.team,
+    team,
     multiCompany: data.multiCompany,
     setCompanyId,
     reload,
