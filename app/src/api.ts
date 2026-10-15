@@ -17,15 +17,18 @@ export class ApiError extends Error {
   status: number
   /** True when the failure means "you aren't signed in", not "the call broke". */
   needsLogin: boolean
+  /** Signed in, but not on any EOS team: the endpoint answered AUTH_REQUIRED itself. */
+  noAccess: boolean
   /** On STALE, the server's current copy of the entity so the UI can re-render. */
   current: any
 
-  constructor(message: string, opts: { code?: string; status?: number; needsLogin?: boolean; current?: any } = {}) {
+  constructor(message: string, opts: { code?: string; status?: number; needsLogin?: boolean; noAccess?: boolean; current?: any } = {}) {
     super(message)
     this.name = 'ApiError'
     this.code = opts.code || 'REQUEST_FAILED'
     this.status = opts.status ?? 0
     this.needsLogin = !!opts.needsLogin
+    this.noAccess = !!opts.noAccess
     this.current = opts.current ?? null
   }
 }
@@ -62,10 +65,13 @@ async function handle(res: Response): Promise<any> {
   if (!json || json.ok !== true) {
     const code = json?.error || 'REQUEST_FAILED'
     const detail = json?.detail || `Request failed (HTTP ${res.status}).`
+    // A JSON AUTH_REQUIRED came from the endpoint's own code, so the session is
+    // signed in (Login mode redirects a signed-out one before the code runs) —
+    // it means "no Traction access", not "sign in".
     throw new ApiError(detail, {
       code,
       status: res.status,
-      needsLogin: code === 'AUTH_REQUIRED',
+      noAccess: code === 'AUTH_REQUIRED',
       current: json?.data?.current ?? null,
     })
   }
@@ -454,3 +460,75 @@ export const setOccurrenceAttendees = (fields: {
 }): Promise<Meeting> => post('setOccurrenceAttendees', fields)
 
 export const archiveMeeting = (id: string, restore = false): Promise<Meeting> => post('archiveMeeting', { id, restore })
+
+// ------------------------------------------------------------- sign in / out
+
+/*
+ * In-app sign-in, ported from ec-crm-gitsite. BlueStep login is a same-origin
+ * FORM post to the tenant login handler (no CSRF token is required), which
+ * flips this host's session cookie to signed-in. Success is confirmed by
+ * calling bootstrap again, never by parsing the login page's HTML.
+ * The password only ever goes to this same-origin BlueStep host.
+ */
+const LOGIN_URL = '/shared/login/login.jsp'
+
+function loginFields(username: string, password: string): Record<string, string> {
+  return {
+    _postEvent: 'commit',
+    _postFormClass: 'myassn.user.UserLoginWebView',
+    step: 'two', // != "one": log in now, skipping the step-one round-trip
+    myUserName: username,
+    myPassword: password,
+    rememberMe: 'false',
+  }
+}
+
+export type LoginResult =
+  | { ok: true; data: Bootstrap }
+  | { ok: false; twoFactor?: boolean; noAccess?: boolean; error?: string }
+
+export async function login(username: string, password: string): Promise<LoginResult> {
+  let res: Response
+  try {
+    res = await fetch(LOGIN_URL, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(loginFields(username, password)).toString(),
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the sign-in service. Check your connection and try again.' }
+  }
+  // Global users on an untrusted device are sent to email 2FA.
+  if (res.redirected && /\/oauth2\/v1\/login\/verify/.test(res.url)) return { ok: false, twoFactor: true }
+  try {
+    return { ok: true, data: await bootstrap() }
+  } catch (e) {
+    if (e instanceof ApiError && e.noAccess) return { ok: false, noAccess: true }
+    if (e instanceof ApiError && !e.needsLogin) return { ok: false, error: e.message }
+    return { ok: false, error: 'The username or password you entered is invalid.' }
+  }
+}
+
+/*
+ * Email 2FA can't finish inside a fetch, so hand the same credentials to the
+ * platform as a full-page post; it shows its code page, then returns to `dest`.
+ */
+export function nativeLoginSubmit(username: string, password: string, dest: string): void {
+  const f = document.createElement('form')
+  f.method = 'POST'
+  f.action = LOGIN_URL + '?desturl=' + encodeURIComponent(dest)
+  f.style.display = 'none'
+  for (const [n, v] of Object.entries(loginFields(username, password))) {
+    const i = document.createElement('input')
+    i.type = 'hidden'; i.name = n; i.value = v
+    f.appendChild(i)
+  }
+  document.body.appendChild(f)
+  f.submit()
+}
+
+/** Ends the BlueStep session; the caller then shows the sign-in form again. */
+export async function logout(): Promise<void> {
+  try { await fetch('/shared/login/logout.jsp', { credentials: 'include', cache: 'no-store' }) } catch { /* drop to the form anyway */ }
+}

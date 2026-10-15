@@ -2,6 +2,7 @@ import { createContext, useContext, useCallback, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import { bootstrap, ApiError } from './api'
 import type { Bootstrap, CompanyBrief, Me, Person } from './api'
+import { Login, NoAccess } from './Login'
 
 /*
  * One bootstrap call carries the whole app shell: who I am, which companies I
@@ -83,6 +84,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     )
   }, [data, companyId])
 
+  if (err && err.needsLogin) {
+    return <Login onSignedIn={d => { setErr(null); setData(d) }} onNoAccess={() => setErr(new ApiError('', { code: 'AUTH_REQUIRED', noAccess: true }))} />
+  }
+  if (err && err.noAccess) {
+    return <NoAccess message={err.message} onSignedOut={() => { setData(null); setErr(new ApiError('', { needsLogin: true })) }} />
+  }
   if (err) return <GateError err={err} onRetry={reload} />
 
   if (!data) {
@@ -133,26 +140,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 }
 
 /*
- * The two non-JSON failures need opposite fixes and both arrive as HTML, so they
- * get different screens rather than one generic error.
+ * Anything that isn't "signed out" (our own sign-in form) or "no access": the
+ * endpoint broke or isn't published.
  */
 function GateError({ err, onRetry }: { err: ApiError; onRetry: () => void }) {
-  if (err.needsLogin) {
-    return (
-      <div className="page">
-        <div className="card" style={{ maxWidth: 460, margin: '10vh auto' }}>
-          <div className="card__head"><h2>Sign in required</h2></div>
-          <div className="card__body">
-            <p style={{ marginTop: 0 }}>
-              Traction uses your BlueStep session. Sign in, then come back to this page.
-            </p>
-            <a className="btn btn--primary" href="/shared/login/login.jsp">Go to the BlueStep login</a>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const notPublished = err.code === 'NOT_PUBLISHED'
   return (
     <div className="page">
