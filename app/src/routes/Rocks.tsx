@@ -260,8 +260,11 @@ function RockRow({
             {rock.title}
             {/* Where it lives — only shown once the list spans more than one company. */}
             {rock.foreign && rock.companyName && (
-              <span className="pill pill--muted" title={`This rock lives on ${rock.companyName}`}>
-                {rock.companyName}
+              <span
+                className="pill pill--muted"
+                title={rock.readOnly ? `Rolled up from the ${rock.companyName} team. Only its members can change it.` : `This rock lives on ${rock.companyName}`}
+              >
+                {rock.companyName}{rock.teamKind === 'custom' ? ' team' : ''}
               </span>
             )}
             {rock.rollUp && (
@@ -291,10 +294,10 @@ function RockRow({
           </div>
         </div>
         <div className="rowitem__end">
-          <button className="btn btn--sm btn--ghost" onClick={cycle} disabled={busy} title="Change status">
+          <button className="btn btn--sm btn--ghost" onClick={cycle} disabled={busy || rock.readOnly} title={rock.readOnly ? 'Only the team that owns this rock can change it' : 'Change status'}>
             <StatusPill status={rock.status} />
           </button>
-          <RowMenu>
+          {!rock.readOnly && <RowMenu>
             {close => (
               <>
                 <button onClick={() => { close(); onEdit() }}>Edit rock</button>
@@ -308,7 +311,7 @@ function RockRow({
                 <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>
               </>
             )}
-          </RowMenu>
+          </RowMenu>}
         </div>
       </div>
 
@@ -328,14 +331,14 @@ function RockRow({
               <button
                 className={'check' + (m.done ? ' check--on' : '')}
                 onClick={() => toggleMs(m)}
-                disabled={busy}
+                disabled={busy || rock.readOnly}
                 aria-label={m.done ? `Mark "${m.title}" not done` : `Mark "${m.title}" done`}
               >
                 ✓
               </button>
               <span className="ms__t">{m.title}</span>
               {m.dueDate && <span className={'mono faint ' + dueClass(m.dueDate, m.done)} style={{ fontSize: 11.5 }}>{fmtDate(m.dueDate)}</span>}
-              <button
+              {!rock.readOnly && <button
                 className="btn btn--sm btn--ghost btn--danger"
                 title="Remove milestone"
                 onClick={async () => {
@@ -345,7 +348,7 @@ function RockRow({
                 }}
               >
                 ✕
-              </button>
+              </button>}
             </div>
           ))}
 
@@ -358,7 +361,7 @@ function RockRow({
               onSaved={() => { setAdding(false); onChanged() }}
               onError={onError}
             />
-          ) : (
+          ) : !rock.readOnly && (
             <button className="btn btn--sm" style={{ marginTop: 8 }} onClick={() => setAdding(true)}>+ Milestone</button>
           )}
 

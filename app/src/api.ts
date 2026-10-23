@@ -126,22 +126,32 @@ export interface Settings {
   rev: number
 }
 
+/**
+ * One of the caller's TEAMS (ticket #269). The type keeps its old name because
+ * a company team's id is still its Facility id, and every screen that took a
+ * company takes a team unchanged.
+ */
 export interface CompanyBrief {
   id: string
   name: string
+  /** 'company' = a company's own leadership team; 'custom' = a team an admin made. */
+  kind?: 'company' | 'custom'
+  /** The company whose record holds this team's data. */
+  homeId?: string
+  homeName?: string
   unitId: string
   settings: Settings
   periods: { week: string; month: string; quarter: string; year: string }
 }
 
-export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean }
+export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
   team: Person[]
-  /** Per company: the people with access to it (their EOS Teams form). */
+  /** Per team: its members. */
   teams?: Record<string, Person[]>
   multiCompany: boolean
 }
@@ -215,9 +225,12 @@ export interface Rock {
   rollUp: boolean
   /** Which company the rock actually lives on. Present on every row. */
   companyId?: string
-  /** True when the row came from a company other than the selected one. */
+  /** True when the row came from a team other than the selected one. */
   foreign?: boolean
   companyName?: string
+  teamKind?: 'company' | 'custom'
+  /** Rolled up from a custom team you aren't on: shown, never editable here. */
+  readOnly?: boolean
 }
 
 export interface Origin { kind: string; id: string; label: string }
@@ -396,7 +409,59 @@ export const markHeadlineRead = (ids: string[], unread = false): Promise<{ marke
 
 export const getL10 = (companyId: string): Promise<L10> => get('l10', { companyId })
 
+/** Admins only — everyone else gets NOT_FOUND. */
 export const saveSettings = (fields: Record<string, unknown>): Promise<Settings> => post('saveSettings', fields)
+
+// ------------------------------------------------------------- admin (#269)
+// Every admin action answers NOT_FOUND unless the caller is an EOS admin.
+
+export interface AdminTeam {
+  id: string
+  kind: 'company' | 'custom'
+  name: string
+  homeId: string
+  homeName: string
+  memberCount: number
+  archivedAt: string | null
+  eosActive: boolean
+  settings: Settings
+  /** Guards membership and a custom team's definition. */
+  rev: number
+  /** Guards a company team's settings. */
+  settingsRev: number
+}
+
+export interface AdminMember { id: string; name: string; email: string; former: boolean }
+
+export interface AdminPerson { id: string; name: string; email: string; former: boolean; isAdmin: boolean; teamIds: string[] }
+
+export interface AuditRow {
+  at: string
+  action: string
+  actorId: string
+  actorName: string
+  teamId: string
+  teamName: string
+  personId: string
+  personName: string
+  detail: any
+}
+
+export const adminOverview = (): Promise<{ teams: AdminTeam[]; companies: { id: string; name: string }[]; admins: { id: string; name: string }[]; reach: string }> =>
+  get('adminOverview')
+
+export const adminTeam = (teamId: string): Promise<{ team: AdminTeam; members: AdminMember[] }> =>
+  get('adminTeam', { companyId: teamId })
+
+export const adminSaveTeam = (fields: Record<string, unknown>): Promise<{ team: AdminTeam }> => post('adminSaveTeam', fields)
+
+export const adminSetMembership = (teamId: string, personId: string, member: boolean, rev: number): Promise<{ team: AdminTeam }> =>
+  post('adminSetMembership', { companyId: teamId, personId, member, rev })
+
+export const adminPeople = (q = ''): Promise<{ rows: AdminPerson[] }> => get('adminPeople', { q })
+
+export const adminAudit = (filters: { teamId?: string; personId?: string } = {}): Promise<{ rows: AuditRow[]; more: boolean }> =>
+  get('adminAudit', { companyId: filters.teamId, personId: filters.personId })
 
 /** Only people with access to the company — an owner must be able to see what they own. */
 export const searchStaff = (q: string, companyId?: string): Promise<{ rows: Person[] }> => get('searchStaff', { q, companyId })

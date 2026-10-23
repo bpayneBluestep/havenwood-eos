@@ -11,7 +11,7 @@ import Headlines from './routes/Headlines'
 import L10 from './routes/L10'
 import Meetings from './routes/Meetings'
 import Meeting from './routes/Meeting'
-import Settings from './routes/Settings'
+import Admin from './routes/Admin'
 import NotFound from './routes/NotFound'
 
 /*
@@ -41,12 +41,17 @@ export default function App() {
 }
 
 function Shell() {
-  const { me, company, companies, multiCompany, setCompanyId } = useApp()
+  const { me, company, companies, multiCompany, setCompanyId, reload } = useApp()
   const loc = useLocation()
 
   const title =
     [...NAV, ...MEETING].find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))?.label ||
-    (loc.pathname.startsWith('/settings') ? 'Settings' : 'Traction')
+    (loc.pathname.startsWith('/admin') ? 'Admin' : 'Traction')
+
+  // Company teams first, then the teams admins made on top of them.
+  const companyTeams = companies.filter(c => (c.kind || 'company') === 'company')
+  const customTeams = companies.filter(c => c.kind === 'custom')
+  const label = (c: typeof company) => (c.kind === 'custom' ? c.name : c.settings.displayName || c.name)
 
   return (
     <div className="shell">
@@ -75,17 +80,22 @@ function Shell() {
             </NavLink>
           ))}
 
-          {/* Settings is open to everyone with access to the company. No admin
-              tier; access itself is the EOS Teams form on each person's record. */}
-          <div className="nav__section">Admin</div>
-          <NavLink to="/settings">
-            <span className="nav__ico" aria-hidden="true">⚙</span>
-            Settings
-          </NavLink>
+          {/* Admin (teams, people, settings, audit) is for the three hard-coded
+              EOS admins only (ticket #269). The endpoint refuses everyone else;
+              hiding it here just keeps it out of their way. */}
+          {me.isAdmin && (
+            <>
+              <div className="nav__section">Admin</div>
+              <NavLink to="/admin">
+                <span className="nav__ico" aria-hidden="true">⚙</span>
+                Teams &amp; settings
+              </NavLink>
+            </>
+          )}
         </div>
 
         <div className="nav__foot">
-          {company.settings.displayName || company.name}
+          {label(company)}
         </div>
       </nav>
 
@@ -93,9 +103,9 @@ function Shell() {
         <header className="topbar">
           <span className="topbar__title">{title}</span>
 
-          {/* Built so the single-company case renders NOTHING — not a disabled
-              dropdown with one option. Almost every user resolves to exactly one
-              company and should never learn the concept exists. */}
+          {/* Built so the single-team case renders NOTHING — not a disabled
+              dropdown with one option. Most people are on exactly one team and
+              should never learn the concept exists. */}
           {multiCompany && (
             <>
               <select
@@ -103,13 +113,26 @@ function Shell() {
                 style={{ width: 'auto', maxWidth: 240 }}
                 value={company.id}
                 onChange={e => setCompanyId(e.target.value)}
-                aria-label="Company"
+                aria-label="Team"
               >
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.settings.displayName || c.name}{c.settings.eosActive ? '' : ' (inactive)'}
-                  </option>
-                ))}
+                {customTeams.length === 0 ? companyTeams.map(c => (
+                  <option key={c.id} value={c.id}>{label(c)}{c.settings.eosActive ? '' : ' (inactive)'}</option>
+                )) : (
+                  <>
+                    {companyTeams.length > 0 && (
+                      <optgroup label="Company teams">
+                        {companyTeams.map(c => (
+                          <option key={c.id} value={c.id}>{label(c)}{c.settings.eosActive ? '' : ' (inactive)'}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label="Teams">
+                      {customTeams.map(c => (
+                        <option key={c.id} value={c.id}>{label(c)}{c.settings.eosActive ? '' : ' (inactive)'}</option>
+                      ))}
+                    </optgroup>
+                  </>
+                )}
               </select>
               <span className="topbar__meta nowrap">{company.periods.week} · {company.periods.quarter}</span>
             </>
@@ -140,7 +163,7 @@ function Shell() {
           <Route path="/l10" element={<L10 />} />
           <Route path="/meetings" element={<Meetings />} />
           <Route path="/meetings/:id" element={<Meeting />} />
-          <Route path="/settings" element={<Settings />} />
+          {me.isAdmin && <Route path="/admin" element={<Admin onChanged={reload} />} />}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>

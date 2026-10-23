@@ -3,14 +3,16 @@ import type { ReactNode } from 'react'
 import { bootstrap, ApiError } from './api'
 import type { Bootstrap, CompanyBrief, Me, Person } from './api'
 import { Login, NoAccess } from './Login'
+import Admin from './routes/Admin'
 
 /*
- * One bootstrap call carries the whole app shell: who I am, which companies I
- * can see (the ones checked on my EOS Teams form), and each company's roster (the
- * people with access to it), used only to populate pickers — never to gate.
+ * One bootstrap call carries the whole app shell: who I am, which TEAMS I'm on
+ * (ticket #269 — still called `companies`, because a company team's id is its
+ * company's id), and each team's members, used only to populate pickers — never
+ * to gate.
  *
- * The selected company lives here because almost every user resolves to exactly
- * one and should never learn the concept exists.
+ * The selected team lives here because most people are on exactly one and
+ * should never learn the concept exists.
  */
 
 interface Ctx {
@@ -102,20 +104,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   if (!company) {
+    // An admin who isn't on any team (ticket #269): they configure Traction but
+    // see no team data, so the only thing to show them is Admin itself.
+    if (data.me.isAdmin) {
+      return (
+        <div className="main">
+          <div className="banner banner--warn" style={{ margin: '16px 16px 0' }}>
+            <div>
+              <div className="banner__b">You aren't on any team.</div>
+              As an admin you can set teams up, but you only see a team's scorecard, rocks and
+              meetings once you add yourself to it.
+            </div>
+          </div>
+          <Admin onChanged={reload} />
+        </div>
+      )
+    }
     return (
       <div className="page">
         <div className="banner banner--warn">
           <div>
-            <div className="banner__b">No company is set up for your unit yet.</div>
-            Traction stores each company's data on its Facility record. Yours has not been
-            configured — ask an administrator to enable EOS for your unit.
+            <div className="banner__b">You aren't on a Traction team yet.</div>
+            Ask a Traction admin to add you to your team.
           </div>
         </div>
       </div>
     )
   }
 
-  // Owner pickers are per company: only people with access to the selected one.
+  // Owner pickers are per team: only its members.
   const team = (data.teams && data.teams[company.id]) || data.team
 
   const nameOf = (id: string) => {
