@@ -76,55 +76,93 @@ function teamLabel(t: AdminTeam): string {
 
 // ------------------------------------------------------------------- Teams
 
+function initials(name: string): string {
+  const w = name.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean)
+  return ((w[0]?.[0] || '') + (w.length > 1 ? w[w.length - 1][0] : w[0]?.[1] || '')).toUpperCase()
+}
+
+function plural(n: number, one: string) {
+  return `${n} ${one}${n === 1 ? '' : 's'}`
+}
+
+// Master/detail: the team list on the left, the selected team's members on
+// the right (stacked on a phone). A team is always selected, so the right side
+// is never an empty void.
 function TeamsTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: AdminTeam) => void; onError: (m: string) => void }) {
-  const [openId, setOpenId] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(() => ov.teams.find(t => !t.archivedAt)?.id ?? null)
+  const [creating, setCreating] = useState(false)
 
   const rows = ov.teams.filter(t => showArchived || !t.archivedAt)
+  const groups: { label: string; teams: AdminTeam[] }[] = [
+    { label: 'Company teams', teams: rows.filter(t => t.kind === 'company') },
+    { label: 'Other teams', teams: rows.filter(t => t.kind !== 'company') },
+  ]
+  const archivedCount = ov.teams.filter(t => t.archivedAt).length
   const open = ov.teams.find(t => t.id === openId) || null
 
   return (
     <>
-      <div className="card">
-        <div className="card__head">
-          <h2>Teams</h2>
-          <span className="card__end" style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn--sm" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
-              {showArchived ? 'Hide archived' : 'Show archived'}
-            </button>
-            <button className="btn btn--sm btn--primary" onClick={() => setCreating(true)}>+ New team</button>
-          </span>
-        </div>
-        <div className="card__body--flush">
-          <div className="rows">
-            {rows.map(t => (
-              <button
-                key={t.id}
-                className="rowitem"
-                style={{ width: '100%', textAlign: 'left', background: t.id === openId ? 'var(--hover, rgba(0,0,0,.03))' : undefined }}
-                onClick={() => setOpenId(id => (id === t.id ? null : t.id))}
-                aria-expanded={t.id === openId}
-              >
-                <div className="rowitem__main">
-                  <div className="rowitem__title">
-                    {t.name}
-                    <span className="pill pill--muted">{t.kind === 'company' ? 'company team' : 'team'}</span>
-                    {t.archivedAt && <span className="pill pill--amber">archived</span>}
-                    {!t.archivedAt && !t.eosActive && <span className="pill pill--amber">inactive</span>}
+      <div className="split">
+        <div className="card">
+          <div className="card__head">
+            <h2>Teams</h2>
+            <span className="faint" style={{ fontSize: 12 }}>{rows.length}</span>
+            <span className="card__end">
+              <button className="btn btn--sm btn--primary" onClick={() => setCreating(true)}>+ New team</button>
+            </span>
+          </div>
+          <div className="card__body--flush">
+            {groups.map(g => (
+              <div key={g.label}>
+                <div className="listsec">{g.label}</div>
+                {g.teams.length === 0 ? (
+                  <div className="listsec__empty">
+                    {g.label === 'Other teams'
+                      ? 'None yet. Use + New team for a group that spans companies, like a leadership or clinical team.'
+                      : 'None.'}
                   </div>
-                  <div className="rowitem__meta">
-                    {t.kind === 'custom' && <span>on {t.homeName}</span>}
-                    <span>{t.memberCount} member{t.memberCount === 1 ? '' : 's'}</span>
-                  </div>
-                </div>
-              </button>
+                ) : g.teams.map(t => (
+                  <button
+                    key={t.id}
+                    className="teamrow"
+                    aria-current={t.id === openId}
+                    onClick={() => setOpenId(t.id)}
+                  >
+                    <span className="teamrow__mark" aria-hidden="true">{initials(t.name)}</span>
+                    <span className="teamrow__main">
+                      <span className="teamrow__name">{t.name}</span>
+                      <span className="teamrow__meta">
+                        {t.kind === 'custom' ? `on ${t.homeName}` : plural(t.memberCount, 'member')}
+                        {t.archivedAt && <span className="pill pill--amber">archived</span>}
+                        {!t.archivedAt && !t.eosActive && <span className="pill pill--amber">inactive</span>}
+                      </span>
+                    </span>
+                    {t.kind === 'custom' && <span className="teamrow__count" title={plural(t.memberCount, 'member')}>{t.memberCount}</span>}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
+          {archivedCount > 0 && (
+            <div className="card__foot">
+              <button className="btn btn--sm btn--ghost" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
+                {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="split__detail">
+          {open ? (
+            <TeamEditor key={open.id} team={open} onChanged={onChanged} onError={onError} />
+          ) : (
+            <div className="card">
+              <Empty title="No team selected">Pick a team on the left, or create one.</Empty>
+            </div>
+          )}
         </div>
       </div>
-
-      {open && <TeamEditor key={open.id} team={open} onChanged={onChanged} onError={onError} />}
 
       {creating && (
         <NewTeamModal
@@ -169,18 +207,25 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
 
   return (
     <div className="card">
-      <div className="card__head">
-        <h2>{team.name}</h2>
-        <span className="pill pill--muted">{team.kind === 'company' ? 'company team' : `on ${team.homeName}`}</span>
+      <div className="detailhead">
+        <span className="teamrow__mark teamrow__mark--lg" aria-hidden="true">{initials(team.name)}</span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h2 className="detailhead__title">{team.name}</h2>
+          <div className="detailhead__meta">
+            <span>{team.kind === 'company' ? 'Company team' : `Team on ${team.homeName}`}</span>
+            <span aria-hidden="true">·</span>
+            <span>{plural(members?.length ?? team.memberCount, 'member')}</span>
+            {team.archivedAt && <span className="pill pill--amber">archived</span>}
+            {!team.archivedAt && !team.eosActive && <span className="pill pill--amber">inactive</span>}
+          </div>
+        </div>
         {team.kind === 'custom' && (
-          <span className="card__end">
-            <button className="btn btn--sm" onClick={() => archive(!team.archivedAt)} disabled={busy}>
-              {team.archivedAt ? 'Restore team' : 'Archive team'}
-            </button>
-          </span>
+          <button className={'btn btn--sm' + (team.archivedAt ? '' : ' btn--ghost')} onClick={() => archive(!team.archivedAt)} disabled={busy}>
+            {team.archivedAt ? 'Restore team' : 'Archive team'}
+          </button>
         )}
       </div>
-      <div className="card__body">
+      <div className="card__body" style={{ borderBottom: '1px solid var(--border)' }}>
         {team.archivedAt ? (
           <div className="banner banner--warn"><div>This team is archived. Restore it to change who is on it.</div></div>
         ) : (
