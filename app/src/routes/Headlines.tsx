@@ -1,3 +1,4 @@
+import {compareNames, compareDates} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
 import { getHeadlines, saveHeadline, markHeadlineRead } from '../api'
@@ -19,6 +20,8 @@ export default function Headlines() {
   const [rows, setRows] = useState<Headline[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [detail, setDetail] = useState<Headline | null>(null)
+  const [sort, setSort] = useState('newest')
   const [dropFor, setDropFor] = useState<Headline | null>(null)
 
   const load = useCallback(() => {
@@ -33,6 +36,7 @@ export default function Headlines() {
   }
 
   const unread = rows ? rows.filter(r => !r.readDate) : []
+  const visible = [...(rows || [])].sort((a, b) => sort === 'author' ? compareNames(a.createdByName, b.createdByName) : sort === 'author-desc' ? compareNames(b.createdByName, a.createdByName) : compareDates(a.createdAt, b.createdAt, sort === 'newest'))
 
   return (
     <div className="page">
@@ -43,7 +47,7 @@ export default function Headlines() {
             Customer and employee news, one or two sentences. Unread ones roll into the next L10.
           </div>
         </div>
-        <div className="page__actions">
+        <div className="page__actions"><label className="sort-control">Sort headlines<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label>
           <button className="btn" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(u => !u)}>
             {unreadOnly ? 'Show all' : `Unread only${unread.length ? ` (${unread.length})` : ''}`}
           </button>
@@ -65,32 +69,31 @@ export default function Headlines() {
       ) : (
         <div className="card card__body--flush">
           <div className="rows">
-            {rows.map(h => (
-              <div className={'rowitem' + (h.readDate ? ' rowitem--done' : '')} key={h.id}>
+            {visible.map(h => (
+              <div className={'rowitem rowitem--clickable' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
                 <button
                   className={'check' + (h.readDate ? ' check--on' : '')}
-                  disabled={h.readOnly} onClick={() => mark(h)}
+                  disabled={h.readOnly} onClick={event => {event.stopPropagation(); void mark(h)}}
                   aria-label={h.readDate ? 'Mark unread' : 'Mark read'}
                   title={h.readDate ? `Read ${fmtDate(h.readDate)} — click to unmark` : 'Mark as read'}
                 >
                   ✓
                 </button>
-                <Avatar name={h.createdByName} id={h.createdByName} sm />
+                <div className="rowitem__owner"><Avatar name={h.createdByName} id={h.createdByName} sm/><span>{firstLast({name: h.createdByName}) || 'Unassigned'}</span></div>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
-                    {h.body}<FollowupContext item={h}/>
+                    <button type="button" className="rowitem__title-link headline-preview" aria-label={`Open headline: ${h.body.slice(0, 120)}`} onClick={event => {event.stopPropagation(); setDetail(h)}}>{h.body.split(/\r?\n/)[0].slice(0, 140)}{h.body.length > 140 || h.body.includes('\n') ? '…' : ''}</button><FollowupContext hideOwner item={h}/>
                     <span className={'pill ' + (h.type === 'customer' ? 'pill--green' : 'pill--muted')}>
                       <span className="pill__glyph" aria-hidden="true">{h.type === 'customer' ? '★' : '◆'}</span>
                       {h.type}
                     </span>
                   </div>
                   <div className="rowitem__meta">
-                    <span>{firstLast({ name: h.createdByName })}</span>
                     {h.createdAt && <span>{fmtDate(h.createdAt.slice(0, 10))}</span>}
                     {!h.readDate && <span className="duesoon">unread — rolls forward</span>}
                   </div>
                 </div>
-                {!h.readOnly&&<div className="rowitem__end">
+                {!h.readOnly&&<div className="rowitem__end" onClick={event => event.stopPropagation()}>
                   <RowMenu>
                     {close => (
                       <>
@@ -108,6 +111,7 @@ export default function Headlines() {
         </div>
       )}
 
+      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted">{firstLast({name: detail.createdByName}) || 'Unassigned'}{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div></Modal>}
       {adding && (
         <Modal title="New headline" onClose={() => setAdding(false)}>
           <HeadlineForm companyId={company.id} onDone={() => { setAdding(false); load() }} onCancel={() => setAdding(false)} />

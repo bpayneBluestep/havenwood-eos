@@ -1,3 +1,4 @@
+import {newestPeriods} from '../lib/listModel'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getScorecard, saveMeasurable, setScore, archiveMeasurable } from '../api'
 import type { Measurable, Scorecard as SC, Cell } from '../api'
@@ -14,9 +15,8 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * visible while you scroll the numbers. Every cell is directly editable, because
  * entering a week of numbers is the single most common thing anyone does here.
  *
- * Columns run OLDEST -> NEWEST left to right so the current week sits nearest the
- * eye when the grid is scrolled to its end, and reading left-to-right reads as
- * time passing.
+ * The latest period is next to the measurable column. Cells follow the same
+ * period sequence as the headings.
  */
 export default function Scorecard() {
   const { company, team, me } = useApp()
@@ -35,6 +35,7 @@ export default function Scorecard() {
 
   useEffect(() => { setSc(null); load() }, [load])
 
+  const periods = newestPeriods(sc?.periods || [])
   const cadences = company.settings.scorecardCadences?.length ? company.settings.scorecardCadences : ['weekly']
   const escalating = useMemo(() => (sc ? sc.rows.filter(r => r.escalate) : []), [sc])
 
@@ -93,7 +94,7 @@ export default function Scorecard() {
               <thead>
                 <tr>
                   <th className="c-meas">Measurable</th>
-                  {sc.periods.map(p => (
+                  {periods.map(p => (
                     <th key={p} scope="col" title={p}>
                       {shortPeriod(p)}
                       {p === sc.currentPeriod && <div className="faint" style={{ fontSize: 9, fontWeight: 700 }}>NOW</div>}
@@ -113,6 +114,7 @@ export default function Scorecard() {
                       key={item.row.id}
                       row={item.row}
                       current={sc.currentPeriod}
+                      periods={periods}
                       onEdit={() => setEditing(item.row)}
                       onDrop={() => setDropFor(item.row)}
                       onArchive={async () => {
@@ -172,10 +174,11 @@ function withGroupHeaders(rows: Measurable[]): Item[] {
 }
 
 function Row({
-  row, current, onEdit, onDrop, onArchive, onSaved, onError,
+  row, current, periods, onEdit, onDrop, onArchive, onSaved, onError,
 }: {
   row: Measurable
   current: string
+  periods: string[]
   onEdit: () => void
   onDrop: () => void
   onArchive: () => void
@@ -214,7 +217,7 @@ function Row({
         </div>
       </th>
 
-      {row.cells.map(c => (
+      {periods.map(period => row.cells.find(cell => cell.periodKey === period) || {periodKey: period, value: null, status: 'empty' as const, goal: row.goal, enteredBy: '', at: ''}).map(c => (
         <ScoreCell
           key={c.periodKey}
           measurableId={row.id}

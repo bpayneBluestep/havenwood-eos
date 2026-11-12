@@ -588,3 +588,33 @@ input, select, textarea { font: inherit; color: inherit; }
 .auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 .auth-sso { display: flex; flex-direction: column; gap: 8px; }
 .auth-sso .auth-btn { margin-top: 0; }
+
+/* EOS list controls and readable owner columns. */
+.sort-control { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
+.sort-control .select { width:auto; max-width:220px; }
+.rowitem__owner { display:flex; align-items:center; gap:9px; flex:0 0 170px; min-width:0; font-size:13px; color:var(--fg); }
+.rowitem__owner span:last-child { overflow-wrap:anywhere; }
+.rowitem__title-link, .detail-toggle, .date-edit { font:inherit; color:inherit; background:none; border:0; padding:0; text-align:left; cursor:pointer; }
+.rowitem__title-link:hover, .detail-toggle:hover, .date-edit:hover:not(:disabled) { color:var(--accent); text-decoration:underline; }
+.rowitem__title-link:focus-visible, .detail-toggle:focus-visible, .date-edit:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+.detail-toggle { margin-top:6px; color:var(--accent); font-size:12px; }
+.rowitem--clickable { cursor:pointer; }
+.headline-preview { overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.detail-body { white-space:pre-wrap; overflow-wrap:anywhere; }
+.edit-fields { padding:0; margin:0; border:0; min-width:0; }
+.rock-owner-group .rock-milestones { margin-left:40px; padding-left:52px; border-left:2px solid var(--border-2); }
+.date-editor { display:inline-flex; flex-wrap:wrap; gap:5px; align-items:center; }
+.date-editor .input { width:150px; }
+.date-edit { font-size:12px; }
+.date-edit:disabled { cursor:default; }
+.grid__group td { padding:16px 12px; border-top:2px solid var(--border-2); border-bottom:2px solid var(--border-2); font-size:12px; font-weight:600; color:var(--muted); }
+.grid { font-size:14px; -webkit-font-smoothing:auto; }
+.grid .meas__title { font-weight:600; }
+.grid thead th { font-size:12px; font-weight:600; }
+.grid .owner__name, .grid .meas__goal { font-size:12px; }
+.menu__pop--portal { position:fixed; z-index:1200; top:auto; right:auto; max-width:calc(100vw - 16px); max-height:calc(100vh - 16px); overflow-y:auto; }
+@media(max-width:700px) {
+ .rowitem__owner { flex-basis:100px; flex-direction:column; align-items:flex-start; gap:4px; font-size:12px; }
+ .rock-owner-group .rock-milestones { margin-left:16px; padding-left:24px; }
+ .sort-control { flex-wrap:wrap; }
+}

@@ -1,11 +1,13 @@
+import {rockStatus} from '../rocks/model'
+import {useToday} from '../lib/useToday'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getMy90, setTodoStatus, setRockStatus, saveMilestone } from '../api'
 import type { My90 as My90Data } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, Empty, ErrorBanner, Loading,
-  cellClass, cellMark, dueClass, fmtDate, fmtGoal, plusDaysIso, shortPeriod,
+  Avatar, Empty, ErrorBanner, Loading, StatusPill,
+  cellClass, cellMark, dueClass, fmtDate, fmtGoal, shortPeriod,
 } from '../lib/ui'
 import { TodoRow } from './Todos'
 
@@ -26,19 +28,21 @@ export default function My90() {
 
   useEffect(() => { load() }, [load])
 
-  const today = plusDaysIso(0)
+  const today = useToday()
+  const rocks = (data?.rocks || []).map(rock => ({...rock, status: rockStatus(rock, today)}))
 
-  if (!data && !err) return <div className="page"><Loading what="Loading your 90" /></div>
 
   const openTodos = data ? data.todos.filter(t => t.status === 'open') : []
   const overdue = openTodos.filter(t => t.dueDate && t.dueDate < today)
-  const offTrack = data ? data.rocks.filter(r => r.status === 'off_track') : []
+  const offTrack = data ? rocks.filter(r => r.status === 'off_track') : []
   const redMeasurables = data
     ? data.measurables.filter(m => {
         const last = [...m.cells].reverse().find(c => c.status === 'green' || c.status === 'red')
         return last?.status === 'red'
       })
     : []
+
+  if (!data && !err) return <div className="page"><Loading what="Loading your 90" /></div>
 
   return (
     <div className="page">
@@ -129,7 +133,7 @@ export default function My90() {
                 <Empty title="You don't own a rock this quarter" />
               ) : (
                 <div className="rows">
-                  {data.rocks.map(r => (
+                  {rocks.map(r => (
                     <div className="rowitem" key={r.id}>
                       <Avatar name={r.ownerName} id={r.ownerId} sm />
                       <div className="rowitem__main">
@@ -146,7 +150,7 @@ export default function My90() {
                         </div>
                       </div>
                       <div className="rowitem__end">
-                        <div className="seg" role="group" aria-label={`Status for ${r.title}`}>
+                        {r.milestones.length > 0 ? <StatusPill status={r.status}/> : <div className="seg" role="group" aria-label={`Status for ${r.title}`}>
                           <button aria-pressed={r.status === 'on_track'} onClick={async () => {
                             try { await setRockStatus(r.id, 'on_track', r.rev); load() } catch (e: any) { setErr(e.message) }
                           }}>On</button>
@@ -156,7 +160,7 @@ export default function My90() {
                           <button aria-pressed={r.status === 'done'} onClick={async () => {
                             try { await setRockStatus(r.id, 'done', r.rev); load() } catch (e: any) { setErr(e.message) }
                           }}>Done</button>
-                        </div>
+                        </div>}
                       </div>
                     </div>
                   ))}

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useId } from 'react'
+import {createPortal} from 'react-dom'
 import type { ReactNode } from 'react'
 import type { CellStatus, Goal, Person } from '../api'
 import { searchStaff } from '../api'
@@ -213,30 +214,57 @@ export function Modal({
  */
 export function RowMenu({ children }: { children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const popup = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({left: 0, top: 0})
+  const id = useId()
+  const close = () => {setOpen(false); button.current?.focus()}
+
+  useLayoutEffect(() => {
+    if (!open || !button.current || !popup.current) return
+    const anchor = button.current.getBoundingClientRect()
+    const box = popup.current.getBoundingClientRect()
+    const left = Math.max(8, Math.min(anchor.right - box.width, window.innerWidth - box.width - 8))
+    const top = anchor.bottom + 4 + box.height <= window.innerHeight - 8
+      ? anchor.bottom + 4 : Math.max(8, anchor.top - box.height - 4)
+    setPosition({left, top})
+    popup.current.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+  }, [open])
 
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    const onDown = (event: MouseEvent) => {
+      if (!button.current?.contains(event.target as Node) && !popup.current?.contains(event.target as Node)) setOpen(false)
     }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {event.preventDefault(); event.stopPropagation(); close()}
+      if (event.key === 'Tab') setOpen(false)
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        const buttons = Array.from(popup.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])
+        if (!buttons.length) return
+        event.preventDefault()
+        const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
+        buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus()
+      }
+    }
+    const onScroll = (event: Event) => {if (!popup.current?.contains(event.target as Node)) setOpen(false)}
+    const onResize = () => setOpen(false)
     document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, true)
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onResize)
     return () => {
       document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onResize)
     }
   }, [open])
 
-  return (
-    <div className="menu" ref={ref}>
-      <button className="menu__btn" onClick={() => setOpen(o => !o)} aria-label="Row actions" aria-expanded={open}>
-        ⋯
-      </button>
-      {open && <div className="menu__pop">{children(() => setOpen(false))}</div>}
-    </div>
-  )
+  return <div className="menu" onClick={event => event.stopPropagation()}>
+    <button ref={button} type="button" className="menu__btn" onClick={event => {event.stopPropagation(); setOpen(value => !value)}} aria-label="Row actions" aria-expanded={open} aria-controls={open ? id : undefined}>⋯</button>
+    {open && createPortal(<div id={id} ref={popup} className="menu__pop menu__pop--portal" role="group" aria-label="Row actions" style={position} onClick={event => event.stopPropagation()}>{children(close)}</div>, document.body)}
+  </div>
 }
 
 /*

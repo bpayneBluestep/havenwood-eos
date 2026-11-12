@@ -1,5 +1,7 @@
 import MilestoneTasks from '../rocks/MilestoneTasks'
-import {groupRocks} from '../rocks/model'
+import {groupRocks, rockStatus} from '../rocks/model'
+import MilestoneDate from '../rocks/MilestoneDate'
+import {useToday} from '../lib/useToday'
 import type {MilestoneStatus} from '../rocks/model'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
@@ -14,12 +16,12 @@ import { DropToIssueModal } from '../components/DropToIssue'
 
 /*
  * Rocks as rows with a status pill, milestones expanding inline underneath —
- * Ninety's shape. Status is On Track / Off Track / Done and the OWNER sets it:
- * completing milestones deliberately does not move it, because the point is that
- * the owner says it out loud in the L10. We nudge; we never auto-flip.
+ * Status follows milestone completion and overdue dates. Rocks without
+ * milestones retain their owner's status.
  */
 export default function Rocks() {
   const { company, team, me } = useApp()
+  const today = useToday()
   const [view, setView] = useState<'list' | 'board'>('list')
   const [scope, setScope] = useState<RockScope>('own')
   const [counts, setCounts] = useState<RockScopeCounts | null>(null)
@@ -45,6 +47,7 @@ export default function Rocks() {
   useEffect(() => { setRows(null); setBoard(null); load() }, [load])
 
   const quarter = company.periods.quarter
+  const displayRows = rows?.map(rock => ({...rock, status: rockStatus(rock, today)}))
 
   return (
     <div className="page">
@@ -53,7 +56,7 @@ export default function Rocks() {
           <h1>Rocks</h1>
           <div className="page__sub">
             {scope === 'own'
-              ? `3–7 priorities for ${quarter}, each with one accountable owner. The owner declares status.`
+              ? `3–7 priorities for ${quarter}, each with one accountable owner. Status follows milestone dates and completion.`
               : scope === 'rolled'
                 ? `${quarter} — this company's rocks, plus the ones raised up from the companies beneath it.`
                 : `${quarter} — every rock in every company you can see.`}
@@ -95,8 +98,8 @@ export default function Rocks() {
             <button aria-pressed={view === 'board'} onClick={() => setView('board')}>Planning board</button>
           </div>
           {/* Carry-forward is a per-company act — never offer it for rolled-up rows. */}
-          {view === 'list' && rows && rows.some(r => !r.foreign && r.status !== 'done') && (
-            <button className="btn" onClick={() => setCarry(rows.filter(r => !r.foreign && r.status !== 'done'))}>
+          {view === 'list' && rows && displayRows?.some(r => !r.foreign && r.status !== 'done') && (
+            <button className="btn" onClick={() => setCarry((displayRows || []).filter(r => !r.foreign && r.status !== 'done'))}>
               Carry forward…
             </button>
           )}
@@ -117,7 +120,7 @@ export default function Rocks() {
           </div>
         ) : (
           <div className="rock-owner-groups">
-            {groupRocks(rows,team).map(group=><details className="card rock-owner-group" open key={group.id}>
+            {groupRocks(displayRows || [],team).map(group=><details className="card rock-owner-group" open key={group.id}>
               <summary><Avatar name={group.name} id={group.id}/><span>{group.name}</span><small>{group.rocks.length} rocks · {group.rocks.reduce((count,rock)=>count+rock.milestones.filter(item=>!item.done).length,0)} open milestones</small></summary>
               <div className="rows">{group.rocks.length===0?<p className="card__body muted">No rocks assigned for this quarter.</p>:group.rocks.map(r=><RockRow key={r.id} rock={r} onChanged={load} onEdit={()=>setEditing(r)} onDrop={()=>setDropFor(r)} onNote={()=>setNoteFor(r)} onError={setErr}/>)}</div>
             </details>)}
@@ -141,7 +144,7 @@ export default function Rocks() {
                     <div style={{ fontWeight: 560, marginBottom: 4 }}>{r.title}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                       <Avatar name={r.ownerName} id={r.ownerId} sm />
-                      <StatusPill status={r.status} />
+                      <StatusPill status={rockStatus(r, plusDaysIso(0))} />
                       {r.foreign && r.companyName && <span className="pill pill--muted">{r.companyName}</span>}
                       {r.companyRock && <span className="pill pill--muted">company</span>}
                     </div>
@@ -223,6 +226,12 @@ function RockRow({
     finally { setBusy(false) }
   }
 
+  const updateDueDate = async (item: Milestone, dueDate: string) => {
+    setBusy(true)
+    try {await saveMilestone(rock.id, {id: item.id, dueDate}, rock.rev); onChanged()}
+    finally {setBusy(false)}
+  }
+
   const toggleMs = async (m: Milestone) => {
     setBusy(true)
     try { await saveMilestone(rock.id, { id: m.id, done: !m.done }, rock.rev); onChanged() }
@@ -287,16 +296,15 @@ function RockRow({
             {rock.milestones.length > 0 && (
               <span className="mono">{done}/{rock.milestones.length} milestones</span>
             )}
-            {/* Nudge, never auto-flip. */}
-            {overdueOpen > 0 && rock.status === 'on_track' && (
+            {overdueOpen > 0 && (
               <span className="duesoon">
-                {overdueOpen} milestone{overdueOpen > 1 ? 's' : ''} overdue — still on track?
+                {overdueOpen} milestone{overdueOpen > 1 ? 's' : ''} overdue
               </span>
             )}
           </div>
         </div>
         <div className="rowitem__end">
-          <button className="btn btn--sm btn--ghost" onClick={cycle} disabled={busy || rock.readOnly} title={rock.readOnly ? 'Only the team that owns this rock can change it' : 'Change status'}>
+          <button className="btn btn--sm btn--ghost" onClick={cycle} disabled={busy || rock.readOnly || rock.milestones.length > 0} title={rock.milestones.length ? 'Status follows milestone dates and completion' : rock.readOnly ? 'Only the team that owns this rock can change it' : 'Change status'}>
             <StatusPill status={rock.status} />
           </button>
           {!rock.readOnly && <RowMenu>
@@ -318,17 +326,16 @@ function RockRow({
       </div>
 
       {open && (
-        <div className="rowitem__expand">
+        <div className="rowitem__expand rock-milestones">
           {rock.description && <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>{rock.description}</p>}
 
           {rock.milestones.length === 0 && !adding && (
             <div className="faint" style={{ fontSize: 12.5, padding: '7px 0' }}>
-              No milestones. They're named sub-steps with their own date — useful, and they never
-              change the Rock's status.
+              No milestones. Add a milestone to calculate status from its due date and completion.
             </div>
           )}
 
-          {milestoneWorkflow && <MilestoneTasks rock={rock} people={team} enabled={milestoneWorkflow} busy={busy} onStatus={updateMs} onRemove={async m=>{
+          {milestoneWorkflow && <MilestoneTasks rock={rock} people={team} enabled={milestoneWorkflow} busy={busy} onDueDate={updateDueDate} onStatus={updateMs} onRemove={async m=>{
             if(!confirm(`Remove milestone "${m.title}"?`))return
             setBusy(true)
             try{await saveMilestone(rock.id,{id:m.id,remove:true},rock.rev);onChanged()}catch(e:any){onError(e.message)}finally{setBusy(false)}
@@ -345,7 +352,7 @@ function RockRow({
                 ✓
               </button>
               <span className="ms__t">{m.title}</span>
-              {m.dueDate && <span className={'mono faint ' + dueClass(m.dueDate, m.done)} style={{ fontSize: 11.5 }}>{fmtDate(m.dueDate)}</span>}
+              <MilestoneDate item={m} disabled={busy || rock.readOnly} onSave={dueDate => updateDueDate(m, dueDate)}/>
               {!rock.readOnly && <button
                 className="btn btn--sm btn--ghost btn--danger"
                 title="Remove milestone"
@@ -604,7 +611,7 @@ function CarryModal({
                   <span>{r.milestones.filter(m => !m.done).length} milestones still open</span>
                 </div>
               </div>
-              <StatusPill status={r.status} />
+              <StatusPill status={rockStatus(r, plusDaysIso(0))} />
             </label>
           ))}
         </div>

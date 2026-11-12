@@ -1,3 +1,5 @@
+import {compareNames, compareDates, isOverdue} from '../lib/listModel'
+import {useToday} from '../lib/useToday'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
 import { getTodos, saveTodo, setTodoStatus } from '../api'
@@ -19,6 +21,9 @@ import { DropToIssueModal } from '../components/DropToIssue'
 export default function Todos() {
   const { company, team, me } = useApp()
   const [mine, setMine] = useState(false)
+  const [overdueOnly, setOverdueOnly] = useState(false)
+  const [sort, setSort] = useState('due')
+  const today = useToday()
   const [showDone, setShowDone] = useState(false)
   const [rows, setRows] = useState<Todo[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -42,8 +47,9 @@ export default function Todos() {
     catch (e: any) { setErr(e.message); load() }
   }
 
-  const open = rows ? rows.filter(r => r.status === 'open') : []
-  const done = rows ? rows.filter(r => r.status === 'done') : []
+  const visible = (rows || []).filter(row => !overdueOnly || isOverdue(row, today)).sort((a, b) => sort === 'owner' ? compareNames(a.ownerName, b.ownerName) : sort === 'owner-desc' ? compareNames(b.ownerName, a.ownerName) : compareDates(a.dueDate, b.dueDate, sort === 'due-desc'))
+  const open = visible.filter(row => row.status === 'open')
+  const done = visible.filter(row => row.status === 'done')
 
   return (
     <div className="page">
@@ -54,11 +60,12 @@ export default function Todos() {
             Seven-day commitments. If it takes longer than that, it wants to be a Rock.
           </div>
         </div>
-        <div className="page__actions">
+        <div className="page__actions"><label className="sort-control">Sort to-dos<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="due">Due date: earliest first</option><option value="due-desc">Due date: latest first</option><option value="owner">Owner A–Z</option><option value="owner-desc">Owner Z–A</option></select></label>
           <div className="seg" role="group" aria-label="Scope">
             <button aria-pressed={!mine} onClick={() => setMine(false)}>Team</button>
             <button aria-pressed={mine} onClick={() => setMine(true)}>Mine</button>
           </div>
+          <button className="btn" aria-pressed={overdueOnly} onClick={() => setOverdueOnly(value => !value)}>Overdue</button>
           <button className="btn" aria-pressed={showDone} onClick={() => setShowDone(s => !s)}>
             {showDone ? 'Hide done' : 'Show done'}
           </button>
@@ -83,7 +90,7 @@ export default function Todos() {
               {open.map(t => (
                 <TodoRow key={t.id} todo={t} onToggle={() => toggle(t)} onEdit={() => setEditing(t)} onDrop={() => setDropFor(t)} />
               ))}
-              {open.length === 0 && <Empty title="Everything's done" />}
+              {open.length === 0 && <Empty title={overdueOnly ? 'No overdue to-dos match this scope' : "Everything's done"} />}
             </div>
           </div>
 
@@ -144,17 +151,16 @@ export function TodoRow({
       >
         ✓
       </button>
-      <Avatar name={todo.ownerName} id={todo.ownerId} sm />
+      <div className="rowitem__owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><span>{firstLast({name: todo.ownerName}) || 'Unassigned'}</span></div>
       <div className="rowitem__main">
         <div className="rowitem__title">
-          {todo.title}<FollowupContext item={todo}/>
+          {onEdit ? <button type="button" className="rowitem__title-link" onClick={onEdit}>{todo.title}</button> : todo.title}<FollowupContext hideOwner item={todo}/>
           {todo.personal && <span className="pill pill--muted" title="Only you can see this">personal</span>}
           {todo.origin && todo.origin.kind === 'issue' && (
             <span className="pill pill--muted" title={todo.origin.label}>from issue</span>
           )}
         </div>
         <div className="rowitem__meta">
-          <span>{firstLast({ name: todo.ownerName }) || 'Unassigned'}</span>
           {todo.dueDate && (
             <span className={dueClass(todo.dueDate, isDone)}>
               {todo.dueDate < plusDaysIso(0) && !isDone ? 'overdue — ' : 'due '}{fmtDate(todo.dueDate)}
@@ -199,7 +205,9 @@ function TodoModal({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  const readOnly = !!initial?.readOnly
   const submit = async () => {
+    if (readOnly) return
     if (!title.trim()) { setErr('A to-do needs a title.'); return }
     setBusy(true); setErr(null)
     try {
@@ -217,16 +225,17 @@ function TodoModal({
 
   return (
     <Modal
-      title={initial ? 'Edit to-do' : 'New to-do'}
+      title={readOnly ? 'To-do details' : initial ? 'Edit to-do' : 'New to-do'}
       onClose={onClose}
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn btn--primary" onClick={submit} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+          {!readOnly && <button className="btn btn--primary" onClick={submit} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>}
         </>
       }
     >
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
+      <fieldset className="edit-fields" disabled={readOnly || busy}>
       <div className="field">
         <label htmlFor="t-title">To-Do</label>
         <input id="t-title" className="input" value={title} autoFocus onChange={e => setTitle(e.target.value)} />
@@ -252,6 +261,7 @@ function TodoModal({
           Personal — only you can see it, and it stays out of the L10
         </label>
       </div>
+      </fieldset>
     </Modal>
   )
 }

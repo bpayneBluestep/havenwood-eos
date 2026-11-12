@@ -1,3 +1,5 @@
+import {rockStatus} from '../rocks/model'
+import {useToday} from '../lib/useToday'
 import FollowupContext from '../meetings/FollowupContext'
 import MeetingWorkspace from '../meetings/MeetingWorkspace'
 import {todayIso} from '../lib/ui'
@@ -6,7 +8,7 @@ import { getL10, setScore, setRockStatus, setTodoStatus, markHeadlineRead } from
 import type { L10 as L10Data, Rock, Issue, Todo, Headline, Measurable, Cell } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, Empty, ErrorBanner, Loading, RowMenu,
+  Avatar, Empty, ErrorBanner, Loading, RowMenu, StatusPill,
   cellClass, cellMark, dueClass, fmtDate, fmtGoal, firstLast, shortPeriod,
 } from '../lib/ui'
 import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
@@ -381,7 +383,9 @@ function LiveCell({
   )
 }
 
-function RockLine({ rock, onSaved, onError, onDrop }: { rock: Rock; onSaved: () => void; onError: (m: string) => void; onDrop: () => void }) {
+function RockLine({ rock: original, onSaved, onError, onDrop }: { rock: Rock; onSaved: () => void; onError: (m: string) => void; onDrop: () => void }) {
+  const today = useToday()
+  const rock = {...original, status: rockStatus(original, today)}
   const [busy, setBusy] = useState(false)
   const set = async (status: string) => {
     setBusy(true)
@@ -406,13 +410,11 @@ function RockLine({ rock, onSaved, onError, onDrop }: { rock: Rock; onSaved: () 
         </div>
       </div>
       <div className="rowitem__end">
-        {/* The owner declares it out loud — so both options are one click, and
-            neither is inferred from milestone progress. */}
-        <div className="seg" role="group" aria-label={`Status for ${rock.title}`}>
+        {rock.milestones.length > 0 ? <StatusPill status={rock.status}/> : <div className="seg" role="group" aria-label={`Status for ${rock.title}`}>
           <button aria-pressed={rock.status === 'on_track'} disabled={busy||rock.readOnly} onClick={() => set('on_track')}>On</button>
           <button aria-pressed={rock.status === 'off_track'} disabled={busy||rock.readOnly} onClick={() => set('off_track')}>Off</button>
           <button aria-pressed={rock.status === 'done'} disabled={busy||rock.readOnly} onClick={() => set('done')}>Done</button>
-        </div>
+        </div>}
         {!rock.readOnly&&<RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}</RowMenu>}
       </div>
     </div>

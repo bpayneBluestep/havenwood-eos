@@ -1,3 +1,4 @@
+import {compareNames, compareDates, priorityLabel, priorityLabels} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getIssues, saveIssue, rankIssues, solveIssue, archiveIssues } from '../api'
@@ -19,6 +20,9 @@ import { LinkedTodoModal } from '../components/DropToIssue'
 export default function Issues() {
   const {company,team,me,nameOf,companies,meetingWorkflow}=useApp()
   const [assignedTeam,setAssignedTeam]=useState('')
+  const [sort, setSort] = useState('manual')
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const ownerName = (issue: Issue) => firstLast({name: issue.ownerName || nameOf(issue.ownerId)})
   const [term, setTerm] = useState<'short' | 'long'>('short')
   const [showSolved, setShowSolved] = useState(false)
   const [rows, setRows] = useState<Issue[] | null>(null)
@@ -42,15 +46,23 @@ export default function Issues() {
     const from = dragId.current
     dragId.current = null
     setOverId(null)
-    if (!from || !rows || from === targetId || rows.find(r=>r.id===targetId)?.readOnly) return
+    if (sort !== 'manual' || !from || !rows || from === targetId || rows.find(r=>r.id===targetId)?.readOnly) return
     const ids = rows.filter(r=>!r.readOnly).map(r => r.id)
     const fi = ids.indexOf(from), ti = ids.indexOf(targetId)
     if (fi < 0 || ti < 0) return
     ids.splice(ti, 0, ids.splice(fi, 1)[0])
     // Optimistic: reorder locally, then let the server confirm.
-    setRows(ids.map(id => rows.find(r => r.id === id)!).filter(Boolean))
+    let index = 0
+    setRows(rows.map(row => row.readOnly ? row : rows.find(item => item.id === ids[index++])!))
     try { await rankIssues(ids); load() } catch (e: any) { setErr(e.message); load() }
   }
+
+  const visible = (rows || []).filter(issue => !assignedTeam || (assignedTeam === 'unassigned' ? !issue.responsibleTeamId : issue.responsibleTeamId === assignedTeam)).sort((a, b) => {
+    if (sort === 'owner') return compareNames(ownerName(a), ownerName(b))
+    if (sort === 'owner-desc') return compareNames(ownerName(b), ownerName(a))
+    if (sort === 'newest' || sort === 'oldest') return compareDates(a.createdDate, b.createdDate, sort === 'newest')
+    return 0
+  })
 
   const solvedCount = rows ? rows.filter(r => r.status === 'solved').length : 0
 
@@ -63,7 +75,7 @@ export default function Issues() {
             Ranked highest first. Drag to reorder — the top of this list is what the L10 works on.
           </div>
         </div>
-        <div className="page__actions">{meetingWorkflow&&<label>Responsible team<select className="select" value={assignedTeam} onChange={e=>setAssignedTeam(e.target.value)}><option value="">All responsible teams</option><option value="unassigned">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
+        <div className="page__actions"><label className="sort-control">Sort issues<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="manual">Manual order</option><option value="owner">Owner A–Z</option><option value="owner-desc">Owner Z–A</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>{meetingWorkflow&&<label>Responsible team<select className="select" value={assignedTeam} onChange={e=>setAssignedTeam(e.target.value)}><option value="">All responsible teams</option><option value="unassigned">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
           <div className="seg" role="group" aria-label="Term">
             <button aria-pressed={term === 'short'} onClick={() => setTerm('short')}>Short-term</button>
             <button aria-pressed={term === 'long'} onClick={() => setTerm('long')}>Long-term</button>
@@ -102,23 +114,25 @@ export default function Issues() {
       ) : (
         <div className="card card__body--flush">
           <div className="rows">
-            {rows.filter(issue=>!assignedTeam||(assignedTeam==='unassigned'?!issue.responsibleTeamId:issue.responsibleTeamId===assignedTeam)).map((issue, i) => (
+            {visible.length === 0 && <Empty title="No issues match this filter"/>}
+            {visible.map(issue => (
               <div
                 key={issue.id}
                 className={'rowitem' + (overId === issue.id ? ' rowitem--dragover' : '') + (issue.status === 'solved' ? ' rowitem--done' : '')}
-                draggable={!issue.readOnly}
+                draggable={!issue.readOnly && sort === 'manual'}
                 onDragStart={() => { dragId.current = issue.id }}
                 onDragOver={e => { e.preventDefault(); setOverId(issue.id) }}
                 onDragLeave={() => setOverId(o => (o === issue.id ? null : o))}
                 onDrop={e => { e.preventDefault(); onDrop(issue.id) }}
               >
-                <span className="rowitem__grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>
-                <span className={'rank' + (i < 3 && issue.status === 'open' ? ' rank--top' : '')} title={`Rank ${i + 1}`}>
-                  {i + 1}
+                <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><span>{ownerName(issue) || 'Unassigned'}</span></div>
+                {sort === 'manual' && <span className="rowitem__grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>}
+                <span className={'rank' + ((issue.priority || 0) >= 4 ? ' rank--top' : '')} title={`Importance: ${priorityLabel(issue.priority)} (1 lowest, 5 highest)`} aria-label={`Importance: ${priorityLabel(issue.priority)}; 1 lowest, 5 highest`}>
+                  {priorityLabel(issue.priority) === 'Unranked' ? '–' : issue.priority}
                 </span>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
-                    {issue.title}<FollowupContext item={issue}/>
+                    {issue.title}<FollowupContext hideOwner item={issue}/>
                     {issue.origin && issue.origin.kind !== 'manual' && (
                       <span className="pill pill--muted" title={issue.origin.label}>
                         from {issue.origin.kind}
@@ -127,13 +141,15 @@ export default function Issues() {
                     {issue.status === 'solved' && <span className="pill pill--green"><span className="pill__glyph" aria-hidden="true">✓</span>solved</span>}
                   </div>
                   <div className="rowitem__meta">
-                    <span className="mono">P{issue.priority ?? '–'}</span>
+                    <span className="mono">Importance: {priorityLabel(issue.priority)}</span>
                     {issue.createdByName && <span>{firstLast({ name: issue.createdByName })}</span>}
                     {issue.createdDate && <span>{fmtDate(issue.createdDate)}</span>}
                     {issue.linkedTodoIds.length > 0 && (
                       <span>{issue.linkedTodoIds.length} linked to-do{issue.linkedTodoIds.length > 1 ? 's' : ''}</span>
                     )}
                   </div>
+                  {(issue.description || issue.solution) && <button className="detail-toggle" aria-expanded={expanded.has(issue.id)} aria-controls={`issue-details-${issue.id}`} onClick={() => setExpanded(current => {const next = new Set(current); if (next.has(issue.id)) next.delete(issue.id); else next.add(issue.id); return next})}>{expanded.has(issue.id) ? 'Hide details' : 'Show details'}</button>}
+                  <div id={`issue-details-${issue.id}`} hidden={!expanded.has(issue.id)}>
                   {issue.description && (
                     <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{issue.description}</div>
                   )}
@@ -142,9 +158,9 @@ export default function Issues() {
                       <strong>Solved:</strong> {issue.solution}
                     </div>
                   )}
+                  </div>
                 </div>
                 {!issue.readOnly&&<div className="rowitem__end">
-                  {issue.ownerId && <Avatar name={nameOf(issue.ownerId)} id={issue.ownerId} sm />}
                   {issue.status === 'open' && (
                     <button className="btn btn--sm" onClick={() => setSolving(issue)}>Solve</button>
                   )}
@@ -278,9 +294,9 @@ function IssueModal({
           </select>
         </div>
         <div className="field">
-          <label htmlFor="i-pri">Priority</label>
+          <label htmlFor="i-pri">Importance (1 lowest, 5 highest)</label>
           <select id="i-pri" className="select" value={priority} onChange={e => setPriority(Number(e.target.value))}>
-            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
+            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{priorityLabels[n]}</option>)}
           </select>
         </div>
         <div className="field">

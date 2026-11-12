@@ -10,3 +10,5 @@ export function groupRocks(rows:Rock[],people:PersonRef[]){
  for(const rock of rows){const id=rock.ownerId||'';if(!groups.has(id))groups.set(id,{id,name:rock.ownerName||(id?'Team member':'Unassigned'),rocks:[]});groups.get(id)!.rocks.push(rock)}
  return [...groups.values()].sort((a,b)=>a.id===''?1:b.id===''?-1:a.name.localeCompare(b.name))
 }
+
+export {calculateRockStatus as rockStatus} from '../../../platform/rockStatus'
