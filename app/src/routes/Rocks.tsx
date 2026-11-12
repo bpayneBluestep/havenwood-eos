@@ -1,3 +1,4 @@
+import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
 import { getRocks, getRocksBoard, saveRock, setRockStatus, setRockRollUp, saveMilestone, addRockNote, carryForwardRocks } from '../api'
 import type { Rock, Milestone, RockScope, RockScopeCounts } from '../api'
@@ -257,7 +258,7 @@ function RockRow({
         <Avatar name={rock.ownerName} id={rock.ownerId} />
         <div className="rowitem__main">
           <div className="rowitem__title">
-            {rock.title}
+            {rock.title}<FollowupContext item={rock}/>
             {/* Where it lives — only shown once the list spans more than one company. */}
             {rock.foreign && rock.companyName && (
               <span

@@ -1,3 +1,4 @@
+import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
 import { getHeadlines, saveHeadline, markHeadlineRead } from '../api'
 import type { Headline } from '../api'
@@ -68,7 +69,7 @@ export default function Headlines() {
               <div className={'rowitem' + (h.readDate ? ' rowitem--done' : '')} key={h.id}>
                 <button
                   className={'check' + (h.readDate ? ' check--on' : '')}
-                  onClick={() => mark(h)}
+                  disabled={h.readOnly} onClick={() => mark(h)}
                   aria-label={h.readDate ? 'Mark unread' : 'Mark read'}
                   title={h.readDate ? `Read ${fmtDate(h.readDate)} — click to unmark` : 'Mark as read'}
                 >
@@ -77,7 +78,7 @@ export default function Headlines() {
                 <Avatar name={h.createdByName} id={h.createdByName} sm />
                 <div className="rowitem__main">
                   <div className="rowitem__title">
-                    {h.body}
+                    {h.body}<FollowupContext item={h}/>
                     <span className={'pill ' + (h.type === 'customer' ? 'pill--green' : 'pill--muted')}>
                       <span className="pill__glyph" aria-hidden="true">{h.type === 'customer' ? '★' : '◆'}</span>
                       {h.type}
@@ -89,7 +90,7 @@ export default function Headlines() {
                     {!h.readDate && <span className="duesoon">unread — rolls forward</span>}
                   </div>
                 </div>
-                <div className="rowitem__end">
+                {!h.readOnly&&<div className="rowitem__end">
                   <RowMenu>
                     {close => (
                       <>
@@ -100,7 +101,7 @@ export default function Headlines() {
                       </>
                     )}
                   </RowMenu>
-                </div>
+                </div>}
               </div>
             ))}
           </div>

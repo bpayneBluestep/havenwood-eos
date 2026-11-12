@@ -1,3 +1,4 @@
+import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
 import { getTodos, saveTodo, setTodoStatus } from '../api'
 import type { Todo } from '../api'
@@ -138,7 +139,7 @@ export function TodoRow({
     <div className={'rowitem' + (isDone ? ' rowitem--done' : '')}>
       <button
         className={'check' + (isDone ? ' check--on' : '')}
-        onClick={onToggle}
+        disabled={todo.readOnly} onClick={onToggle}
         aria-label={isDone ? `Mark "${todo.title}" not done` : `Mark "${todo.title}" done`}
       >
         ✓
@@ -146,7 +147,7 @@ export function TodoRow({
       <Avatar name={todo.ownerName} id={todo.ownerId} sm />
       <div className="rowitem__main">
         <div className="rowitem__title">
-          {todo.title}
+          {todo.title}<FollowupContext item={todo}/>
           {todo.personal && <span className="pill pill--muted" title="Only you can see this">personal</span>}
           {todo.origin && todo.origin.kind === 'issue' && (
             <span className="pill pill--muted" title={todo.origin.label}>from issue</span>
@@ -162,7 +163,7 @@ export function TodoRow({
           {showCompany && todo.companyName && <span className="faint">{todo.companyName}</span>}
         </div>
       </div>
-      {(onEdit || onDrop) && (
+      {!todo.readOnly&&(onEdit || onDrop) && (
         <div className="rowitem__end">
           <RowMenu>
             {close => (

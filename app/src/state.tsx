@@ -16,9 +16,11 @@ import Admin from './routes/Admin'
  */
 
 interface Ctx {
+  meetingWorkflow: boolean
   me: Me
   companies: CompanyBrief[]
   company: CompanyBrief
+  teams: Record<string,Person[]>
   team: Person[]
   multiCompany: boolean
   setCompanyId: (id: string) => void
@@ -143,10 +145,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const value: Ctx = {
+    meetingWorkflow: data.capabilities?.meetingWorkflow === 1,
     me: data.me,
     companies: data.companies,
     company,
     team,
+    teams: data.teams || {[company.id]:team},
     multiCompany: data.multiCompany,
     setCompanyId,
     reload,

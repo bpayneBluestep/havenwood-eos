@@ -1,3 +1,4 @@
+import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getIssues, saveIssue, rankIssues, solveIssue, archiveIssues } from '../api'
 import type { Issue } from '../api'
@@ -16,7 +17,8 @@ import { LinkedTodoModal } from '../components/DropToIssue'
  * the software owes it is: an order, and a solve action whose output is a To-Do.
  */
 export default function Issues() {
-  const { company, team, me, nameOf } = useApp()
+  const {company,team,me,nameOf,companies,meetingWorkflow}=useApp()
+  const [assignedTeam,setAssignedTeam]=useState('')
   const [term, setTerm] = useState<'short' | 'long'>('short')
   const [showSolved, setShowSolved] = useState(false)
   const [rows, setRows] = useState<Issue[] | null>(null)
@@ -40,8 +42,8 @@ export default function Issues() {
     const from = dragId.current
     dragId.current = null
     setOverId(null)
-    if (!from || !rows || from === targetId) return
-    const ids = rows.map(r => r.id)
+    if (!from || !rows || from === targetId || rows.find(r=>r.id===targetId)?.readOnly) return
+    const ids = rows.filter(r=>!r.readOnly).map(r => r.id)
     const fi = ids.indexOf(from), ti = ids.indexOf(targetId)
     if (fi < 0 || ti < 0) return
     ids.splice(ti, 0, ids.splice(fi, 1)[0])
@@ -61,7 +63,7 @@ export default function Issues() {
             Ranked highest first. Drag to reorder — the top of this list is what the L10 works on.
           </div>
         </div>
-        <div className="page__actions">
+        <div className="page__actions">{meetingWorkflow&&<label>Responsible team<select className="select" value={assignedTeam} onChange={e=>setAssignedTeam(e.target.value)}><option value="">All responsible teams</option><option value="unassigned">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
           <div className="seg" role="group" aria-label="Term">
             <button aria-pressed={term === 'short'} onClick={() => setTerm('short')}>Short-term</button>
             <button aria-pressed={term === 'long'} onClick={() => setTerm('long')}>Long-term</button>
@@ -73,7 +75,7 @@ export default function Issues() {
             <button
               className="btn"
               onClick={async () => {
-                const ids = rows!.filter(r => r.status === 'solved').map(r => r.id)
+                const ids = rows!.filter(r => !r.readOnly&&r.status === 'solved').map(r => r.id)
                 if (!confirm(`Archive ${ids.length} solved issue${ids.length > 1 ? 's' : ''}? The record is kept.`)) return
                 try { await archiveIssues(ids); load() } catch (e: any) { setErr(e.message) }
               }}
@@ -100,11 +102,11 @@ export default function Issues() {
       ) : (
         <div className="card card__body--flush">
           <div className="rows">
-            {rows.map((issue, i) => (
+            {rows.filter(issue=>!assignedTeam||(assignedTeam==='unassigned'?!issue.responsibleTeamId:issue.responsibleTeamId===assignedTeam)).map((issue, i) => (
               <div
                 key={issue.id}
                 className={'rowitem' + (overId === issue.id ? ' rowitem--dragover' : '') + (issue.status === 'solved' ? ' rowitem--done' : '')}
-                draggable
+                draggable={!issue.readOnly}
                 onDragStart={() => { dragId.current = issue.id }}
                 onDragOver={e => { e.preventDefault(); setOverId(issue.id) }}
                 onDragLeave={() => setOverId(o => (o === issue.id ? null : o))}
@@ -116,7 +118,7 @@ export default function Issues() {
                 </span>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
-                    {issue.title}
+                    {issue.title}<FollowupContext item={issue}/>
                     {issue.origin && issue.origin.kind !== 'manual' && (
                       <span className="pill pill--muted" title={issue.origin.label}>
                         from {issue.origin.kind}
@@ -141,7 +143,7 @@ export default function Issues() {
                     </div>
                   )}
                 </div>
-                <div className="rowitem__end">
+                {!issue.readOnly&&<div className="rowitem__end">
                   {issue.ownerId && <Avatar name={nameOf(issue.ownerId)} id={issue.ownerId} sm />}
                   {issue.status === 'open' && (
                     <button className="btn btn--sm" onClick={() => setSolving(issue)}>Solve</button>
@@ -174,7 +176,7 @@ export default function Issues() {
                       </>
                     )}
                   </RowMenu>
-                </div>
+                </div>}
               </div>
             ))}
           </div>
@@ -220,6 +222,8 @@ function IssueModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  const {companies,meetingWorkflow}=useApp()
+  const [responsibleTeamId,setResponsibleTeam]=useState(initial?.responsibleTeamId??'')
   const [title, setTitle] = useState(initial?.title || '')
   const [description, setDescription] = useState(initial?.description || '')
   const [issueTerm, setIssueTerm] = useState(initial?.term || term)
@@ -235,7 +239,7 @@ function IssueModal({
     try {
       await saveIssue({
         companyId, id: initial?.id, rev: initial?.rev,
-        title: title.trim(), description, term: issueTerm, priority, ownerId, ownerName,
+        title: title.trim(), description, term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),
       })
       onSaved()
     } catch (e: any) {
@@ -280,6 +284,7 @@ function IssueModal({
           </select>
         </div>
         <div className="field">
+          {meetingWorkflow&&<label>Responsible team<select className="select" value={responsibleTeamId} onChange={e=>setResponsibleTeam(e.target.value)}><option value="">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
           <label>Owner</label>
           <OwnerPicker team={team} value={ownerId} valueName={ownerName} onChange={(id, n) => { setOwnerId(id); setOwnerName(n) }} />
         </div>
