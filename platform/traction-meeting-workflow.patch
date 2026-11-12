@@ -1,0 +1,321 @@
+--- a/scripts/app.ts
++++ b/scripts/app.ts
+@@ -1,3 +1,4 @@
++import {MeetingError,readWorkspace,commandWorkspace,captureItem,synchronizeDisclosures} from './meetingService';
+ // ===========================================================================
+ // Traction Maestro  —  /b/traction
+ // The single data + action server for Havenwood EOS ("Traction"), the Hope
+@@ -77,7 +78,7 @@
+ const MAX_OCCURRENCES = 200;
+ 
+ // Forms whose entries can belong to a private meeting (meetingId set).
+-const MEETING_ITEM_FORMS = ['eosIssues', 'eosTodos', 'eosHeadlines'];
++const MEETING_ITEM_FORMS = ['eosIssues', 'eosTodos', 'eosHeadlines', 'eosRocks'];
+ 
+ // THE EOS ADMINS (ticket #269). They see Admin and Settings and manage teams
+ // and membership; they do NOT see a team's data unless they are on it.
+@@ -628,6 +629,7 @@
+ // write: route each incoming property to its correct home, then bump rev.
+ function applyPatch(entry: any, form: string, memoField: string, patch: any): number {
+   const spec = REAL_FIELDS[form];
++  const previousMeetingValue = memoField === 'dataJSON' ? toEntity(entry,form,memoField) : null;
+   const d = parseJson(entry.fields[memoField].val(), {});
+   for (const k in patch) {
+     if (!Object.prototype.hasOwnProperty.call(patch, k)) continue;
+@@ -638,6 +640,7 @@
+   d.rev = (num(d.rev) === null ? 0 : Number(d.rev)) + 1;
+   d.schemaVersion = SCHEMA_VERSION;
+   entry.fields[memoField].val(JSON.stringify(d));
++  if (previousMeetingValue) meetingTrack(entry,form,previousMeetingValue);
+   return d.rev;
+ }
+ 
+@@ -893,6 +896,7 @@
+     const rollUpOnly = (c as any).rollUpOnly === true;
+     for (const e of listEntries(c, 'eosRocks')) {
+       const r = rockOf(e);
++      if (!isCompanyItem(r)) continue;
+       if ((rollUpOnly || scope === 'rolled') && !isSelected && !r.rollUp) continue;
+       // Label every row with its origin so a mixed list can show where a rock
+       // lives — and so the client never has to guess which team to write to.
+@@ -903,6 +907,7 @@
+       r.readOnly = rollUpOnly;
+       out.push(r);
+     }
++    if(!rollUpOnly) out.push.apply(out,sharedMeetingItems(c,'rock'));
+   }
+   return out;
+ }
+@@ -1028,10 +1033,10 @@
+ }
+ 
+ function entryVisible(company: Company, e: any): boolean {
+-  const mid = str(e.fields.meetingId ? e.fields.meetingId.val() : '', '');
++  const mid = str(e.fields.meetingId ? e.fields.meetingId.val() : parseJson(e.fields.dataJSON.val(),{}).meetingId, '');
+   if (!mid) return true;
+   const m = meetingFor(company, mid);
+-  return !!m && canSeeMeetingItem(m, e.fields.occurrenceDate ? dateStr(e.fields.occurrenceDate) : '', myRecordId());
++  return !!m && canSeeMeetingItem(m, e.fields.occurrenceDate ? dateStr(e.fields.occurrenceDate) : str(parseJson(e.fields.dataJSON.val(),{}).occurrenceDate,''), myRecordId());
+ }
+ 
+ function isCompanyItem(x: any): boolean { return !str(x.meetingId, ''); }
+@@ -1156,6 +1161,7 @@
+     if (mineOnly && t.ownerId !== myId) continue;
+     out.push(t);
+   }
++  for(const t of sharedMeetingItems(company,'todo'))if(!mineOnly||t.ownerId===myId)out.push(t);
+   out.sort(function (a, b) {
+     const ad = a.dueDate || '9999-12-31', bd = b.dueDate || '9999-12-31';
+     return ad < bd ? -1 : ad > bd ? 1 : 0;
+@@ -1339,6 +1345,7 @@
+ // Commit and report. An empty Optional from B.commit() means "nothing changed",
+ // which is a no-op and NOT a failure.
+ function commit(): boolean {
++  meetingFlush();
+   const errs: string[] = [];
+   // The consumer is handed null (not an empty list) when nothing was rejected,
+   // so it MUST be guarded — iterating it blind throws on every clean write.
+@@ -1351,6 +1358,32 @@
+   return true;
+ }
+ 
++// Inserted into the existing Traction Maestro endpoint. Uses only existing
++// EOS forms, listEntries, applyPatch and dataJSON bindings.
++function meetingTeams(): any[] {return resolveTeams().map(function(c:any){return {id:c.id,name:c.name,people:rosterFor(c.id).map(function(p:any){return{id:p.id,name:p.name};})};});}
++const MEETING_KINDS: any = {rock:{form:'eosRocks',id:'rockId'},headline:{form:'eosHeadlines',id:'headlineId'},todo:{form:'eosTodos',id:'todoId'},issue:{form:'eosIssues',id:'issueId'}};
++const meetingPendingChanges:any[]=[];
++function meetingShape(kind:string,row:any,companyId:string):any {return Object.assign({},row,{kind:kind,title:kind==='headline'?row.body:row.title,description:str(row.description,''),ownerId:str(row.ownerId,''),ownerName:str(row.ownerName,'')||personLabel(str(row.ownerId,'')),responsibleTeamId:str(row.responsibleTeamId,''),responsibleTeamName:str(row.responsibleTeamName,''),sharedTeamIds:Array.isArray(row.sharedTeamIds)?row.sharedTeamIds:[],context:row.meetingSource,companyId:companyId,status:kind==='headline'?(row.readDate?'read':'open'):row.status});}
++function meetingRows(company:any,kind:string):any[]{const spec=MEETING_KINDS[kind];return listEntries(company,spec.form).map(function(e:any){return meetingShape(kind,toEntity(e,spec.form,'dataJSON'),company.id);});}
++function meetingBacking(company:any,kind:string,id:string):any {const spec=MEETING_KINDS[kind];for(const e of listEntries(company,spec.form))if(str(e.fields[spec.id].val(),'')===id)return e;return null;}
++function meetingStorage(teamId:string,kind:string):any {const c=resolveTeams().filter(function(t:any){return t.id===teamId;})[0];if(!c)throw new MeetingError('FORBIDDEN','Team access is required.');for(const e of listEntries(c,'eosMeetings'))if(str(e.fields.kind.val(),'')===kind)return {company:c,entry:e,data:parseJson(e.fields.dataJSON.val(),{})};return{company:c,entry:null,data:{}};}
++function meetingStore():any {
++ const teams=resolveTeams();const team=function(id:string):any{const c=teams.filter(function(t:any){return t.id===id;})[0];if(!c)throw new MeetingError('NOT_FOUND','No such team.');return c;};
++ return {
++  actor:{id:myRecordId(),name:meObj().name,super:isFullSuper()},teams:meetingTeams(),now:function(){return new Date().getTime();},newId:newId,
++  privateMeeting:function(id:string,date:string){const hit=findMeeting(teams,id);if(!hit||!canSeeOccurrence(hit.meeting,date,myRecordId())||hit.meeting.archivedAt||str(hit.meeting.kind,'meeting')!=='meeting')return null;const m=hit.meeting;const owner=str(m.createdById,'')||m.attendeeIds[0]||'';return {companyId:hit.company.id,ownerId:owner,ownerName:personLabel(owner),attendees:peopleOut(attendeesOn(m,date)),cancelled:!!(m.exceptions[date]&&m.exceptions[date].cancelled)};},
++  getSession:function(teamId:string,key:string){for(const e of listEntries(team(teamId),'eosMeetings')){const m=meetingOf(e);if(m.kind==='live_session'&&m.session&&m.session.id===key)return Object.assign({},m.session,{rev:m.rev});}return null;},
++  putSession:function(value:any){const c=team(value.companyId);let entry:any=null;for(const e of listEntries(c,'eosMeetings')){const m=meetingOf(e);if(m.kind==='live_session'&&m.session&&m.session.id===value.id){if(m.rev!==value.rev-1)throw new MeetingError('STALE','The meeting session changed.');entry=e;break;}}if(!entry){if(value.rev!==1)throw new MeetingError('STALE','The session was removed.');entry=newEntryFor(c,'eosMeetings');entry.fields.meetingId.val(newId('live'));entry.fields.kind.val('live_session');}applyPatch(entry,'eosMeetings','dataJSON',{session:value});},
++  items:function(teamId:string){const c=team(teamId);let out:any[]=[];for(const kind in MEETING_KINDS)out=out.concat(meetingRows(c,kind));return out;},
++  saveItem:function(teamId:string,value:any,expectedRev:any){const c=team(teamId);const spec=MEETING_KINDS[value.kind];let entry=meetingBacking(c,value.kind,value.id);if(entry){const current=toEntity(entry,spec.form,'dataJSON');if(current.rev!==expectedRev)throw new MeetingError('STALE','This item changed.');}else{if(expectedRev!==undefined)throw new MeetingError('NOT_FOUND','No such item.');entry=newEntryFor(c,spec.form);entry.fields[spec.id].val(value.id);}const patch:any=Object.assign({},value);delete patch.id;delete patch.context;delete patch.kind;delete patch.companyId;delete patch.rev;patch.meetingSource=value.context;if(!expectedRev){patch.createdById=myRecordId();patch.createdByName=meObj().name;patch.createdAt=nowIso();}if(value.kind==='headline'){patch.body=value.title;patch.type=patch.type||'employee';delete patch.title;delete patch.status;}if(value.kind==='issue'){patch.term=patch.term||'short';patch.priority=patch.priority||3;patch.createdDate=patch.createdDate||String(today().toString());}if(value.kind==='rock'){patch.quarterKey=patch.quarterKey||quarterKeyForDueDate(today(),c.settings.fiscalYearStartMonth);patch.companyRock=patch.companyRock===true;patch.rollUp=false;}if(value.kind==='todo'){patch.personal=false;patch.dueDate=patch.dueDate||String(today().plusDays(TODO_DEFAULT_DAYS).toString());}applyPatch(entry,spec.form,'dataJSON',patch);return meetingShape(value.kind,toEntity(entry,spec.form,'dataJSON'),c.id);},
++  disclosures:function(teamId:string){const target=meetingStorage(teamId,'meeting_disclosures');return Array.isArray(target.data.items)?target.data.items:[];},
++  putDisclosures:function(teamId:string,items:any[]){const target=meetingStorage(teamId,'meeting_disclosures');if(!target.entry){if(!items.length)return;target.entry=newEntryFor(target.company,'eosMeetings');target.entry.fields.meetingId.val(newId('disclosures'));target.entry.fields.kind.val('meeting_disclosures');}applyPatch(target.entry,'eosMeetings','dataJSON',{items:items});}
++ };
++}
++function meetingTrack(entry:any,form:string,previous:any):void {for(const kind in MEETING_KINDS){if(MEETING_KINDS[kind].form!==form)continue;const current=toEntity(entry,form,'dataJSON');if(!current.meetingSource)return;const c=resolveTeams().filter(function(t:any){return listEntries(t,form).some(function(e:any){return String(e.id())===String(entry.id());});})[0];if(!c)throw new MeetingError('FORBIDDEN','The source team is not accessible.');meetingPendingChanges.push({current:meetingShape(kind,current,c.id),previous:meetingShape(kind,previous,c.id)});return;}}
++function meetingFlush():void {const pending=meetingPendingChanges.splice(0);for(const change of pending)synchronizeDisclosures(meetingStore(),change.current,change.previous);}
++function sharedMeetingItems(company:any,kind:string):any[]{const store=meetingStore();return store.disclosures(company.id).filter(function(item:any){return item.kind===kind&&!item.archivedAt;}).map(function(item:any){return Object.assign({},item,{companyId:company.id,companyName:company.name,readOnly:true});});}
++
+ // ===========================================================================
+ // Handler
+ // ===========================================================================
+@@ -1383,6 +1416,21 @@
+     const myId = myRecordId();
+ 
+     switch (action) {
++      case 'meetingWorkspace':
++      case 'commandMeetingWorkspace':
++      case 'captureMeetingItem':
++      case 'editMeetingItem': {
++        const input:any=Object.assign({},rawBody,{companyId:IN('companyId'),meetingId:IN('meetingId'),date:IN('date')});
++        try {
++          if(action!=='meetingWorkspace'&&String(B.net.request.method())!=='POST'){fail('INVALID','Use POST for meeting changes.');break;}
++          const store=meetingStore();
++          const result=action==='meetingWorkspace'?readWorkspace(store,input):action==='commandMeetingWorkspace'?commandWorkspace(store,input):captureItem(store,input,action==='editMeetingItem');
++          if(action!=='meetingWorkspace')commit();
++          ok(result);
++        } catch(error) {const e:any=error;fail(e.code||'INVALID',e.message||'Meeting change failed.');}
++        break;
++      }
++
+ 
+       // ------------------------------------------------------------ session
+ 
+@@ -1392,6 +1440,7 @@
+         for (const c of companies) { list.push(companyBrief(c)); teams[c.id] = rosterFor(c.id); }
+         const home = pickCompany(companies, IN('companyId'));
+         ok({
++          capabilities:{meetingWorkflow:1,milestoneWorkflow:1},
+           me: meObj(),
+           // Each entry is a TEAM (kind 'company' | 'custom'); the key keeps its
+           // old name so the SPA's company switcher is the team switcher.
+@@ -1800,6 +1849,7 @@
+         const ms = IN('milestone');
+         if (!ms || typeof ms !== 'object') { fail('INVALID', 'A milestone object is required.'); break; }
+         if (ms.dueDate && !isDateStr(ms.dueDate)) { fail('INVALID', 'milestone.dueDate must be YYYY-MM-DD.'); break; }
++        if(ms.status!==undefined&&['not_started','in_progress','blocked','complete'].indexOf(ms.status)<0){fail('INVALID','Choose a valid milestone status.');break;}
+         const list: any[] = Array.isArray(cur.milestones) ? cur.milestones : [];
+         const msId = str(ms.id, '');
+         let found: any = null;
+@@ -1818,14 +1868,15 @@
+             found.done = done;
+             found.completedAt = done ? nowIso() : null;
+           }
++          if(ms.status!==undefined){found.status=ms.status;found.done=ms.status==='complete';found.completedAt=found.done?(found.completedAt||nowIso()):null;}else if(ms.done!==undefined){found.status=found.done?'complete':'not_started';}
+           applyPatch(hit.entry, 'eosRocks', 'dataJSON', { milestones: list });
+         } else {
+           const msTitle = str(ms.title, '').trim();
+           if (!msTitle) { fail('INVALID', 'A milestone needs a title.'); break; }
+           list.push({
+             id: newId('ms'), title: msTitle, dueDate: str(ms.dueDate, ''),
+-            ownerId: str(ms.ownerId, ''), done: bool(ms.done),
+-            completedAt: bool(ms.done) ? nowIso() : null
++            ownerId: str(ms.ownerId, ''), status:ms.status===undefined?(bool(ms.done)?'complete':'not_started'):ms.status,done:ms.status===undefined?bool(ms.done):ms.status==='complete',
++            completedAt: (ms.status===undefined?bool(ms.done):ms.status==='complete') ? nowIso() : null
+           });
+           applyPatch(hit.entry, 'eosRocks', 'dataJSON', { milestones: list });
+         }
+@@ -1868,13 +1919,13 @@
+           const openMs: any[] = [];
+           for (const m of (Array.isArray(src.milestones) ? src.milestones : [])) if (m && !m.done) openMs.push(m);
+           applyPatch(e, 'eosRocks', 'dataJSON', {
+-            title: src.title, description: src.description, ownerId: src.ownerId,
++            title: src.title, description: src.description, ownerId: src.ownerId, meetingId:src.meetingId||'',occurrenceDate:src.occurrenceDate||'',meetingSource:src.meetingSource||null,sharedTeamIds:[],
+             ownerName: src.ownerName, companyRock: src.companyRock,
+             quarterKey: toQ, quarterSetManually: true, carriedFrom: src.id,
+             milestones: openMs, notes: [], completedAt: null, status: 'on_track',
+             dueDate: ''
+           });
+-          hit.entry.fields.archivedAt.val(today());
++          applyPatch(hit.entry,'eosRocks','dataJSON',{archivedAt:String(today().toString())});
+           made.push(rockOf(e));
+         }
+         commit();
+@@ -1890,9 +1941,10 @@
+         let n = 0;
+         const stamp = today();
+         for (const e of listEntries(c, 'eosRocks')) {
++          if(!isCompanyItem(rockOf(e)))continue;
+           if (str(e.fields.quarterKey.val(), '') !== qk) continue;
+           if (dateStr(e.fields.archivedAt)) continue;
+-          e.fields.archivedAt.val(stamp);
++          applyPatch(e,'eosRocks','dataJSON',{archivedAt:String(stamp.toString())});
+           n++;
+         }
+         commit();
+@@ -1915,6 +1967,7 @@
+           if (status && i.status !== status) continue;
+           rows.push(i);
+         }
++        rows.push.apply(rows,sharedMeetingItems(c,'issue').filter(function(i:any){return (!term||i.term===term)&&(!status||i.status===status);}));
+         rows.sort(sortByRank);
+         ok({ term: term || 'all', status: status || 'all', rows: rows });
+         break;
+@@ -1946,14 +1999,17 @@
+           entry.fields.status.val('open');
+           entry.fields.createdDate.val(today());
+         }
++        const responsible=IN('responsibleTeamId')===undefined?undefined:!IN('responsibleTeamId')?null:pickCompany(companies,IN('responsibleTeamId'));
++        if(IN('responsibleTeamId')&& !responsible){fail('FORBIDDEN','Choose a team you can access.');break;}
+         const patch: any = { title: title };
++        if(IN('responsibleTeamId')!==undefined){patch.responsibleTeamId=str(IN('responsibleTeamId'),'');patch.responsibleTeamName=responsible?responsible.name:'';}
+         if (IN('description') !== undefined) patch.description = str(IN('description'), '');
+         if (IN('term') !== undefined) patch.term = oneOf(IN('term'), ISSUE_TERMS, 'short');
+         else if (!str(entry.fields.term.val(), '')) patch.term = 'short';
+         if (IN('status') !== undefined) patch.status = oneOf(IN('status'), ISSUE_STATUSES, 'open');
+         if (pIn !== null) patch.priority = pIn;
+         else if (!id) patch.priority = 3;
+-        if (IN('ownerId') !== undefined) patch.ownerId = str(IN('ownerId'), '');
++        if (IN('ownerId') !== undefined) {patch.ownerId = str(IN('ownerId'), '');patch.ownerName=patch.ownerId?personLabel(patch.ownerId):'';}
+         if (IN('rank') !== undefined) patch.rank = num(IN('rank'));
+         if (IN('origin') !== undefined) patch.origin = IN('origin');
+         if (mt) { patch.meetingId = mt.meetingId; patch.occurrenceDate = mt.occurrenceDate; }
+@@ -2005,7 +2061,7 @@
+         for (const id of ids) {
+           const hit = findEntry(companies, 'eosIssues', 'issueId', str(id, ''));
+           if (!hit) continue;
+-          hit.entry.fields.archivedAt.val(stamp);
++          applyPatch(hit.entry,'eosIssues','dataJSON',{archivedAt:String(stamp.toString())});
+           n++;
+         }
+         commit();
+@@ -2028,14 +2084,14 @@
+         const pIn = num(IN('priority'));
+         // An issue dropped from a private meeting's item stays in that meeting
+         // (same occurrence) — private content never lands on the company list.
+-        let mt: any = null;
+-        const originForm = origin.kind === 'todo' ? 'eosTodos' : origin.kind === 'issue' ? 'eosIssues' : origin.kind === 'headline' ? 'eosHeadlines' : '';
++        let mt: any = null;let sourceContext:any=null;
++        const originForm = origin.kind === 'todo' ? 'eosTodos' : origin.kind === 'issue' ? 'eosIssues' : origin.kind === 'headline' ? 'eosHeadlines' : origin.kind === 'rock' ? 'eosRocks' : '';
+         if (originForm && origin.id) {
+-          const idField = originForm === 'eosTodos' ? 'todoId' : originForm === 'eosIssues' ? 'issueId' : 'headlineId';
++          const idField = originForm === 'eosTodos' ? 'todoId' : originForm === 'eosIssues' ? 'issueId' : originForm === 'eosRocks' ? 'rockId' : 'headlineId';
+           const src = findEntry(companies, originForm, idField, origin.id);
+           if (!src) { fail('NOT_FOUND', 'The item this issue comes from was not found.'); break; }
+-          const srcMid = str(src.entry.fields.meetingId.val(), '');
+-          if (srcMid) mt = { company: src.company, meetingId: srcMid, occurrenceDate: dateStr(src.entry.fields.occurrenceDate) };
++          const sourceItem=toEntity(src.entry,originForm,'dataJSON');sourceContext=sourceItem.meetingSource||null;const srcMid=str(sourceItem.meetingId,'');
++          if (srcMid) mt = { company: src.company, meetingId: srcMid, occurrenceDate:str(sourceItem.occurrenceDate,'') };
+         }
+         if (!mt) {
+           mt = meetingTarget(companies, IN('meetingId'), IN('occurrenceDate'), myId);
+@@ -2055,7 +2111,7 @@
+           createdById: myId, createdByName: meObj().name,
+           ownerId: str(IN('ownerId'), ''),
+           rank: 1, origin: origin, solution: null, solvedAt: null,
+-          linkedTodoIds: [], discussion: [],
++          linkedTodoIds: [], discussion: [],meetingSource:sourceContext,sharedTeamIds:[],
+           meetingId: mt ? mt.meetingId : '', occurrenceDate: mt ? mt.occurrenceDate : ''
+         });
+         commit();
+@@ -2164,7 +2220,7 @@
+           // Same meeting and occurrence as the issue: an issue's to-do is exactly
+           // as private as the issue.
+           meetingId: str(hit.entry.fields.meetingId.val(), ''),
+-          occurrenceDate: dateStr(hit.entry.fields.occurrenceDate)
++          occurrenceDate: dateStr(hit.entry.fields.occurrenceDate), meetingSource:issueOf(hit.entry).meetingSource||null,sharedTeamIds:[]
+         });
+         const cur = issueOf(hit.entry);
+         const linked: any[] = Array.isArray(cur.linkedTodoIds) ? cur.linkedTodoIds : [];
+@@ -2188,6 +2244,7 @@
+           if (unreadOnly && h.readDate) continue;
+           rows.push(h);
+         }
++        rows.push.apply(rows,sharedMeetingItems(c,'headline').filter(function(h:any){return !unreadOnly||!h.readDate;}));
+         rows.sort(function (a, b) { return str(b.createdAt, '') < str(a.createdAt, '') ? -1 : 1; });
+         ok({ unreadOnly: unreadOnly, rows: rows });
+         break;
+@@ -2256,6 +2313,7 @@
+         const rows: any[] = [];
+         for (const e of listEntries(c, 'eosMeetings')) {
+           const m = meetingOf(e);
++          if(m.kind!=='meeting')continue;
+           if (!includeArchived && !live(m)) continue;
+           if (!canSeeMeeting(m, myId)) continue;
+           rows.push(meetingSummary(m, c, myId));
+@@ -2440,8 +2498,9 @@
+         const rocks: any[] = [];
+         for (const e of listEntries(c, 'eosRocks')) {
+           const r = rockOf(e);
+-          if (live(r) && r.quarterKey === qk) rocks.push(r);
+-        }
++          if (live(r) && isCompanyItem(r) && r.quarterKey === qk) rocks.push(r);
++        }
++        rocks.push.apply(rocks,sharedMeetingItems(c,'rock').filter(function(r:any){return r.quarterKey===qk;}));
+         rocks.sort(function (a, b) { return a.companyRock === b.companyRock ? 0 : (a.companyRock ? -1 : 1); });
+ 
+         const heads: any[] = [];
+@@ -2450,6 +2509,7 @@
+           if (live(h) && isCompanyItem(h) && !h.readDate) heads.push(h);
+         }
+ 
++        heads.push.apply(heads,sharedMeetingItems(c,'headline').filter(function(h:any){return !h.readDate;}));
+         // Last week's to-do list, plus the completion arithmetic nobody does by
+         // hand. Target is 90%. Anything still open carries into the review too,
+         // because "not done" is exactly what the section exists to surface.
+@@ -2470,6 +2530,7 @@
+           const i = issueOf(e);
+           if (live(i) && isCompanyItem(i) && i.status === 'open' && i.term === 'short') issues.push(i);
+         }
++        issues.push.apply(issues,sharedMeetingItems(c,'issue').filter(function(i:any){return i.status==='open'&&i.term==='short';}));
+         issues.sort(sortByRank);
+ 
+         // Conventional durations, shipped as LABELS. Nothing counts down.
+@@ -2512,7 +2573,7 @@
+           const qk = quarterKey(today(), c.settings.fiscalYearStartMonth);
+           for (const e of listEntries(c, 'eosRocks')) {
+             const r = rockOf(e);
+-            if (!live(r) || r.ownerId !== myId) continue;
++            if (!live(r) || r.ownerId !== myId || !itemVisible(c,r,myId)) continue;
+             r.companyName = label; r.companyId = c.id;
+             if (r.quarterKey === qk) myRocks.push(r);
+             for (const m of (Array.isArray(r.milestones) ? r.milestones : [])) {

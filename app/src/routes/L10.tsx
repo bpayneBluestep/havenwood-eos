@@ -1,3 +1,6 @@
+import FollowupContext from '../meetings/FollowupContext'
+import MeetingWorkspace from '../meetings/MeetingWorkspace'
+import {todayIso} from '../lib/ui'
 import { useCallback, useEffect, useState } from 'react'
 import { getL10, setScore, setRockStatus, setTodoStatus, markHeadlineRead } from '../api'
 import type { L10 as L10Data, Rock, Issue, Todo, Headline, Measurable, Cell } from '../api'
@@ -8,22 +11,10 @@ import {
 } from '../lib/ui'
 import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
 
-/*
- * The L10 view.
- *
- * This is NOT a meeting app. They run Level 10s and do not want software driving
- * them — so this is one page that stacks the five lists in agenda order, loads in
- * ONE request so it appears at once when someone screen-shares it, and is
- * editable in place.
- *
- * Deliberately absent: no meeting record, presenter, polling, attendance,
- * ratings, recap or history. Nothing is stored. Reload it and you get the current
- * state of the five lists — the only state that ever mattered.
- *
- * The durations are LABELS. Nothing counts down.
- */
+/* Current team lists remain below the shared live-meeting workspace.
+ * Timing and captured agenda records require the paired endpoint update. */
 export default function L10() {
-  const { company, nameOf } = useApp()
+  const { company, nameOf, team, companies, teams } = useApp()
   const [data, setData] = useState<L10Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [drop, setDrop] = useState<{ kind: string; id: string; label: string; title: string } | null>(null)
@@ -56,6 +47,8 @@ export default function L10() {
 
       {data && (
         <>
+          <MeetingWorkspace key={company.id} companyId={company.id} date={todayIso()} people={team} teams={companies} rosters={teams}/>
+          <details className="card"><summary className="card__body">Team scorecard and review lists</summary>
           <Section n={1} item={data.agenda[0]}>
             <div className="card__body">
               <p className="muted" style={{ margin: 0 }}>
@@ -152,7 +145,7 @@ export default function L10() {
                     <span className={'rank' + (i < 3 ? ' rank--top' : '')}>{i + 1}</span>
                     <div className="rowitem__main">
                       <div className="rowitem__title">
-                        {issue.title}
+                        {issue.title}<FollowupContext item={issue}/>
                         {issue.origin && issue.origin.kind !== 'manual' && (
                           <span className="pill pill--muted">from {issue.origin.kind}</span>
                         )}
@@ -162,7 +155,7 @@ export default function L10() {
                     <div className="rowitem__end">
                       {issue.ownerId && <Avatar name={nameOf(issue.ownerId)} id={issue.ownerId} sm />}
                       <span className="mono faint">P{issue.priority ?? '–'}</span>
-                      <button className="btn btn--sm" onClick={() => setLinkFor(issue)}>Solve → To-Do</button>
+                      <button className="btn btn--sm" disabled={issue.readOnly} onClick={() => setLinkFor(issue)}>Solve → To-Do</button>
                     </div>
                   </div>
                 ))}
@@ -191,6 +184,7 @@ export default function L10() {
               </div>
             </div>
           </Section>
+          </details>
         </>
       )}
 
@@ -415,11 +409,11 @@ function RockLine({ rock, onSaved, onError, onDrop }: { rock: Rock; onSaved: () 
         {/* The owner declares it out loud — so both options are one click, and
             neither is inferred from milestone progress. */}
         <div className="seg" role="group" aria-label={`Status for ${rock.title}`}>
-          <button aria-pressed={rock.status === 'on_track'} disabled={busy} onClick={() => set('on_track')}>On</button>
-          <button aria-pressed={rock.status === 'off_track'} disabled={busy} onClick={() => set('off_track')}>Off</button>
-          <button aria-pressed={rock.status === 'done'} disabled={busy} onClick={() => set('done')}>Done</button>
+          <button aria-pressed={rock.status === 'on_track'} disabled={busy||rock.readOnly} onClick={() => set('on_track')}>On</button>
+          <button aria-pressed={rock.status === 'off_track'} disabled={busy||rock.readOnly} onClick={() => set('off_track')}>Off</button>
+          <button aria-pressed={rock.status === 'done'} disabled={busy||rock.readOnly} onClick={() => set('done')}>Done</button>
         </div>
-        <RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}</RowMenu>
+        {!rock.readOnly&&<RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}</RowMenu>}
       </div>
     </div>
   )
@@ -432,7 +426,7 @@ function HeadlineLine({ headline, onSaved, onError, onDrop }: { headline: Headli
         className="check"
         aria-label="Mark read"
         title="Mark read — unread headlines roll into next week"
-        onClick={async () => {
+        disabled={headline.readOnly} onClick={async () => {
           try { await markHeadlineRead([headline.id]); onSaved() } catch (e: any) { onError(e.message) }
         }}
       >
@@ -440,7 +434,7 @@ function HeadlineLine({ headline, onSaved, onError, onDrop }: { headline: Headli
       </button>
       <div className="rowitem__main">
         <div className="rowitem__title">
-          {headline.body}
+          {headline.body}<FollowupContext item={headline}/>
           <span className={'pill ' + (headline.type === 'customer' ? 'pill--green' : 'pill--muted')}>
             <span className="pill__glyph" aria-hidden="true">{headline.type === 'customer' ? '★' : '◆'}</span>
             {headline.type}
@@ -449,7 +443,7 @@ function HeadlineLine({ headline, onSaved, onError, onDrop }: { headline: Headli
         <div className="rowitem__meta"><span>{firstLast({ name: headline.createdByName })}</span></div>
       </div>
       <div className="rowitem__end">
-        <RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}</RowMenu>
+        {!headline.readOnly&&<RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}</RowMenu>}
       </div>
     </div>
   )
@@ -461,7 +455,7 @@ function TodoLine({ todo, onSaved, onError, onDrop }: { todo: Todo; onSaved: () 
     <div className={'rowitem' + (isDone ? ' rowitem--done' : '')}>
       <button
         className={'check' + (isDone ? ' check--on' : '')}
-        aria-label={isDone ? 'Mark not done' : 'Mark done'}
+        disabled={todo.readOnly} aria-label={isDone ? 'Mark not done' : 'Mark done'}
         onClick={async () => {
           try { await setTodoStatus(todo.id, isDone ? 'open' : 'done', todo.rev); onSaved() }
           catch (e: any) { onError(e.message) }
@@ -471,7 +465,7 @@ function TodoLine({ todo, onSaved, onError, onDrop }: { todo: Todo; onSaved: () 
       </button>
       <Avatar name={todo.ownerName} id={todo.ownerId} sm />
       <div className="rowitem__main">
-        <div className="rowitem__title">{todo.title}</div>
+        <div className="rowitem__title">{todo.title}<FollowupContext item={todo}/></div>
         <div className="rowitem__meta">
           <span>{firstLast({ name: todo.ownerName }) || 'Unassigned'}</span>
           {todo.dueDate && <span className={dueClass(todo.dueDate, isDone)}>due {fmtDate(todo.dueDate)}</span>}
@@ -480,7 +474,7 @@ function TodoLine({ todo, onSaved, onError, onDrop }: { todo: Todo; onSaved: () 
       <div className="rowitem__end">
         {/* Not done → recommit or drop to Issues. That choice is the whole point
             of reviewing the list. */}
-        <RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Not done → drop to Issues</button>}</RowMenu>
+        {!todo.readOnly&&<RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Not done → drop to Issues</button>}</RowMenu>}
       </div>
     </div>
   )

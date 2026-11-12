@@ -147,6 +147,7 @@ export interface CompanyBrief {
 export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -195,6 +196,7 @@ export interface Scorecard {
 }
 
 export interface Milestone {
+  status?: 'not_started' | 'in_progress' | 'blocked' | 'complete'
   id: string
   title: string
   dueDate: string
@@ -206,6 +208,10 @@ export interface Milestone {
 export interface RockNote { id: string; at: string; byId: string; byName: string; body: string }
 
 export interface Rock {
+  meetingSource?: MeetingSource
+  sharedFrom?: MeetingDisclosure
+  sharedTeamIds?: string[]
+
   id: string
   quarterKey: string
   ownerId: string
@@ -236,6 +242,14 @@ export interface Rock {
 export interface Origin { kind: string; id: string; label: string }
 
 export interface Issue {
+  meetingSource?: MeetingSource
+  sharedFrom?: MeetingDisclosure
+  sharedTeamIds?: string[]
+  readOnly?: boolean
+  ownerName?: string
+  responsibleTeamId?: string
+  responsibleTeamName?: string
+
   id: string
   /** Set when the item belongs to a private meeting. */
   meetingId?: string
@@ -258,6 +272,11 @@ export interface Issue {
 }
 
 export interface Todo {
+  meetingSource?: MeetingSource
+  sharedFrom?: MeetingDisclosure
+  sharedTeamIds?: string[]
+  readOnly?: boolean
+
   id: string
   /** Set when the item belongs to a private meeting. */
   meetingId?: string
@@ -278,6 +297,13 @@ export interface Todo {
 }
 
 export interface Headline {
+  meetingSource?: MeetingSource
+  sharedFrom?: MeetingDisclosure
+  sharedTeamIds?: string[]
+  readOnly?: boolean
+  ownerName?: string
+  ownerId?: string
+
   id: string
   /** Set when the item belongs to a private meeting. */
   meetingId?: string
@@ -597,3 +623,12 @@ export function nativeLoginSubmit(username: string, password: string, dest: stri
 export async function logout(): Promise<void> {
   try { await fetch('/shared/login/logout.jsp', { credentials: 'include', cache: 'no-store' }) } catch { /* drop to the form anyway */ }
 }
+
+// Live meeting workflows require the paired endpoint update. Older endpoints
+// remain readable; the UI does not substitute local-only writes.
+export interface MeetingSource { sessionId:string;meetingId:string;date:string;sectionId:string;sectionLabel:string }
+export interface MeetingDisclosure { kind:string;id:string;companyId:string }
+export const getMeetingWorkspace=(fields:{companyId:string;meetingId?:string;date:string}):Promise<import('./meetings/model').Workspace>=>get('meetingWorkspace',fields)
+export const commandMeetingWorkspace=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('commandMeetingWorkspace',fields)
+export const captureMeetingItem=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('captureMeetingItem',fields)
+export const editMeetingItem=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('editMeetingItem',fields)
