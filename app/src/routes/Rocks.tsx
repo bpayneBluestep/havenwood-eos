@@ -202,7 +202,8 @@ function RockRow({
   onNote: () => void
   onError: (m: string) => void
 }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [descriptionOpen, setDescriptionOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const { team, me, milestoneWorkflow } = useApp()
   const [adding, setAdding] = useState(false)
@@ -255,7 +256,7 @@ function RockRow({
 
   return (
     <>
-      <div className="rowitem">
+      <div className="rowitem rock-row">
         <button
           className="btn btn--sm btn--ghost"
           onClick={() => setOpen(o => !o)}
@@ -268,7 +269,7 @@ function RockRow({
         <Avatar name={rock.ownerName} id={rock.ownerId} />
         <div className="rowitem__main">
           <div className="rowitem__title">
-            {rock.title}<FollowupContext item={rock}/>
+            {rock.readOnly ? rock.title : <button type="button" className="rowitem__title-link" aria-label={`Edit rock ${rock.title}`} onClick={onEdit}>{rock.title}</button>}<FollowupContext hideOwner item={rock}/>
             {/* Where it lives — only shown once the list spans more than one company. */}
             {rock.foreign && rock.companyName && (
               <span
@@ -327,7 +328,7 @@ function RockRow({
 
       {open && (
         <div className="rowitem__expand rock-milestones">
-          {rock.description && <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>{rock.description}</p>}
+          {rock.description && <div className="rock-description"><button type="button" className="detail-toggle" aria-expanded={descriptionOpen} aria-controls={`rock-description-${rock.id}`} onClick={() => setDescriptionOpen(value => !value)}>{descriptionOpen ? 'Hide description' : 'Show description'}</button><p id={`rock-description-${rock.id}`} hidden={!descriptionOpen} className="muted detail-body">{rock.description}</p></div>}
 
           {rock.milestones.length === 0 && !adding && (
             <div className="faint" style={{ fontSize: 12.5, padding: '7px 0' }}>
@@ -340,7 +341,6 @@ function RockRow({
             setBusy(true)
             try{await saveMilestone(rock.id,{id:m.id,remove:true},rock.rev);onChanged()}catch(e:any){onError(e.message)}finally{setBusy(false)}
           }}/> }
-          {!milestoneWorkflow && <p className="muted">Kanban status changes need the BlueStep endpoint update. You can still mark milestones complete below.</p>}
           {!milestoneWorkflow && rock.milestones.map(m => (
             <div className={'ms' + (m.done ? ' ms--done' : '')} key={m.id}>
               <button

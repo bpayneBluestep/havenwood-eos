@@ -16,6 +16,7 @@ import Admin from './routes/Admin'
  */
 
 interface Ctx {
+  scorecardEditing: boolean
   milestoneWorkflow: boolean
   meetingWorkflow: boolean
   me: Me
@@ -146,6 +147,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const value: Ctx = {
+    scorecardEditing: data.capabilities?.scorecardEditing === 1,
     meetingWorkflow: data.capabilities?.meetingWorkflow === 1,
     milestoneWorkflow: data.capabilities?.milestoneWorkflow === 1,
     me: data.me,

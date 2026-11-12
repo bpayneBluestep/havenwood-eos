@@ -20,6 +20,8 @@ import { LinkedTodoModal } from '../components/DropToIssue'
 export default function Issues() {
   const {company,team,me,nameOf,companies,meetingWorkflow}=useApp()
   const [assignedTeam,setAssignedTeam]=useState('')
+  const [ownerFilter, setOwnerFilter] = useState('')
+  const [inlineId, setInlineId] = useState<string | null>(null)
   const [sort, setSort] = useState('manual')
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const ownerName = (issue: Issue) => firstLast({name: issue.ownerName || nameOf(issue.ownerId)})
@@ -57,8 +59,10 @@ export default function Issues() {
     try { await rankIssues(ids); load() } catch (e: any) { setErr(e.message); load() }
   }
 
-  const visible = (rows || []).filter(issue => !assignedTeam || (assignedTeam === 'unassigned' ? !issue.responsibleTeamId : issue.responsibleTeamId === assignedTeam)).sort((a, b) => {
+  const visible = (rows || []).filter(issue => (!ownerFilter || (ownerFilter === 'unassigned' ? !issue.ownerId : issue.ownerId === ownerFilter)) && (!assignedTeam || (assignedTeam === 'unassigned' ? !issue.responsibleTeamId : issue.responsibleTeamId === assignedTeam))).sort((a, b) => {
     if (sort === 'owner') return compareNames(ownerName(a), ownerName(b))
+    if (sort === 'topic') return a.title.localeCompare(b.title, undefined, {sensitivity: 'base'})
+    if (sort === 'topic-desc') return b.title.localeCompare(a.title, undefined, {sensitivity: 'base'})
     if (sort === 'owner-desc') return compareNames(ownerName(b), ownerName(a))
     if (sort === 'newest' || sort === 'oldest') return compareDates(a.createdDate, b.createdDate, sort === 'newest')
     return 0
@@ -70,13 +74,12 @@ export default function Issues() {
     <div className="page">
       <div className="page__head">
         <div>
-          <h1>Issues</h1>
+          <div className="issues-heading"><h1>Issues</h1><p className="ids-guide">IDS: Identify the root issue · Discuss openly · Solve with an action and owner.</p></div>
           <div className="page__sub">
             Ranked highest first. Drag to reorder — the top of this list is what the L10 works on.
           </div>
         </div>
-        <div className="page__actions"><label className="sort-control">Sort issues<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="manual">Manual order</option><option value="owner">Owner A–Z</option><option value="owner-desc">Owner Z–A</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>{meetingWorkflow&&<label>Responsible team<select className="select" value={assignedTeam} onChange={e=>setAssignedTeam(e.target.value)}><option value="">All responsible teams</option><option value="unassigned">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
-          <div className="seg" role="group" aria-label="Term">
+        <div className="page__actions">          <div className="seg" role="group" aria-label="Term">
             <button aria-pressed={term === 'short'} onClick={() => setTerm('short')}>Short-term</button>
             <button aria-pressed={term === 'long'} onClick={() => setTerm('long')}>Long-term</button>
           </div>
@@ -101,6 +104,12 @@ export default function Issues() {
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
+      <div className="list-toolbar" aria-label="Issue filters and sorting">
+        <label className="sort-control">Person<select className="select" value={ownerFilter} onChange={event => setOwnerFilter(event.target.value)}><option value="">All people</option><option value="unassigned">Unassigned</option>{[...new Map((rows || []).filter(issue => issue.ownerId).map(issue => [issue.ownerId, ownerName(issue) || 'Assigned person'])).entries()].sort((a,b) => compareNames(a[1],b[1])).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+<label className="sort-control">Sort issues<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="manual">Manual order</option><option value="owner">Owner A–Z</option><option value="owner-desc">Owner Z–A</option><option value="topic">Topic A–Z</option><option value="topic-desc">Topic Z–A</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>{meetingWorkflow&&<label>Responsible team<select className="select" value={assignedTeam} onChange={e=>setAssignedTeam(e.target.value)}><option value="">All responsible teams</option><option value="unassigned">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
+
+      </div>
+
       {!rows ? (
         <Loading what="Loading issues" />
       ) : rows.length === 0 ? (
@@ -119,7 +128,7 @@ export default function Issues() {
               <div
                 key={issue.id}
                 className={'rowitem' + (overId === issue.id ? ' rowitem--dragover' : '') + (issue.status === 'solved' ? ' rowitem--done' : '')}
-                draggable={!issue.readOnly && sort === 'manual'}
+                draggable={!issue.readOnly && sort === 'manual' && inlineId !== issue.id}
                 onDragStart={() => { dragId.current = issue.id }}
                 onDragOver={e => { e.preventDefault(); setOverId(issue.id) }}
                 onDragLeave={() => setOverId(o => (o === issue.id ? null : o))}
@@ -131,8 +140,9 @@ export default function Issues() {
                   {priorityLabel(issue.priority) === 'Unranked' ? '–' : issue.priority}
                 </span>
                 <div className="rowitem__main">
+                  {inlineId === issue.id && !issue.readOnly ? <IssueInlineEditor issue={issue} companyId={company.id} team={team} onCancel={() => setInlineId(null)} onSaved={() => {setInlineId(null); load()}}/> : <>
                   <div className="rowitem__title">
-                    {issue.title}<FollowupContext hideOwner item={issue}/>
+                    {issue.readOnly ? issue.title : <button type="button" className="rowitem__title-link" aria-label={`Edit issue ${issue.title}`} onClick={() => setInlineId(issue.id)}>{issue.title}</button>}<FollowupContext hideOwner item={issue}/>
                     {issue.origin && issue.origin.kind !== 'manual' && (
                       <span className="pill pill--muted" title={issue.origin.label}>
                         from {issue.origin.kind}
@@ -148,7 +158,7 @@ export default function Issues() {
                       <span>{issue.linkedTodoIds.length} linked to-do{issue.linkedTodoIds.length > 1 ? 's' : ''}</span>
                     )}
                   </div>
-                  {(issue.description || issue.solution) && <button className="detail-toggle" aria-expanded={expanded.has(issue.id)} aria-controls={`issue-details-${issue.id}`} onClick={() => setExpanded(current => {const next = new Set(current); if (next.has(issue.id)) next.delete(issue.id); else next.add(issue.id); return next})}>{expanded.has(issue.id) ? 'Hide details' : 'Show details'}</button>}
+
                   <div id={`issue-details-${issue.id}`} hidden={!expanded.has(issue.id)}>
                   {issue.description && (
                     <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{issue.description}</div>
@@ -159,10 +169,14 @@ export default function Issues() {
                     </div>
                   )}
                   </div>
+                  </>}
                 </div>
-                {!issue.readOnly&&<div className="rowitem__end">
+                <div className="rowitem__end issue-actions">
+                  {inlineId !== issue.id && (issue.description || issue.solution) && <button className="detail-toggle" aria-expanded={expanded.has(issue.id)} aria-controls={`issue-details-${issue.id}`} onClick={() => setExpanded(current => {const next = new Set(current); if (next.has(issue.id)) next.delete(issue.id); else next.add(issue.id); return next})}>{expanded.has(issue.id) ? 'Hide details' : 'Show details'}</button>}
+                {!issue.readOnly && <>
+
                   {issue.status === 'open' && (
-                    <button className="btn btn--sm" onClick={() => setSolving(issue)}>Solve</button>
+                    <button className="btn btn--sm" onClick={() => setSolving(issue)}>Solved</button>
                   )}
                   <RowMenu>
                     {close => (
@@ -192,7 +206,8 @@ export default function Issues() {
                       </>
                     )}
                   </RowMenu>
-                </div>}
+                </>}
+                </div>
               </div>
             ))}
           </div>
@@ -225,6 +240,30 @@ export default function Issues() {
       )}
     </div>
   )
+}
+
+export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {issue: Issue; companyId: string; team: any[]; onCancel: () => void; onSaved: () => void}) {
+  const [title, setTitle] = useState(issue.title)
+  const [description, setDescription] = useState(issue.description)
+  const [priority, setPriority] = useState(issue.priority ?? 3)
+  const [ownerId, setOwnerId] = useState(issue.ownerId)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function save() {
+    if (!title.trim()) {setError('Enter an issue title.'); return}
+    setBusy(true); setError(null)
+    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, priority, ownerId}); onSaved()}
+    catch (error: unknown) {setError(error instanceof Error ? error.message : 'Could not save the issue.')}
+    finally {setBusy(false)}
+  }
+  return <form className="inline-issue-editor" aria-label="Edit issue inline" onSubmit={event => {event.preventDefault(); void save()}} onKeyDown={event => {if (event.key === 'Escape' && !busy) {event.stopPropagation(); onCancel()}}}>
+    <ErrorBanner error={error}/>
+    <fieldset className="edit-fields" disabled={busy}>
+    <label>Issue title<input className="input" autoFocus value={title} disabled={busy} onChange={event => setTitle(event.target.value)}/></label>
+    <label>Issue notes<textarea className="textarea" value={description} disabled={busy} onChange={event => setDescription(event.target.value)}/></label>
+    <div className="inline-editor-fields"><label>Importance<select className="select" value={priority} disabled={busy} onChange={event => setPriority(Number(event.target.value))}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{priorityLabels[value]}</option>)}</select></label><label>Owner<OwnerPicker team={team} value={ownerId} valueName={issue.ownerName || ''} onChange={id => {if (!busy) setOwnerId(id)}}/></label></div>
+    </fieldset><div className="inline-editor-actions"><button type="submit" className="btn btn--sm btn--primary" disabled={busy}>{busy ? 'Saving…' : 'Save issue'}</button><button type="button" className="btn btn--sm" disabled={busy} onClick={onCancel}>Cancel</button></div>
+  </form>
 }
 
 function IssueModal({

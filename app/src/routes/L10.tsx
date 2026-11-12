@@ -374,7 +374,7 @@ function LiveCell({
           if (draft.trim() === original) return
           const parsed = draft.trim() === '' ? null : Number(draft)
           if (parsed !== null && !isFinite(parsed)) { setDraft(original); return }
-          try { await setScore(measurableId, cell.periodKey, parsed); onSaved() }
+          try { await setScore(measurableId, cell.scorePeriodKey || cell.periodKey, parsed); onSaved() }
           catch (e: any) { setDraft(original); onError(e.message) }
         }}
         onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}

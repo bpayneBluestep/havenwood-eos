@@ -1,6 +1,7 @@
+import {validateSourceUrl, assignedTeams, compareMeasurables, orderMeasurables} from '../../../platform/scorecardModel'
 import {newestPeriods} from '../lib/listModel'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getScorecard, saveMeasurable, setScore, archiveMeasurable } from '../api'
+import { getScorecard, saveMeasurable, setScore, archiveMeasurable, saveScorecardSections } from '../api'
 import type { Measurable, Scorecard as SC, Cell } from '../api'
 import { useApp } from '../state'
 import {
@@ -19,11 +20,12 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * period sequence as the headings.
  */
 export default function Scorecard() {
-  const { company, team, me } = useApp()
+  const { company, team, me, scorecardEditing } = useApp()
   const [cadence, setCadence] = useState('weekly')
   const [sc, setSc] = useState<SC | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Measurable | 'new' | null>(null)
+  const [sectionsOpen, setSectionsOpen] = useState(false)
   const [dropFor, setDropFor] = useState<Measurable | null>(null)
 
   const load = useCallback(() => {
@@ -58,6 +60,7 @@ export default function Scorecard() {
               ))}
             </div>
           )}
+          {scorecardEditing && sc && sc.rows.length > 0 && <button className="btn" onClick={() => setSectionsOpen(true)}>Manage sections</button>}
           <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Measurable</button>
         </div>
       </div>
@@ -107,7 +110,7 @@ export default function Scorecard() {
                 {withGroupHeaders(sc.rows).map(item =>
                   item.kind === 'group' ? (
                     <tr className="grid__group" key={'g-' + item.label}>
-                      <td colSpan={sc.periods.length + 2}>{item.label}</td>
+                      <td colSpan={sc.periods.length + 2}><span className="grid__group-label">{item.label}</span></td>
                     </tr>
                   ) : (
                     <Row
@@ -131,6 +134,8 @@ export default function Scorecard() {
           </div>
         </div>
       )}
+
+      {sectionsOpen && sc && <SectionsModal rows={sc.rows} companyId={company.id} cadence={cadence} onClose={() => setSectionsOpen(false)} onSaved={() => {setSectionsOpen(false); load()}}/>}
 
       {editing && (
         <MeasurableModal
@@ -162,7 +167,7 @@ function withGroupHeaders(rows: Measurable[]): Item[] {
   const out: Item[] = []
   let last: string | null = null
   const anyGroups = rows.some(r => r.group)
-  for (const row of rows) {
+  for (const row of orderMeasurables(rows)) {
     const g = row.group || ''
     if (anyGroups && g !== last) {
       out.push({ kind: 'group', label: g || 'Ungrouped' })
@@ -190,6 +195,7 @@ function Row({
       <th className="c-meas" scope="row">
         <div className="meas__title">
           <span>{row.title}</span>
+          {row.sourceUrl && <a className="meas__source" href={row.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`Source material for ${row.title}`} title="Open source material">Source ↗</a>}
           {row.escalate && (
             <span className="badge-escalate" title="Three consecutive periods off goal">
               <span aria-hidden="true">▲</span> 3 weeks red
@@ -203,7 +209,7 @@ function Row({
           </span>
           <span className="meas__goal">{fmtGoal(row.goal, row.valueType)}</span>
           <span style={{ marginLeft: 'auto' }}>
-            <RowMenu>
+            {row.readOnly ? <span className="pill pill--muted" title={`Definition managed by ${row.sourceTeamName || 'the source team'}`}>Shared</span> : <RowMenu>
               {close => (
                 <>
                   <button onClick={() => { close(); onEdit() }}>Edit measurable</button>
@@ -212,7 +218,7 @@ function Row({
                   <button onClick={() => { close(); onArchive() }}>Archive</button>
                 </>
               )}
-            </RowMenu>
+            </RowMenu>}
           </span>
         </div>
       </th>
@@ -261,7 +267,7 @@ function ScoreCell({
     if (parsed !== null && !isFinite(parsed)) { setDraft(original); return }
     setBusy(true)
     try {
-      await setScore(measurableId, cell.periodKey, parsed)
+      await setScore(measurableId, cell.scorePeriodKey || cell.periodKey, parsed)
       onSaved()
     } catch (e: any) {
       setDraft(original)
@@ -311,6 +317,10 @@ function MeasurableModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  const {companies,scorecardEditing} = useApp()
+  const sourceTeamId = initial?.sourceTeamId || companyId
+  const [sourceUrl, setSourceUrl] = useState(initial?.sourceUrl || '')
+  const [teamIds, setTeamIds] = useState(() => assignedTeams(sourceTeamId, initial?.assignedTeamIds))
   const [title, setTitle] = useState(initial?.title || '')
   const [group, setGroup] = useState(initial?.group || '')
   const [ownerId, setOwnerId] = useState(initial?.ownerId || defaultOwnerId || '')
@@ -328,12 +338,13 @@ function MeasurableModal({
     if (op === 'between' && target2.trim() === '') { setErr('A between goal needs a second target.'); return }
     setBusy(true); setErr(null)
     try {
+      const validUrl = validateSourceUrl(sourceUrl)
       await saveMeasurable({
         companyId,
         id: initial?.id,
         rev: initial?.rev,
         title: title.trim(),
-        group: group.trim(),
+        group: group.trim(), ...(scorecardEditing ? {sourceUrl: validUrl, assignedTeamIds: teamIds} : {}),
         ownerId, ownerName,
         cadence: initial?.cadence || cadence,
         valueType,
@@ -380,6 +391,8 @@ function MeasurableModal({
                  placeholder="Residential, Clinical, Ops…" />
         </div>
       </div>
+      {scorecardEditing && <><div className="field"><label htmlFor="m-source">Source material link <span className="faint">(optional)</span></label><input id="m-source" className="input" type="url" placeholder="https://…" value={sourceUrl} onChange={event => setSourceUrl(event.target.value)}/><div className="field__hint">Link to the report, document, or spreadsheet used for this number.</div></div>
+      <fieldset className="field team-assignments"><legend>Assigned teams</legend><div className="field__hint">Selected teams use this measurable and the same scores. The source team manages its definition.</div>{companies.map(option => <label key={option.id}><input type="checkbox" checked={teamIds.includes(option.id)} disabled={option.id === sourceTeamId || busy} onChange={event => setTeamIds(ids => event.target.checked ? [...ids,option.id] : ids.filter(id => id !== option.id))}/>{option.name}{option.id === sourceTeamId ? ' (source team)' : ''}</label>)}{teamIds.filter(id => !companies.some(option => option.id === id)).map(id => <label key={id}><input type="checkbox" checked disabled/>Existing team (not currently accessible)</label>)}</fieldset></>}
       <div className="row3">
         <div className="field">
           <label htmlFor="m-vt">Value</label>
@@ -421,4 +434,23 @@ function MeasurableModal({
       </div>
     </Modal>
   )
+}
+
+export function SectionsModal({rows, companyId, cadence, onClose, onSaved}: {rows: Measurable[]; companyId: string; cadence: string; onClose: () => void; onSaved: () => void}) {
+  const [sections, setSections] = useState(() => [...new Set([...rows].sort(compareMeasurables).map(row => row.group || ''))].map(name => ({name,newName:name})))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  function move(index: number, direction: number) {
+    setSections(current => {const next=[...current]; [next[index],next[index+direction]]=[next[index+direction],next[index]]; return next})
+  }
+  async function save() {
+    setBusy(true); setError(null)
+    try {await saveScorecardSections({companyId,cadence,sections,revisions:rows.map(row => ({id:row.id,rev:row.rev}))}); onSaved()}
+    catch (error: unknown) {setError(error instanceof Error ? error.message : 'Could not save sections.')}
+    finally {setBusy(false)}
+  }
+  return <Modal title="Manage scorecard sections" onClose={onClose} footer={<><button className="btn" disabled={busy} onClick={onClose}>Cancel</button><button className="btn btn--primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save sections'}</button></>}>
+    <p className="muted">Move sections up or down and change their names. Changes apply to this team's scorecard and cadence.</p><ErrorBanner error={error}/>
+    <div className="section-editor">{sections.map((section,index) => <div className="section-editor__row" key={section.name}><label>Section name<input className="input" aria-label={`Section name for ${section.name || 'Ungrouped'}`} value={section.newName} disabled={busy} placeholder="Ungrouped" onChange={event => setSections(current => current.map((value,i) => i === index ? {...value,newName:event.target.value} : value))}/></label><button className="btn btn--sm" aria-label={`Move ${section.newName || 'Ungrouped'} up`} disabled={busy || index === 0} onClick={() => move(index,-1)}>↑</button><button className="btn btn--sm" aria-label={`Move ${section.newName || 'Ungrouped'} down`} disabled={busy || index === sections.length - 1} onClick={() => move(index,1)}>↓</button></div>)}</div>
+  </Modal>
 }

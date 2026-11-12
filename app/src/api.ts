@@ -147,7 +147,7 @@ export interface CompanyBrief {
 export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
-  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number}
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -162,6 +162,7 @@ export type CellStatus = 'green' | 'red' | 'empty' | 'none'
 export interface Goal { op: string; target: number | null; target2: number | null }
 
 export interface Cell {
+  scorePeriodKey?: string
   periodKey: string
   value: number | null
   status: CellStatus
@@ -171,6 +172,12 @@ export interface Cell {
 }
 
 export interface Measurable {
+  sourceUrl?: string
+  assignedTeamIds?: string[]
+  sourceTeamId?: string
+  sourceTeamName?: string
+  readOnly?: boolean
+  groupOrder?: number
   id: string
   cadence: string
   ownerId: string
@@ -192,6 +199,7 @@ export interface Scorecard {
   cadence: string
   periods: string[]
   currentPeriod: string
+  sectionsRev?: {id: string; rev: number}[]
   rows: Measurable[]
 }
 
@@ -358,6 +366,8 @@ export const setScore = (measurableId: string, periodKey: string, value: number 
 export const bulkSetScores = (
   entries: { measurableId: string; periodKey: string; value: number | null }[],
 ): Promise<{ written: number; rows: Measurable[] }> => post('bulkSetScores', { entries })
+
+export const saveScorecardSections = (fields: {companyId: string; cadence: string; sections: {name: string; newName: string}[]; revisions: {id: string; rev: number}[]}): Promise<Scorecard> => post('saveScorecardSections', fields)
 
 export const archiveMeasurable = (id: string): Promise<unknown> => post('archiveMeasurable', { id })
 

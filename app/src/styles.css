@@ -618,3 +618,37 @@ input, select, textarea { font: inherit; color: inherit; }
  .rock-owner-group .rock-milestones { margin-left:16px; padding-left:24px; }
  .sort-control { flex-wrap:wrap; }
 }
+
+/* Direct editing and compact issue controls. */
+.issues-heading { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+.ids-guide { margin:0; color:var(--muted); font-size:12px; }
+.list-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:12px 14px; margin-bottom:12px; background:var(--panel); border:1px solid var(--border); border-radius:6px; }
+.issue-actions { align-self:flex-start; padding-top:2px; }
+.issue-actions .detail-toggle { margin-top:0; white-space:nowrap; }
+.inline-issue-editor { display:grid; gap:10px; width:100%; }
+.inline-issue-editor label { display:grid; gap:4px; font-size:12px; color:var(--muted); }
+.inline-issue-editor .textarea { min-height:90px; }
+.inline-editor-fields, .inline-editor-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+.inline-editor-fields label { flex:1 1 140px; }
+.rock-owner-group .rock-row { margin-left:56px; border-left:2px solid var(--border-2); }
+.rock-description { margin-bottom:12px; }
+.rock-description .detail-toggle { margin:8px 0 0; }
+.meas__source { font-size:11px; font-weight:400; white-space:nowrap; }
+.team-assignments { border:1px solid var(--border); border-radius:6px; padding:12px; }
+.team-assignments legend { font-size:13px; font-weight:600; padding:0 4px; }
+.team-assignments label { display:flex; align-items:center; gap:8px; margin:8px 0; font-weight:400; }
+.section-editor { display:grid; gap:12px; }
+.section-editor__row { display:flex; align-items:flex-end; gap:8px; }
+.section-editor__row label { flex:1; min-width:0; display:grid; gap:4px; font-size:12px; }
+.grid__group-label { position:sticky; left:12px; }
+@media(max-width:700px) {
+ .rock-owner-group .rock-row { margin-left:24px; }
+ .ids-guide { line-height:1.5; }
+ .issue-actions { flex-wrap:wrap; max-width:110px; justify-content:flex-end; }
+}
+
+.rowitem__title-link { min-width:0; overflow-wrap:anywhere; }
+.inline-issue-editor .edit-fields { display:grid; gap:10px; }
+
+.rock-owner-group .rock-milestones { margin-left:80px; padding-left:56px; }
+@media(max-width:700px) { .rock-owner-group .rock-milestones { margin-left:64px; padding-left:32px; } }
