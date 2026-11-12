@@ -26,6 +26,10 @@ All four item types have one accountable person and an optional multi-team discl
 
 The source records retain immutable meeting/date/section links. Existing native status and assignment actions synchronize disclosure copies. Linked to-dos and converted issues retain source context but start with no disclosure. Archived rock carry-forwards also start without disclosure. Old items without context are not reconstructed into an agenda section.
 
+## Milestone status extension
+
+The patch also advertises `milestoneWorkflow: 1`. The existing `saveMilestone` action validates `not_started`, `in_progress`, `blocked` and `complete`, and synchronizes the existing `done` and `completedAt` fields. Old checkbox clients remain supported. See `docs/rocks-workflow.md`.
+
 ## Verification
 
 The pure timer and service tests run with `npm test`. The SPA type check and build run with `npm run typecheck` and `npm run build`. The development-only `/meeting-preview.html` uses synthetic records and an in-memory service; it makes no BlueStep writes and is not included in the production artifact.

@@ -147,7 +147,7 @@ export interface CompanyBrief {
 export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
-  capabilities?: {meetingWorkflow?:number}
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -196,6 +196,7 @@ export interface Scorecard {
 }
 
 export interface Milestone {
+  status?: 'not_started' | 'in_progress' | 'blocked' | 'complete'
   id: string
   title: string
   dueDate: string

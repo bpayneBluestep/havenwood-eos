@@ -1,3 +1,6 @@
+import MilestoneTasks from '../rocks/MilestoneTasks'
+import {groupRocks} from '../rocks/model'
+import type {MilestoneStatus} from '../rocks/model'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
 import { getRocks, getRocksBoard, saveRock, setRockStatus, setRockRollUp, saveMilestone, addRockNote, carryForwardRocks } from '../api'
@@ -113,20 +116,11 @@ export default function Rocks() {
             </Empty>
           </div>
         ) : (
-          <div className="card card__body--flush">
-            <div className="rows">
-              {rows.map(r => (
-                <RockRow
-                  key={r.id}
-                  rock={r}
-                  onChanged={load}
-                  onEdit={() => setEditing(r)}
-                  onDrop={() => setDropFor(r)}
-                  onNote={() => setNoteFor(r)}
-                  onError={setErr}
-                />
-              ))}
-            </div>
+          <div className="rock-owner-groups">
+            {groupRocks(rows,team).map(group=><details className="card rock-owner-group" open key={group.id}>
+              <summary><Avatar name={group.name} id={group.id}/><span>{group.name}</span><small>{group.rocks.length} rocks · {group.rocks.reduce((count,rock)=>count+rock.milestones.filter(item=>!item.done).length,0)} open milestones</small></summary>
+              <div className="rows">{group.rocks.length===0?<p className="card__body muted">No rocks assigned for this quarter.</p>:group.rocks.map(r=><RockRow key={r.id} rock={r} onChanged={load} onEdit={()=>setEditing(r)} onDrop={()=>setDropFor(r)} onNote={()=>setNoteFor(r)} onError={setErr}/>)}</div>
+            </details>)}
           </div>
         )
       ) : !board ? (
@@ -205,9 +199,9 @@ function RockRow({
   onNote: () => void
   onError: (m: string) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const [busy, setBusy] = useState(false)
-  const { team, me } = useApp()
+  const { team, me, milestoneWorkflow } = useApp()
   const [adding, setAdding] = useState(false)
 
   const done = rock.milestones.filter(m => m.done).length
@@ -218,6 +212,13 @@ function RockRow({
     const next = rock.status === 'on_track' ? 'off_track' : rock.status === 'off_track' ? 'done' : 'on_track'
     setBusy(true)
     try { await setRockStatus(rock.id, next, rock.rev); onChanged() }
+    catch (e: any) { onError(e.message) }
+    finally { setBusy(false) }
+  }
+
+  const updateMs = async (m: Milestone, status: MilestoneStatus) => {
+    setBusy(true)
+    try { await saveMilestone(rock.id, { id: m.id, status, done: status === 'complete' }, rock.rev); onChanged() }
     catch (e: any) { onError(e.message) }
     finally { setBusy(false) }
   }
@@ -327,7 +328,13 @@ function RockRow({
             </div>
           )}
 
-          {rock.milestones.map(m => (
+          {milestoneWorkflow && <MilestoneTasks rock={rock} people={team} enabled={milestoneWorkflow} busy={busy} onStatus={updateMs} onRemove={async m=>{
+            if(!confirm(`Remove milestone "${m.title}"?`))return
+            setBusy(true)
+            try{await saveMilestone(rock.id,{id:m.id,remove:true},rock.rev);onChanged()}catch(e:any){onError(e.message)}finally{setBusy(false)}
+          }}/> }
+          {!milestoneWorkflow && <p className="muted">Kanban status changes need the BlueStep endpoint update. You can still mark milestones complete below.</p>}
+          {!milestoneWorkflow && rock.milestones.map(m => (
             <div className={'ms' + (m.done ? ' ms--done' : '')} key={m.id}>
               <button
                 className={'check' + (m.done ? ' check--on' : '')}
@@ -352,6 +359,7 @@ function RockRow({
               </button>}
             </div>
           ))}
+
 
           {adding ? (
             <MilestoneAdd

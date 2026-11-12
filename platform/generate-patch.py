@@ -34,7 +34,7 @@ handlers="""
       }
 """
 source=source.replace(needle,needle+handlers,1)
-source=source.replace('          me: meObj(),','          capabilities:{meetingWorkflow:1},\n          me: meObj(),',1)
+source=source.replace('          me: meObj(),','          capabilities:{meetingWorkflow:1,milestoneWorkflow:1},\n          me: meObj(),',1)
 # Internal session/disclosure rows are not calendar meetings.
 source=source.replace("          const m = meetingOf(e);\n          if (!includeArchived","          const m = meetingOf(e);\n          if(m.kind!=='meeting')continue;\n          if (!includeArchived",1)
 # Public L10 must never include private rocks. Disclosed snapshots are explicit.
@@ -81,6 +81,13 @@ chunk=chunk.replace("occurrenceDate: dateStr(src.entry.fields.occurrenceDate)", 
 chunk=chunk.replace("linkedTodoIds: [], discussion: [],", "linkedTodoIds: [], discussion: [],meetingSource:sourceContext,sharedTeamIds:[],")
 source=source[:start]+chunk+source[end:]
 source=source.replace("occurrenceDate: dateStr(hit.entry.fields.occurrenceDate)\n        });", "occurrenceDate: dateStr(hit.entry.fields.occurrenceDate), meetingSource:issueOf(hit.entry).meetingSource||null,sharedTeamIds:[]\n        });",1)
+# Milestone workflow is additive to the existing done flag.
+start=source.index("      case 'saveMilestone':");end=source.index("      case 'addRockNote':",start)
+chunk=source[start:end].replace("        const list: any[]", "        if(ms.status!==undefined&&['not_started','in_progress','blocked','complete'].indexOf(ms.status)<0){fail('INVALID','Choose a valid milestone status.');break;}\n        const list: any[]",1)
+chunk=chunk.replace("          applyPatch(hit.entry, 'eosRocks', 'dataJSON', { milestones: list });", "          if(ms.status!==undefined){found.status=ms.status;found.done=ms.status==='complete';found.completedAt=found.done?(found.completedAt||nowIso()):null;}else if(ms.done!==undefined){found.status=found.done?'complete':'not_started';}\n          applyPatch(hit.entry, 'eosRocks', 'dataJSON', { milestones: list });",1)
+chunk=chunk.replace("ownerId: str(ms.ownerId, ''), done: bool(ms.done),", "ownerId: str(ms.ownerId, ''), status:ms.status===undefined?(bool(ms.done)?'complete':'not_started'):ms.status,done:ms.status===undefined?bool(ms.done):ms.status==='complete',")
+chunk=chunk.replace("completedAt: bool(ms.done) ? nowIso() : null", "completedAt: (ms.status===undefined?bool(ms.done):ms.status==='complete') ? nowIso() : null")
+source=source[:start]+chunk+source[end:]
 patch=''.join(difflib.unified_diff(base.splitlines(True),source.splitlines(True),fromfile='a/scripts/app.ts',tofile='b/scripts/app.ts'))
 (root/'platform/traction-meeting-workflow.patch').write_text(patch)
 (root/'platform/meetingModel.ts').write_text((root/'app/src/meetings/model.ts').read_text())

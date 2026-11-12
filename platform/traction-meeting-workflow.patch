@@ -134,11 +134,37 @@
          for (const c of companies) { list.push(companyBrief(c)); teams[c.id] = rosterFor(c.id); }
          const home = pickCompany(companies, IN('companyId'));
          ok({
-+          capabilities:{meetingWorkflow:1},
++          capabilities:{meetingWorkflow:1,milestoneWorkflow:1},
            me: meObj(),
            // Each entry is a TEAM (kind 'company' | 'custom'); the key keeps its
            // old name so the SPA's company switcher is the team switcher.
-@@ -1868,13 +1917,13 @@
+@@ -1800,6 +1849,7 @@
+         const ms = IN('milestone');
+         if (!ms || typeof ms !== 'object') { fail('INVALID', 'A milestone object is required.'); break; }
+         if (ms.dueDate && !isDateStr(ms.dueDate)) { fail('INVALID', 'milestone.dueDate must be YYYY-MM-DD.'); break; }
++        if(ms.status!==undefined&&['not_started','in_progress','blocked','complete'].indexOf(ms.status)<0){fail('INVALID','Choose a valid milestone status.');break;}
+         const list: any[] = Array.isArray(cur.milestones) ? cur.milestones : [];
+         const msId = str(ms.id, '');
+         let found: any = null;
+@@ -1818,14 +1868,15 @@
+             found.done = done;
+             found.completedAt = done ? nowIso() : null;
+           }
++          if(ms.status!==undefined){found.status=ms.status;found.done=ms.status==='complete';found.completedAt=found.done?(found.completedAt||nowIso()):null;}else if(ms.done!==undefined){found.status=found.done?'complete':'not_started';}
+           applyPatch(hit.entry, 'eosRocks', 'dataJSON', { milestones: list });
+         } else {
+           const msTitle = str(ms.title, '').trim();
+           if (!msTitle) { fail('INVALID', 'A milestone needs a title.'); break; }
+           list.push({
+             id: newId('ms'), title: msTitle, dueDate: str(ms.dueDate, ''),
+-            ownerId: str(ms.ownerId, ''), done: bool(ms.done),
+-            completedAt: bool(ms.done) ? nowIso() : null
++            ownerId: str(ms.ownerId, ''), status:ms.status===undefined?(bool(ms.done)?'complete':'not_started'):ms.status,done:ms.status===undefined?bool(ms.done):ms.status==='complete',
++            completedAt: (ms.status===undefined?bool(ms.done):ms.status==='complete') ? nowIso() : null
+           });
+           applyPatch(hit.entry, 'eosRocks', 'dataJSON', { milestones: list });
+         }
+@@ -1868,13 +1919,13 @@
            const openMs: any[] = [];
            for (const m of (Array.isArray(src.milestones) ? src.milestones : [])) if (m && !m.done) openMs.push(m);
            applyPatch(e, 'eosRocks', 'dataJSON', {
@@ -154,7 +180,7 @@
            made.push(rockOf(e));
          }
          commit();
-@@ -1890,9 +1939,10 @@
+@@ -1890,9 +1941,10 @@
          let n = 0;
          const stamp = today();
          for (const e of listEntries(c, 'eosRocks')) {
@@ -166,7 +192,7 @@
            n++;
          }
          commit();
-@@ -1915,6 +1965,7 @@
+@@ -1915,6 +1967,7 @@
            if (status && i.status !== status) continue;
            rows.push(i);
          }
@@ -174,7 +200,7 @@
          rows.sort(sortByRank);
          ok({ term: term || 'all', status: status || 'all', rows: rows });
          break;
-@@ -1946,14 +1997,17 @@
+@@ -1946,14 +1999,17 @@
            entry.fields.status.val('open');
            entry.fields.createdDate.val(today());
          }
@@ -193,7 +219,7 @@
          if (IN('rank') !== undefined) patch.rank = num(IN('rank'));
          if (IN('origin') !== undefined) patch.origin = IN('origin');
          if (mt) { patch.meetingId = mt.meetingId; patch.occurrenceDate = mt.occurrenceDate; }
-@@ -2005,7 +2059,7 @@
+@@ -2005,7 +2061,7 @@
          for (const id of ids) {
            const hit = findEntry(companies, 'eosIssues', 'issueId', str(id, ''));
            if (!hit) continue;
@@ -202,7 +228,7 @@
            n++;
          }
          commit();
-@@ -2028,14 +2082,14 @@
+@@ -2028,14 +2084,14 @@
          const pIn = num(IN('priority'));
          // An issue dropped from a private meeting's item stays in that meeting
          // (same occurrence) — private content never lands on the company list.
@@ -222,7 +248,7 @@
          }
          if (!mt) {
            mt = meetingTarget(companies, IN('meetingId'), IN('occurrenceDate'), myId);
-@@ -2055,7 +2109,7 @@
+@@ -2055,7 +2111,7 @@
            createdById: myId, createdByName: meObj().name,
            ownerId: str(IN('ownerId'), ''),
            rank: 1, origin: origin, solution: null, solvedAt: null,
@@ -231,7 +257,7 @@
            meetingId: mt ? mt.meetingId : '', occurrenceDate: mt ? mt.occurrenceDate : ''
          });
          commit();
-@@ -2164,7 +2218,7 @@
+@@ -2164,7 +2220,7 @@
            // Same meeting and occurrence as the issue: an issue's to-do is exactly
            // as private as the issue.
            meetingId: str(hit.entry.fields.meetingId.val(), ''),
@@ -240,7 +266,7 @@
          });
          const cur = issueOf(hit.entry);
          const linked: any[] = Array.isArray(cur.linkedTodoIds) ? cur.linkedTodoIds : [];
-@@ -2188,6 +2242,7 @@
+@@ -2188,6 +2244,7 @@
            if (unreadOnly && h.readDate) continue;
            rows.push(h);
          }
@@ -248,7 +274,7 @@
          rows.sort(function (a, b) { return str(b.createdAt, '') < str(a.createdAt, '') ? -1 : 1; });
          ok({ unreadOnly: unreadOnly, rows: rows });
          break;
-@@ -2256,6 +2311,7 @@
+@@ -2256,6 +2313,7 @@
          const rows: any[] = [];
          for (const e of listEntries(c, 'eosMeetings')) {
            const m = meetingOf(e);
@@ -256,7 +282,7 @@
            if (!includeArchived && !live(m)) continue;
            if (!canSeeMeeting(m, myId)) continue;
            rows.push(meetingSummary(m, c, myId));
-@@ -2440,8 +2496,9 @@
+@@ -2440,8 +2498,9 @@
          const rocks: any[] = [];
          for (const e of listEntries(c, 'eosRocks')) {
            const r = rockOf(e);
@@ -268,7 +294,7 @@
          rocks.sort(function (a, b) { return a.companyRock === b.companyRock ? 0 : (a.companyRock ? -1 : 1); });
  
          const heads: any[] = [];
-@@ -2450,6 +2507,7 @@
+@@ -2450,6 +2509,7 @@
            if (live(h) && isCompanyItem(h) && !h.readDate) heads.push(h);
          }
  
@@ -276,7 +302,7 @@
          // Last week's to-do list, plus the completion arithmetic nobody does by
          // hand. Target is 90%. Anything still open carries into the review too,
          // because "not done" is exactly what the section exists to surface.
-@@ -2470,6 +2528,7 @@
+@@ -2470,6 +2530,7 @@
            const i = issueOf(e);
            if (live(i) && isCompanyItem(i) && i.status === 'open' && i.term === 'short') issues.push(i);
          }
@@ -284,7 +310,7 @@
          issues.sort(sortByRank);
  
          // Conventional durations, shipped as LABELS. Nothing counts down.
-@@ -2512,7 +2571,7 @@
+@@ -2512,7 +2573,7 @@
            const qk = quarterKey(today(), c.settings.fiscalYearStartMonth);
            for (const e of listEntries(c, 'eosRocks')) {
              const r = rockOf(e);
