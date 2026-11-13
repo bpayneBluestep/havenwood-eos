@@ -1,7 +1,7 @@
 import {defaultLiveSections} from './liveSessionModel'
 import type {LiveSection} from './liveSessionModel'
-export interface MeetingType {id:string;name:string;scope:'team'|'private';sections:LiveSection[]}
-export interface MeetingTypeCatalog {rev:number;l10Rev?:number;types:MeetingType[]}
+export interface MeetingType {id:string;name:string;scope:'team'|'private';shared?:boolean;sections:LiveSection[]}
+export interface MeetingTypeCatalog {rev:number;l10Rev?:number;templateRev?:number;types:MeetingType[]}
 export const sectionKinds=['segue','headlines','todos','scorecard','rocks','ids','conclude','notes']
 export function defaultMeetingTypes():MeetingType[] {return [
  {id:'l10',name:'L10',scope:'team',sections:defaultLiveSections().map(section=>({...section,kind:section.id,prompt:''}))},
@@ -29,7 +29,9 @@ export function validateMeetingTypes(input:unknown):MeetingType[] {
   })
   if(sections.filter(section=>section.kind==='conclude').length!==1||sections[sections.length-1].kind!=='conclude')throw new Error('Keep exactly one Conclusion section, at the end.')
   if(sections.reduce((sum,section)=>sum+section.minutes,0)>480)throw new Error('An agenda cannot exceed 480 minutes.')
-  return {id:value.id,name:value.name.trim(),scope:value.scope as 'team'|'private',sections}
+  if(value.shared!==undefined&&typeof value.shared!=='boolean')throw new Error('Choose a valid template availability.')
+  if(value.shared&&(value.id==='l10'||value.id==='one-on-one'))throw new Error('Use a copy to share a built-in template.')
+  return {id:value.id,name:value.name.trim(),scope:value.scope as 'team'|'private',...(value.shared?{shared:true}:{}),sections}
  })
  if(!types.some(type=>type.id==='l10'&&type.scope==='team')||!types.some(type=>type.id==='one-on-one'&&type.scope==='private'))throw new Error('Keep L10 as a team type and One-on-one as a private type.')
  return types
@@ -44,4 +46,22 @@ export function changedSharedL10(current:MeetingTypeCatalog,input:MeetingTypeCat
  const next=validateMeetingTypes(input.types).find(type=>type.id==='l10')!
  const before=validateMeetingTypes(current.types).find(type=>type.id==='l10')!
  return JSON.stringify(next)===JSON.stringify(before)?null:next
+}
+
+export interface SharedTemplates {rev:number;types:MeetingType[]}
+export function withSharedTemplates(catalog:MeetingTypeCatalog,library?:SharedTemplates|null):MeetingTypeCatalog {
+ const shared=library?.types||[]
+ return {...catalog,templateRev:library?.rev||0,types:[...catalog.types.filter(type=>!type.shared&&!shared.some(item=>item.id===type.id)),...shared]}
+}
+export function changedSharedTemplates(current:MeetingTypeCatalog,input:MeetingTypeCatalog):MeetingType[]|null {
+ if((input.templateRev||0)!==(current.templateRev||0))throw new Error('Shared meeting templates changed. Reload before saving.')
+ const next=validateMeetingTypes(input.types).filter(type=>type.shared)
+ const previous=validateMeetingTypes(current.types).filter(type=>type.shared)
+ return JSON.stringify(next)===JSON.stringify(previous)?null:next
+}
+export function copyMeetingTemplate(source:MeetingType|undefined,existing:MeetingType[],id:string):MeetingType {
+ const base=source?`${source.name.slice(0,65)} copy`:'New template'
+ let name=base,n=2
+ while(existing.some(type=>type.name.toLowerCase()===name.toLowerCase()))name=`${base} ${n++}`
+ return {id,name:name.slice(0,80),scope:source?.scope||'team',shared:true,sections:source?source.sections.map(section=>({...section,spentMs:0})):[{id:'discussion',label:'Discussion',kind:'notes',minutes:25,spentMs:0,prompt:''},{id:'conclusion',label:'Conclusion',kind:'conclude',minutes:5,spentMs:0,prompt:''}]}
 }

@@ -19,8 +19,11 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * The latest period is next to the measurable column. Cells follow the same
  * period sequence as the headings.
  */
-export default function Scorecard({embedded=false}:{embedded?:boolean}) {
-  const { company, team, me, scorecardEditing } = useApp()
+export default function Scorecard({embedded=false,ownedOnly=false,companyId}:{embedded?:boolean;ownedOnly?:boolean;companyId?:string}) {
+  const { company:activeCompany, companies,team:currentTeam,teams,me,scorecardEditing } = useApp()
+  const targetCompanyId=companyId||activeCompany.id
+  const company=companies.find(item=>item.id===targetCompanyId)||activeCompany
+  const team=teams?.[targetCompanyId]||(targetCompanyId===activeCompany.id?currentTeam:[])
   const [cadence, setCadence] = useState('weekly')
   const [sc, setSc] = useState<SC | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -31,16 +34,17 @@ export default function Scorecard({embedded=false}:{embedded?:boolean}) {
 
   const load = useCallback(() => {
     setErr(null)
-    getScorecard(company.id, cadence, 13)
+    getScorecard(targetCompanyId, cadence, 13)
       .then(setSc)
       .catch(e => setErr(e.message))
-  }, [company.id, cadence])
+  }, [targetCompanyId, cadence])
 
   useEffect(() => { setSc(null); load() }, [load])
 
   const periods = newestPeriods(sc?.periods || [])
   const cadences = company.settings.scorecardCadences?.length ? company.settings.scorecardCadences : ['weekly']
-  const escalating = useMemo(() => (sc ? sc.rows.filter(r => r.escalate) : []), [sc])
+  const visibleRows=useMemo(()=>(sc?.rows||[]).filter(row=>!ownedOnly||!!row.ownerId?.trim()),[sc,ownedOnly])
+  const escalating = useMemo(() => visibleRows.filter(r=>r.escalate), [visibleRows])
 
   return (
     <div className={embedded ? 'scorecard-workspace scorecard-workspace--embedded' : 'page scorecard-workspace'}>
@@ -84,7 +88,7 @@ export default function Scorecard({embedded=false}:{embedded?:boolean}) {
 
       {!sc ? (
         <Loading what="Loading the scorecard" />
-      ) : sc.rows.length === 0 ? (
+      ) : visibleRows.length === 0 ? (
         <div className="card">
           <Empty title="No measurables yet">
             Add the 5–15 numbers your leadership team already reviews each week. Each one needs an
@@ -108,7 +112,7 @@ export default function Scorecard({embedded=false}:{embedded?:boolean}) {
                 </tr>
               </thead>
               <tbody>
-                {withGroupHeaders(sc.rows).map(item =>
+                {withGroupHeaders(visibleRows).map(item =>
                   item.kind === 'group' ? (
                     <tr className="grid__group" key={'g-' + item.label}>
                       <td colSpan={sc.periods.length + 2}><span className="grid__group-label">{scorecardEditing ? <button type="button" className="section-title" title="Rename or move this section" onClick={()=>{setSectionFocus(item.label==='Ungrouped'?'':item.label);setSectionsOpen(true)}}>{item.label}<span aria-hidden="true"> ✎</span></button> : item.label}</span></td>
@@ -136,12 +140,12 @@ export default function Scorecard({embedded=false}:{embedded?:boolean}) {
         </div>
       )}
 
-      {sectionsOpen && sc && <SectionsModal focusSection={sectionFocus} rows={sc.rows} companyId={company.id} cadence={cadence} onClose={() => setSectionsOpen(false)} onSaved={() => {setSectionsOpen(false); load()}}/>}
+      {sectionsOpen && sc && <SectionsModal focusSection={sectionFocus} rows={sc.rows} companyId={targetCompanyId} cadence={cadence} onClose={() => setSectionsOpen(false)} onSaved={() => {setSectionsOpen(false); load()}}/>}
 
       {editing && (
         <MeasurableModal
           initial={editing === 'new' ? null : editing}
-          companyId={company.id}
+          companyId={targetCompanyId}
           team={team}
           defaultOwnerId={me.id}
           defaultOwnerName={me.name}

@@ -18,10 +18,10 @@ export function useAgendaAutosave(teamId:string) {
   if(mounted.current){setBusy(true);setError('')}
   let succeeded=false
   try {
-   const saved=await adminSaveMeetingTypes(state.teamId,{rev:state.draft.rev,l10Rev:state.draft.l10Rev,types})
+   const saved=await adminSaveMeetingTypes(state.teamId,{rev:state.draft.rev,l10Rev:state.draft.l10Rev,templateRev:state.draft.templateRev,types})
    if(!mounted.current||model.current.generation!==generation)return
    state.savedEdit=ticket
-   state.draft=state.edit===ticket?saved:{...state.draft!,rev:saved.rev,l10Rev:saved.l10Rev}
+   state.draft=state.edit===ticket?saved:{...state.draft!,rev:saved.rev,l10Rev:saved.l10Rev,templateRev:saved.templateRev}
    setCatalog(state.draft);setDirty(state.edit!==state.savedEdit);succeeded=true
   }catch(error){if(mounted.current&&model.current.generation===generation)setError((error as Error).message)}
   finally {

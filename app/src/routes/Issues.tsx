@@ -282,6 +282,7 @@ export function IssuePriority({issue, companyId, disabled, onSaved}: {issue: Iss
       {value === '' && <option value="" disabled>–</option>}
       {[1,2,3,4,5].map(rank => <option value={rank} key={rank}>{priorityLabels[rank]}</option>)}
     </select>
+    <span className="rank-closed-value" aria-hidden="true">{value||'—'}<span>⌄</span></span>
     {error && <span id={errorId} className="issue-priority__error" role="alert">{error}</span>}
   </div>
 }

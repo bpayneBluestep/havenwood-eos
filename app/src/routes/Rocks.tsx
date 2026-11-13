@@ -19,8 +19,11 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * Status follows milestone completion and overdue dates. Rocks without
  * milestones retain their owner's status.
  */
-export default function Rocks() {
-  const { company, team, me } = useApp()
+export default function Rocks({embedded=false,companyId}:{embedded?:boolean;companyId?:string}) {
+  const { company:activeCompany,companies, team:currentTeam, teams, me } = useApp()
+  const targetCompanyId=companyId||activeCompany.id
+  const company=companies.find(item=>item.id===targetCompanyId)||activeCompany
+  const team=teams?.[targetCompanyId]||(targetCompanyId===activeCompany.id?currentTeam:[])
   const today = useToday()
   const [view, setView] = useState<'list' | 'board'>('list')
   const [scope, setScope] = useState<RockScope>('own')
@@ -36,24 +39,24 @@ export default function Rocks() {
   const load = useCallback(() => {
     setErr(null)
     if (view === 'list') {
-      getRocks(company.id, undefined, false, scope)
+      getRocks(targetCompanyId, undefined, false, scope)
         .then(r => { setRows(r.rows); setCounts(r.counts) })
         .catch(e => setErr(e.message))
     } else {
-      getRocksBoard(company.id, undefined, scope).then(setBoard).catch(e => setErr(e.message))
+      getRocksBoard(targetCompanyId, undefined, scope).then(setBoard).catch(e => setErr(e.message))
     }
-  }, [company.id, view, scope])
+  }, [targetCompanyId, view, scope])
 
-  useEffect(() => { setRows(null); setBoard(null); load() }, [load])
+  useEffect(() => { setRows(null); setBoard(null); load();if(!embedded)return;const timer=window.setInterval(load,10000);return()=>window.clearInterval(timer) }, [load,embedded])
 
   const quarter = company.periods.quarter
   const displayRows = rows?.map(rock => ({...rock, status: rockStatus(rock, today)}))
 
   return (
-    <div className="page">
+    <div className={embedded?"meeting-rocks":"page"}>
       <div className="page__head">
         <div>
-          <h1>Rocks</h1>
+          {!embedded&&<h1>Rocks</h1>}
           <div className="page__sub">
             {scope === 'own'
               ? `3–7 priorities for ${quarter}, each with one accountable owner. Status follows milestone dates and completion.`
@@ -159,7 +162,7 @@ export default function Rocks() {
       {editing && (
         <RockModal
           initial={editing === 'new' ? null : editing}
-          companyId={company.id}
+          companyId={targetCompanyId}
           team={team}
           defaultOwnerId={me.id}
           defaultOwnerName={me.name}

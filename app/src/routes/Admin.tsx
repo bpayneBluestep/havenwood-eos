@@ -51,7 +51,7 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
           <div className="seg" role="group" aria-label="Admin section">
             {(['teams', 'people', 'settings', 'agendas', 'notifications', 'audit'] as Tab[]).map(t => (
               <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
-                {t==='notifications'?'My Notifications':t==='agendas'?'Meeting types':t[0].toUpperCase() + t.slice(1)}
+                {t==='notifications'?'My Notifications':t==='agendas'?'Meeting templates':t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
           </div>

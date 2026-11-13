@@ -14,9 +14,10 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * Roll-forward is free: the L10 reads unread headlines, so anything not ticked
  * simply shows up again next week. No extra state and no scheduled job.
  */
-export default function Headlines() {
+export default function Headlines({embedded=false,companyId}:{embedded?:boolean;companyId?:string}) {
   const { company,companies } = useApp()
-  const [unreadOnly, setUnreadOnly] = useState(false)
+  const targetCompanyId=companyId||company.id
+  const [unreadOnly, setUnreadOnly] = useState(embedded)
   const [rows, setRows] = useState<Headline[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -32,19 +33,19 @@ export default function Headlines() {
 
   const load = useCallback(() => {
     setErr(null)
-    getHeadlines(company.id, unreadOnly).then(r => setRows(r.rows)).catch(e => setErr(e.message))
-  }, [company.id, unreadOnly])
+    getHeadlines(targetCompanyId, unreadOnly).then(r => setRows(r.rows)).catch(e => setErr(e.message))
+  }, [targetCompanyId, unreadOnly])
 
-  useEffect(() => { setRows(null); load() }, [load])
+  useEffect(() => { setRows(null); load();if(!embedded)return;const timer=window.setInterval(load,10000);return()=>window.clearInterval(timer) }, [load,embedded])
 
   const unread = rows ? rows.filter(r => !r.readDate) : []
   const visible = [...(rows || [])].sort((a, b) => sort === 'author' ? compareNames(a.createdByName, b.createdByName) : sort === 'author-desc' ? compareNames(b.createdByName, a.createdByName) : compareDates(a.createdAt, b.createdAt, sort === 'newest'))
 
   return (
-    <div className="page">
+    <div className={embedded?"meeting-headlines":"page"}>
       <div className="page__head">
         <div>
-          <h1>Headlines</h1>
+          {!embedded&&<h1>Headlines</h1>}
           <div className="page__sub">
             Customer and employee news, one or two sentences. Unread ones roll into the next L10.
           </div>
@@ -109,11 +110,11 @@ export default function Headlines() {
       )}
 
       {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted">{firstLast({name: detail.createdByName}) || 'Unassigned'}{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{detail.sourceLabel||'Open source'}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
-      {editing&&<Modal title="Edit headline" onClose={()=>setEditing(null)}><HeadlineForm companyId={company.id} initial={editing} onDone={()=>{setEditing(null);load()}} onCancel={()=>setEditing(null)}/></Modal>}
-      {cascadeFor&&<Modal title="Cascade headline" onClose={()=>setCascadeFor(null)}><p>Publish a separate copy to another team.</p><label className="field">Team<select className="select" value={targetTeam} onChange={event=>setTargetTeam(event.target.value)}><option value="">Select a team</option>{companies.filter(team=>team.id!==company.id).map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><button className="btn btn--primary" disabled={!targetTeam||busy} onClick={async()=>{setBusy(true);try{await cascadeHeadline(cascadeFor.id,targetTeam);setCascadeFor(null)}catch(error:any){setErr(error.message)}finally{setBusy(false)}}}>{busy?'Publishing…':'Publish headline'}</button></Modal>}
+      {editing&&<Modal title="Edit headline" onClose={()=>setEditing(null)}><HeadlineForm companyId={targetCompanyId} initial={editing} onDone={()=>{setEditing(null);load()}} onCancel={()=>setEditing(null)}/></Modal>}
+      {cascadeFor&&<Modal title="Cascade headline" onClose={()=>setCascadeFor(null)}><p>Publish a separate copy to another team.</p><label className="field">Team<select className="select" value={targetTeam} onChange={event=>setTargetTeam(event.target.value)}><option value="">Select a team</option>{companies.filter(team=>team.id!==targetCompanyId).map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><button className="btn btn--primary" disabled={!targetTeam||busy} onClick={async()=>{setBusy(true);try{await cascadeHeadline(cascadeFor.id,targetTeam);setCascadeFor(null)}catch(error:any){setErr(error.message)}finally{setBusy(false)}}}>{busy?'Publishing…':'Publish headline'}</button></Modal>}
       {adding && (
         <Modal title="New headline" onClose={() => setAdding(false)}>
-          <HeadlineForm companyId={company.id} permanentDefault={permanentNew} onDone={() => { setAdding(false); load() }} onCancel={() => setAdding(false)} />
+          <HeadlineForm companyId={targetCompanyId} permanentDefault={permanentNew} onDone={() => { setAdding(false); load() }} onCancel={() => setAdding(false)} />
         </Modal>
       )}
 

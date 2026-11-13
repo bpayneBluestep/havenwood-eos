@@ -18,8 +18,10 @@ import { DropToIssueModal } from '../components/DropToIssue'
  *
  * Personal action items are private to their owner and never appear in the L10.
  */
-export default function Todos() {
-  const { company, team, me } = useApp()
+export default function Todos({embedded=false,companyId}:{embedded?:boolean;companyId?:string}) {
+  const { company, team:currentTeam,teams, me } = useApp()
+  const targetCompanyId=companyId||company.id
+  const team=teams?.[targetCompanyId]||(targetCompanyId===company.id?currentTeam:[])
   const [mine, setMine] = useState(false)
   const [overdueOnly, setOverdueOnly] = useState(false)
   const [sort, setSort] = useState('due')
@@ -36,12 +38,13 @@ export default function Todos() {
   const load = useCallback(() => {
     const version=++requestVersion.current
     setErr(null)
-    getTodos(company.id, mine, showDone ? undefined : 'open',trackRange)
-      .then(r => {if(version!==requestVersion.current)return;setRows(r.rows);setTrackRecord(r.trackRecord?.rows || null)})
+    const request=embedded?getTodos(targetCompanyId,mine,showDone?undefined:'open',trackRange,true):getTodos(targetCompanyId,mine,showDone?undefined:'open',trackRange)
+    request
+      .then(r => {if(version!==requestVersion.current)return;setRows(embedded?r.rows.filter(row=>!row.personal&&!row.meetingId):r.rows);setTrackRecord(r.trackRecord?.rows || null)})
       .catch(e => {if(version===requestVersion.current)setErr(e.message)})
-  }, [company.id, mine, showDone,trackRange])
+  }, [targetCompanyId, mine, showDone,trackRange,embedded])
 
-  useEffect(() => { setRows(null); setTrackRecord(null); load() }, [load])
+  useEffect(() => { setRows(null); setTrackRecord(null); load();if(!embedded)return;const timer=window.setInterval(load,10000);return()=>window.clearInterval(timer) }, [load,embedded])
 
   const toggle = async (t: Todo) => {
     const next = t.status === 'done' ? 'open' : 'done'
@@ -56,10 +59,10 @@ export default function Todos() {
   const done = visible.filter(row => row.status === 'done')
 
   return (
-    <div className="page">
+    <div className={embedded?"meeting-action-items":"page"}>
       <div className="page__head">
         <div>
-          <h1>Action Items</h1>
+          {!embedded&&<h1>Action Items</h1>}
           <div className="page__sub">
             Seven-day commitments. If it takes longer than that, it wants to be a Rock.
           </div>
@@ -124,7 +127,7 @@ export default function Todos() {
       {editing && (
         <TodoModal
           initial={editing === 'new' ? null : editing}
-          companyId={company.id}
+          companyId={targetCompanyId}
           team={team}
           defaultOwnerId={me.id}
           defaultOwnerName={me.name}

@@ -1,14 +1,14 @@
 import Scorecard from './Scorecard'
-import {rockStatus} from '../rocks/model'
-import {useToday} from '../lib/useToday'
+import Rocks from './Rocks'
+import Todos from './Todos'
+import Headlines from './Headlines'
 import FollowupContext from '../meetings/FollowupContext'
 import { createContext, useContext, useCallback, useEffect, useState } from 'react'
-import { getL10, setRockStatus, setTodoStatus, markHeadlineRead } from '../api'
-import type { L10 as L10Data, Rock, Issue, Todo, Headline } from '../api'
+import { getL10 } from '../api'
+import type { L10 as L10Data, Issue } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, Empty, ErrorBanner, Loading, RowMenu, StatusPill,
-  dueClass, fmtDate, firstLast,
+  Avatar, Empty, ErrorBanner, Loading,
 } from '../lib/ui'
 import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
 
@@ -61,46 +61,18 @@ export default function L10({embedded=false,section,sectionLabel,sectionNumber,c
           </Section>
 
           {/* Scorecard — read the numbers. Off track drops to Issues. No discussion. */}
-          <Section n={2} item={data.agenda[1]} count={data.scorecard.rows.length}>
-            <Scorecard embedded/>
+          <Section n={2} item={data.agenda[1]} count={data.scorecard.rows.filter(row=>!!row.ownerId?.trim()).length}>
+            <Scorecard embedded ownedOnly companyId={companyId||company.id}/>
           </Section>
 
           {/* Rock review — each owner says On Track or Off Track. No discussion. */}
           <Section n={3} item={data.agenda[2]} count={data.rocks.length}>
-            {data.rocks.length === 0 ? (
-              <Empty title="No rocks this quarter" />
-            ) : (
-              <div className="rows">
-                {data.rocks.map(r => (
-                  <RockLine
-                    key={r.id}
-                    rock={r}
-                    onSaved={load}
-                    onError={setErr}
-                    onDrop={() => setDrop({ kind: 'rock', id: r.id, label: r.title, title: `${r.title} is off track` })}
-                  />
-                ))}
-              </div>
-            )}
+            <Rocks embedded companyId={companyId||company.id}/>
           </Section>
 
           {/* Headlines — unread only, so nothing is silently dropped. */}
           <Section n={4} item={data.agenda[3]} count={data.headlines.length}>
-            {data.headlines.length === 0 ? (
-              <Empty title="No unread headlines" />
-            ) : (
-              <div className="rows">
-                {data.headlines.map(h => (
-                  <HeadlineLine
-                    key={h.id}
-                    headline={h}
-                    onSaved={load}
-                    onError={setErr}
-                    onDrop={() => setDrop({ kind: 'headline', id: h.id, label: h.body, title: h.body })}
-                  />
-                ))}
-              </div>
-            )}
+            <Headlines embedded companyId={companyId||company.id}/>
           </Section>
 
           {/* Action Items — last week's list. The 90% target is the one bit of meeting
@@ -110,21 +82,7 @@ export default function L10({embedded=false,section,sectionLabel,sectionNumber,c
             item={data.agenda[4]}
             right={<CompletionMeter done={data.todos.completed} total={data.todos.total} pct={data.todos.pct} target={data.todos.target} />}
           >
-            {data.todos.rows.length === 0 ? (
-              <Empty title="Nothing to review" />
-            ) : (
-              <div className="rows">
-                {data.todos.rows.map(t => (
-                  <TodoLine
-                    key={t.id}
-                    todo={t}
-                    onSaved={load}
-                    onError={setErr}
-                    onDrop={() => setDrop({ kind: 'todo', id: t.id, label: t.title, title: t.title })}
-                  />
-                ))}
-              </div>
-            )}
+            <Todos embedded companyId={companyId||company.id}/>
           </Section>
 
           {/* IDS — the meeting. Solve the top issues one at a time. */}
@@ -247,104 +205,5 @@ function CompletionMeter({ done, total, pct, target }: { done: number; total: nu
         {done}/{total} · target {Math.round(target * 100)}%
       </span>
     </span>
-  )
-}
-
-function RockLine({ rock: original, onSaved, onError, onDrop }: { rock: Rock; onSaved: () => void; onError: (m: string) => void; onDrop: () => void }) {
-  const today = useToday()
-  const rock = {...original, status: rockStatus(original, today)}
-  const [busy, setBusy] = useState(false)
-  const set = async (status: string) => {
-    setBusy(true)
-    try { await setRockStatus(rock.id, status, rock.rev); onSaved() }
-    catch (e: any) { onError(e.message) }
-    finally { setBusy(false) }
-  }
-  return (
-    <div className="rowitem">
-      <Avatar name={rock.ownerName} id={rock.ownerId} />
-      <div className="rowitem__main">
-        <div className="rowitem__title">
-          {rock.title}
-          {rock.companyRock && <span className="pill pill--muted">company</span>}
-        </div>
-        <div className="rowitem__meta">
-          <span>{firstLast({ name: rock.ownerName }) || 'Unassigned'}</span>
-          {rock.dueDate && <span className={dueClass(rock.dueDate, rock.status === 'done')}>due {fmtDate(rock.dueDate)}</span>}
-          {rock.milestones.length > 0 && (
-            <span className="mono">{rock.milestones.filter(m => m.done).length}/{rock.milestones.length} milestones</span>
-          )}
-        </div>
-      </div>
-      <div className="rowitem__end">
-        {rock.milestones.length > 0 ? <StatusPill status={rock.status}/> : <div className="seg" role="group" aria-label={`Status for ${rock.title}`}>
-          <button aria-pressed={rock.status === 'on_track'} disabled={busy||rock.readOnly} onClick={() => set('on_track')}>On</button>
-          <button aria-pressed={rock.status === 'off_track'} disabled={busy||rock.readOnly} onClick={() => set('off_track')}>Off</button>
-          <button aria-pressed={rock.status === 'done'} disabled={busy||rock.readOnly} onClick={() => set('done')}>Done</button>
-        </div>}
-        {!rock.readOnly&&<RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}</RowMenu>}
-      </div>
-    </div>
-  )
-}
-
-function HeadlineLine({ headline, onSaved, onError, onDrop }: { headline: Headline; onSaved: () => void; onError: (m: string) => void; onDrop: () => void }) {
-  return (
-    <div className="rowitem">
-      <button
-        className="check"
-        aria-label="Mark read"
-        title="Mark read — unread headlines roll into next week"
-        disabled={headline.readOnly} onClick={async () => {
-          try { await markHeadlineRead([headline.id]); onSaved() } catch (e: any) { onError(e.message) }
-        }}
-      >
-        ✓
-      </button>
-      <div className="rowitem__main">
-        <div className="rowitem__title">
-          {headline.body}<FollowupContext item={headline}/>
-          <span className={'pill ' + (headline.type === 'customer' ? 'pill--green' : 'pill--muted')}>
-            <span className="pill__glyph" aria-hidden="true">{headline.type === 'customer' ? '★' : '◆'}</span>
-            {headline.type}
-          </span>
-        </div>
-        <div className="rowitem__meta"><span>{firstLast({ name: headline.createdByName })}</span></div>
-      </div>
-      <div className="rowitem__end">
-        {!headline.readOnly&&<RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}</RowMenu>}
-      </div>
-    </div>
-  )
-}
-
-function TodoLine({ todo, onSaved, onError, onDrop }: { todo: Todo; onSaved: () => void; onError: (m: string) => void; onDrop: () => void }) {
-  const isDone = todo.status === 'done'
-  return (
-    <div className={'rowitem' + (isDone ? ' rowitem--done' : '')}>
-      <button
-        className={'check' + (isDone ? ' check--on' : '')}
-        disabled={todo.readOnly} aria-label={isDone ? 'Mark not done' : 'Mark done'}
-        onClick={async () => {
-          try { await setTodoStatus(todo.id, isDone ? 'open' : 'done', todo.rev); onSaved() }
-          catch (e: any) { onError(e.message) }
-        }}
-      >
-        ✓
-      </button>
-      <Avatar name={todo.ownerName} id={todo.ownerId} sm />
-      <div className="rowitem__main">
-        <div className="rowitem__title">{todo.title}<FollowupContext item={todo}/></div>
-        <div className="rowitem__meta">
-          <span>{firstLast({ name: todo.ownerName }) || 'Unassigned'}</span>
-          {todo.dueDate && <span className={dueClass(todo.dueDate, isDone)}>due {fmtDate(todo.dueDate)}</span>}
-        </div>
-      </div>
-      <div className="rowitem__end">
-        {/* Not done → recommit or drop to Issues. That choice is the whole point
-            of reviewing the list. */}
-        {!todo.readOnly&&<RowMenu>{close => <button onClick={() => { close(); onDrop() }}>Not done → drop to Issues</button>}</RowMenu>}
-      </div>
-    </div>
   )
 }
