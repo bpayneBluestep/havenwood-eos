@@ -1,7 +1,7 @@
 import {compareNames, compareDates, isOverdue} from '../lib/listModel'
 import {useToday} from '../lib/useToday'
 import FollowupContext from '../meetings/FollowupContext'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getTodos, saveTodo, setTodoStatus } from '../api'
 import type { Todo } from '../api'
 import { useApp } from '../state'
@@ -25,6 +25,8 @@ export default function Todos() {
   const [sort, setSort] = useState('due')
   const today = useToday()
   const [showDone, setShowDone] = useState(false)
+  const [trackRange,setTrackRange]=useState<import('../../../platform/todoTrackRecord').TrackRecordRange>('3m')
+  const requestVersion=useRef(0)
   const [trackRecord,setTrackRecord]=useState<import('../../../platform/todoTrackRecord').TrackRecordRow[]|null>(null)
   const [rows, setRows] = useState<Todo[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -32,11 +34,12 @@ export default function Todos() {
   const [dropFor, setDropFor] = useState<Todo | null>(null)
 
   const load = useCallback(() => {
+    const version=++requestVersion.current
     setErr(null)
-    getTodos(company.id, mine, showDone ? undefined : 'open')
-      .then(r => {setRows(r.rows);setTrackRecord(r.trackRecord?.rows || null)})
-      .catch(e => setErr(e.message))
-  }, [company.id, mine, showDone])
+    getTodos(company.id, mine, showDone ? undefined : 'open',trackRange)
+      .then(r => {if(version!==requestVersion.current)return;setRows(r.rows);setTrackRecord(r.trackRecord?.rows || null)})
+      .catch(e => {if(version===requestVersion.current)setErr(e.message)})
+  }, [company.id, mine, showDone,trackRange])
 
   useEffect(() => { setRows(null); setTrackRecord(null); load() }, [load])
 
@@ -64,7 +67,11 @@ export default function Todos() {
 
       </div>
 
-      <div className="action-track-record" aria-label="All-time action item on-time rates"><span className="muted">All-time on time</span>{(trackRecord || team.map(member=>({id:member.id,name:member.name,onTime:0,scored:0,unscored:0,rate:null}))).map(member=><span className="action-track-record__member" key={member.id} title={`${member.name}: ${member.onTime} on time / ${member.scored} scored action items. ${member.unscored} unscored. Includes overdue open items and archived completions; excludes future open, personal and private meeting items.`}><Avatar name={member.name} id={member.id} sm/><span className="mono">{member.rate===null?'—':`${Math.round(member.rate*100)}%`}</span></span>)}</div>
+      <section className="action-track-record" aria-label="Action item on-time rates">
+        <div className="action-track-record__head"><strong>On-time completion</strong><div className="seg" aria-label="Completion rate period">{([['all','All time'],['3m','Last 3 months'],['1m','Last 1 month']] as const).map(([value,label])=><button key={value} className={trackRange===value?'active':''} aria-pressed={trackRange===value} onClick={()=>setTrackRange(value)}>{label}</button>)}</div></div>
+        <p className="muted">Based on due dates. Includes overdue open items. — means no scored items.</p>
+        <div className="action-track-record__members">{(trackRecord || team.map(member=>({id:member.id,name:member.name,onTime:0,scored:0,unscored:0,rate:null}))).map(member=><div className="action-track-record__member" key={member.id} title={`${member.name}: ${member.onTime} on time / ${member.scored} scored action items. ${member.unscored} unscored. Includes archived completions; excludes personal and private meeting items.`}><Avatar name={member.name} id={member.id}/><span className="action-track-record__name">{member.name}</span><strong className="mono">{member.rate===null?'—':`${Math.round(member.rate*100)}%`}</strong></div>)}</div>
+      </section>
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 

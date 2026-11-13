@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {todoTrackRecord} from './todoTrackRecord'
+import {todoTrackRecord,trackRecordStart} from './todoTrackRecord'
 const members=[{id:'a',name:'Member A'},{id:'b',name:'Member B'}],today='2026-11-12'
 const todo=(extra:Record<string,unknown>={})=>({ownerId:'a',status:'done',dueDate:'2026-11-10',completedAt:'2026-11-10T18:00:00',...extra})
 describe('all-time on-time track record',()=>{
@@ -12,3 +12,6 @@ describe('all-time on-time track record',()=>{
  it('does not score an unfinished item until its deadline has passed',()=>{expect(todoTrackRecord(members,[todo({status:'open',completedAt:null,dueDate:today})],today)[0].scored).toBe(0)})
  it('includes every current member and ignores other owners',()=>{const rows=todoTrackRecord(members,[todo({ownerId:'former'})],today);expect(rows.map(row=>row.id)).toEqual(['a','b']);expect(rows.every(row=>row.rate===null)).toBe(true)})
 })
+
+it('uses due-date windows and retains late completions in the original cohort',()=>{expect(todoTrackRecord(members,[todo({dueDate:'2026-08-11'}),todo({dueDate:'2026-08-12',completedAt:'2026-11-01'}),todo({dueDate:'2026-11-20'})],today,'3m')[0]).toMatchObject({onTime:0,scored:1});expect(todoTrackRecord(members,[todo({dueDate:'2026-10-11'}),todo()],today,'1m')[0].scored).toBe(1)})
+it('clamps calendar month boundaries',()=>{expect(trackRecordStart('2026-03-31','1m')).toBe('2026-02-28');expect(trackRecordStart('2024-03-31','1m')).toBe('2024-02-29');expect(trackRecordStart(today,'all')).toBe('')})

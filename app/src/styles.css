@@ -692,8 +692,13 @@ input, select, textarea { font: inherit; color: inherit; }
 .agenda-editor__row { display:grid; grid-template-columns:minmax(140px,2fr) 90px minmax(140px,1.5fr) auto; gap:12px; align-items:end; margin-bottom:8px; }
 @media(max-width:800px) { .agenda-editor__row { grid-template-columns:1fr 90px; } }
 
-.action-track-record { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:0 0 16px; padding:10px 12px; border:1px solid var(--border); border-radius:7px; background:var(--panel); }
-.action-track-record__member { display:inline-flex; align-items:center; gap:6px; font-size:12px; }
+.action-track-record { margin:0 0 16px; padding:14px; border:1px solid var(--border); border-radius:7px; background:var(--panel); }
+.action-track-record__head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.action-track-record p { margin:8px 0 12px; font-size:12px; }
+.action-track-record__members { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; }
+.action-track-record__member { display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:14px; }
+.action-track-record__name { flex:1; }
+.action-track-record__member strong { font-size:18px; }
 .dashboard-summaries { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:14px; }
 .dashboard-summary__value { font-size:28px; font-weight:650; margin-top:10px; }
 .dashboard-summary__value span { font-size:14px; font-weight:400; color:var(--muted); }
