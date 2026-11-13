@@ -1,13 +1,14 @@
+import Scorecard from './Scorecard'
 import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
 import FollowupContext from '../meetings/FollowupContext'
 import { createContext, useContext, useCallback, useEffect, useState } from 'react'
-import { getL10, setScore, setRockStatus, setTodoStatus, markHeadlineRead } from '../api'
-import type { L10 as L10Data, Rock, Issue, Todo, Headline, Measurable, Cell } from '../api'
+import { getL10, setRockStatus, setTodoStatus, markHeadlineRead } from '../api'
+import type { L10 as L10Data, Rock, Issue, Todo, Headline } from '../api'
 import { useApp } from '../state'
 import {
   Avatar, Empty, ErrorBanner, Loading, RowMenu, StatusPill,
-  cellClass, cellMark, dueClass, fmtDate, fmtGoal, firstLast, shortPeriod,
+  dueClass, fmtDate, firstLast,
 } from '../lib/ui'
 import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
 
@@ -61,14 +62,7 @@ export default function L10({embedded=false,section}:{embedded?:boolean;section?
 
           {/* Scorecard — read the numbers. Off track drops to Issues. No discussion. */}
           <Section n={2} item={data.agenda[1]} count={data.scorecard.rows.length}>
-            <ScorecardSection
-              scorecard={data.scorecard}
-              onSaved={load}
-              onError={setErr}
-              onDrop={(m: Measurable) =>
-                setDrop({ kind: 'measurable', id: m.id, label: m.title, title: `${m.title} has missed goal 3 periods running` })
-              }
-            />
+            <Scorecard embedded/>
           </Section>
 
           {/* Rock review — each owner says On Track or Off Track. No discussion. */}
@@ -253,134 +247,6 @@ function CompletionMeter({ done, total, pct, target }: { done: number; total: nu
         {done}/{total} · target {Math.round(target * 100)}%
       </span>
     </span>
-  )
-}
-
-/*
- * In the meeting only THIS week's column is typed into, so the L10 shows the last
- * few periods for context and makes the current one the editable target.
- */
-function ScorecardSection({
-  scorecard, onSaved, onError, onDrop,
-}: {
-  scorecard: L10Data['scorecard']
-  onSaved: () => void
-  onError: (m: string) => void
-  onDrop: (m: Measurable) => void
-}) {
-  if (scorecard.rows.length === 0) return <Empty title="No measurables yet" />
-  const shown = scorecard.periods.slice(-5).reverse()
-
-  return (
-    <div className="gridwrap">
-      <table className="grid">
-        <thead>
-          <tr>
-            <th className="c-meas">Measurable</th>
-            {shown.map(p => (
-              <th key={p} title={p}>
-                {shortPeriod(p)}
-                {p === scorecard.currentPeriod && <div className="faint" style={{ fontSize: 9, fontWeight: 700 }}>NOW</div>}
-              </th>
-            ))}
-            <th className="c-fill" aria-hidden="true" />
-          </tr>
-        </thead>
-        <tbody>
-          {scorecard.rows.map(row => (
-            <tr key={row.id}>
-              <th className="c-meas" scope="row">
-                <div className="meas__title">
-                  <span>{row.title}</span>
-                  {row.escalate && (
-                    <button
-                      className="badge-escalate"
-                      onClick={() => onDrop(row)}
-                      title="Three periods off goal — EOS says this belongs on the Issues list"
-                    >
-                      <span aria-hidden="true">▲</span> 3 red → drop
-                    </button>
-                  )}
-                </div>
-                <div className="meas__sub">
-                  <Avatar name={row.ownerName} id={row.ownerId} sm />
-                  <span className="meas__goal">{fmtGoal(row.goal, row.valueType)}</span>
-                  <span style={{ marginLeft: 'auto' }}>
-                    <RowMenu>{close => <button onClick={() => { close(); onDrop(row) }}>Drop to Issues</button>}</RowMenu>
-                  </span>
-                </div>
-              </th>
-              {shown.map(p => {
-                const cell = row.cells.find(c => c.periodKey === p)
-                if (!cell) return <td key={p} className="cell" />
-                return (
-                  <LiveCell
-                    key={p}
-                    measurableId={row.id}
-                    cell={cell}
-                    editable={p === scorecard.currentPeriod}
-                    onSaved={onSaved}
-                    onError={onError}
-                  />
-                )
-              })}
-              <td className="c-fill" aria-hidden="true" />
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function LiveCell({
-  measurableId, cell, editable, onSaved, onError,
-}: {
-  measurableId: string
-  cell: Cell
-  editable: boolean
-  onSaved: () => void
-  onError: (m: string) => void
-}) {
-  const [draft, setDraft] = useState(cell.value === null ? '' : String(cell.value))
-  useEffect(() => { setDraft(cell.value === null ? '' : String(cell.value)) }, [cell.value])
-
-  const mark = cellMark(cell.status)
-  const cls = cellClass(cell.status) + (editable ? ' cell--now' : '')
-
-  if (!editable) {
-    return (
-      <td className={cls}>
-        {mark && <span className="cell__mark" aria-hidden="true">{mark}</span>}
-        <div className="cell__in" aria-label={`${cell.periodKey}: ${cell.value ?? 'no value'}`}>
-          {cell.value === null ? '' : cell.value}
-        </div>
-      </td>
-    )
-  }
-
-  return (
-    <td className={cls}>
-      {mark && <span className="cell__mark" aria-hidden="true">{mark}</span>}
-      <input
-        className="cell__in"
-        type="number"
-        step="any"
-        inputMode="decimal"
-        value={draft}
-        aria-label={`${cell.periodKey} value`}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={async () => {
-          const original = cell.value === null ? '' : String(cell.value)
-          if (draft.trim() === original) return
-          const parsed = draft.trim() === '' ? null : Number(draft)
-          if (parsed !== null && !isFinite(parsed)) { setDraft(original); return }
-          try { await setScore(measurableId, cell.scorePeriodKey || cell.periodKey, parsed); onSaved() }
-          catch (e: any) { setDraft(original); onError(e.message) }
-        }}
-        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-      />
-    </td>
   )
 }
 

@@ -7,6 +7,7 @@ const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),
 const state=vi.hoisted(()=>({current:{} as any}))
 vi.mock('../api',async()=>({...await vi.importActual('../api'),...api}))
 vi.mock('../state',()=>({useApp:()=>state.current}))
+import {fmtValue} from '../lib/ui'
 import LiveMeetings from '../meetings/LiveMeetings'
 import Todos from './Todos'
 import L10 from './L10'
@@ -91,6 +92,19 @@ describe('scorecard browser comments',()=>{
  it('retains section edits after a conflict',async()=>{
   api.saveScorecardSections.mockRejectedValue(new Error('Reload the scorecard'))
   render(<SectionsModal rows={[measurable]} companyId="source" cadence="weekly" onClose={()=>{}} onSaved={()=>{}}/>);fireEvent.change(screen.getByLabelText('Section name for Admissions'),{target:{value:'Updated section'}});fireEvent.click(screen.getByRole('button',{name:'Save sections'}));await screen.findByText('Reload the scorecard');expect((screen.getByLabelText('Section name for Admissions') as HTMLInputElement).value).toBe('Updated section')
+ })
+})
+
+describe('shared meeting scorecard display',()=>{
+ it('formats numbers, dollars, percentages and real zero without rescaling',()=>{
+  expect(fmtValue(1282)).toBe('1,282');expect(fmtValue(1234.56,'currency')).toBe('$1,234.56');expect(fmtValue(-1234.56,'currency')).toBe('-$1,234.56');expect(fmtValue(.30,'percent')).toBe('0.3%');expect(fmtValue(100,'percent')).toBe('100%');expect(fmtValue(0)).toBe('0');expect(fmtValue(null)).toBe('')
+ })
+ it('uses the same grouped, editable scorecard inside a meeting',async()=>{
+  render(<L10 embedded section="scorecard"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Admissions'}));expect(screen.getByRole('dialog',{name:'Manage scorecard sections'})).toBeTruthy();expect(document.activeElement).toBe(screen.getByLabelText('Section name for Admissions'))
+  await user.clear(screen.getByLabelText('Section name for Admissions'));await user.type(screen.getByLabelText('Section name for Admissions'),'Intake');await user.click(screen.getByRole('button',{name:'Save sections'}));await waitFor(()=>expect(api.saveScorecardSections).toHaveBeenCalledWith(expect.objectContaining({companyId:'source',cadence:'weekly',sections:expect.arrayContaining([{name:'Admissions',newName:'Intake'}])})))
+ })
+ it('saves the selected number display from the measurable title editor',async()=>{
+  render(<Scorecard/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Example measurable'}));await user.selectOptions(screen.getByLabelText('Value'),'currency');expect(screen.getByText(/Display example:.*1,234.56/)).toBeTruthy();await user.click(screen.getByRole('button',{name:'Save'}));await waitFor(()=>expect(api.saveMeasurable).toHaveBeenCalledWith(expect.objectContaining({id:'measure',valueType:'currency',rev:2})))
  })
 })
 

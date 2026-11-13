@@ -19,13 +19,14 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * The latest period is next to the measurable column. Cells follow the same
  * period sequence as the headings.
  */
-export default function Scorecard() {
+export default function Scorecard({embedded=false}:{embedded?:boolean}) {
   const { company, team, me, scorecardEditing } = useApp()
   const [cadence, setCadence] = useState('weekly')
   const [sc, setSc] = useState<SC | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Measurable | 'new' | null>(null)
   const [sectionsOpen, setSectionsOpen] = useState(false)
+  const [sectionFocus,setSectionFocus]=useState<string | undefined>()
   const [dropFor, setDropFor] = useState<Measurable | null>(null)
 
   const load = useCallback(() => {
@@ -42,12 +43,12 @@ export default function Scorecard() {
   const escalating = useMemo(() => (sc ? sc.rows.filter(r => r.escalate) : []), [sc])
 
   return (
-    <div className="page">
+    <div className={embedded ? 'scorecard-workspace scorecard-workspace--embedded' : 'page scorecard-workspace'}>
       <div className="page__head">
         <div>
-          <h1>Scorecard</h1>
+          {!embedded && <h1>Scorecard</h1>}
           <div className="page__sub">
-            The 5–15 numbers that tell you whether the week worked. Click any cell to type a value.
+            The 5–15 numbers that tell you whether the week worked. Click a value to edit it. Select a measurable title to change its number display.
           </div>
         </div>
         <div className="page__actions">
@@ -60,7 +61,7 @@ export default function Scorecard() {
               ))}
             </div>
           )}
-          {scorecardEditing && sc && sc.rows.length > 0 && <button className="btn" onClick={() => setSectionsOpen(true)}>Manage sections</button>}
+          {scorecardEditing && sc && sc.rows.length > 0 && <button className="btn" onClick={() => {setSectionFocus(undefined);setSectionsOpen(true)}}>Manage sections</button>}
           <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Measurable</button>
         </div>
       </div>
@@ -110,7 +111,7 @@ export default function Scorecard() {
                 {withGroupHeaders(sc.rows).map(item =>
                   item.kind === 'group' ? (
                     <tr className="grid__group" key={'g-' + item.label}>
-                      <td colSpan={sc.periods.length + 2}><span className="grid__group-label">{item.label}</span></td>
+                      <td colSpan={sc.periods.length + 2}><span className="grid__group-label">{scorecardEditing ? <button type="button" className="section-title" title="Rename or move this section" onClick={()=>{setSectionFocus(item.label==='Ungrouped'?'':item.label);setSectionsOpen(true)}}>{item.label}<span aria-hidden="true"> ✎</span></button> : item.label}</span></td>
                     </tr>
                   ) : (
                     <Row
@@ -135,7 +136,7 @@ export default function Scorecard() {
         </div>
       )}
 
-      {sectionsOpen && sc && <SectionsModal rows={sc.rows} companyId={company.id} cadence={cadence} onClose={() => setSectionsOpen(false)} onSaved={() => {setSectionsOpen(false); load()}}/>}
+      {sectionsOpen && sc && <SectionsModal focusSection={sectionFocus} rows={sc.rows} companyId={company.id} cadence={cadence} onClose={() => setSectionsOpen(false)} onSaved={() => {setSectionsOpen(false); load()}}/>}
 
       {editing && (
         <MeasurableModal
@@ -194,7 +195,7 @@ function Row({
     <tr>
       <th className="c-meas" scope="row">
         <div className="meas__title">
-          <span>{row.title}</span>
+          <button type="button" className="meas__title-link" title={row.title} onClick={onEdit} disabled={row.readOnly}>{row.title}</button>
           {row.sourceUrl && <a className="meas__source" href={row.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`Source material for ${row.title}`} title="Open source material">Source ↗</a>}
           {row.escalate && (
             <span className="badge-escalate" title="Three consecutive periods off goal">
@@ -256,6 +257,7 @@ function ScoreCell({
 }) {
   const [draft, setDraft] = useState<string>(cell.value === null ? '' : String(cell.value))
   const [busy, setBusy] = useState(false)
+  const [focused,setFocused]=useState(false)
 
   // Keep in step when the server sends a new value (e.g. after another edit).
   useEffect(() => { setDraft(cell.value === null ? '' : String(cell.value)) }, [cell.value])
@@ -285,8 +287,9 @@ function ScoreCell({
   return (
     <td className={cellClass(cell.status) + (isNow ? ' cell--now' : '')}>
       {mark && <span className="cell__mark" aria-hidden="true">{mark}</span>}
+      {!focused && <span className="cell__display" aria-hidden="true">{draft.trim() === '' ? '' : fmtValue(Number(draft),valueType)}</span>}
       <input
-        className="cell__in"
+        className={'cell__in' + (!focused ? ' cell__in--formatted' : '')}
         type="number"
         step="any"
         inputMode="decimal"
@@ -294,7 +297,8 @@ function ScoreCell({
         aria-label={label}
         title={label}
         onChange={e => setDraft(e.target.value)}
-        onBlur={commit}
+        onFocus={()=>setFocused(true)}
+        onBlur={()=>{setFocused(false);void commit()}}
         onKeyDown={e => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
           if (e.key === 'Escape') setDraft(cell.value === null ? '' : String(cell.value))
@@ -398,8 +402,8 @@ function MeasurableModal({
           <label htmlFor="m-vt">Value</label>
           <select id="m-vt" className="select" value={valueType} onChange={e => setValueType(e.target.value)}>
             <option value="number">Number</option>
-            <option value="currency">Currency</option>
-            <option value="percent">Percent</option>
+            <option value="currency">Dollars</option>
+            <option value="percent">Percentage</option>
             <option value="time">Time</option>
             <option value="yesno">Yes / No</option>
           </select>
@@ -428,6 +432,7 @@ function MeasurableModal({
           <input id="m-t2" className="input" type="number" step="any" value={target2} onChange={e => setTarget2(e.target.value)} />
         </div>
       )}
+      <div className="field__hint">Display example: {fmtValue(valueType === 'percent' ? 0.30 : 1234.56,valueType)}. Formatting does not change stored values. Enter 0.30 for 0.30%.</div>
       <div className="field__hint">
         Red and green are worked out from the goal every time the scorecard is read — change a
         target and the history recolours to match, which is what you want.
@@ -436,7 +441,7 @@ function MeasurableModal({
   )
 }
 
-export function SectionsModal({rows, companyId, cadence, onClose, onSaved}: {rows: Measurable[]; companyId: string; cadence: string; onClose: () => void; onSaved: () => void}) {
+export function SectionsModal({rows, companyId, cadence, onClose, onSaved, focusSection}: {focusSection?:string; rows: Measurable[]; companyId: string; cadence: string; onClose: () => void; onSaved: () => void}) {
   const [sections, setSections] = useState(() => [...new Set([...rows].sort(compareMeasurables).map(row => row.group || ''))].map(name => ({name,newName:name})))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -451,6 +456,6 @@ export function SectionsModal({rows, companyId, cadence, onClose, onSaved}: {row
   }
   return <Modal title="Manage scorecard sections" onClose={onClose} footer={<><button className="btn" disabled={busy} onClick={onClose}>Cancel</button><button className="btn btn--primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save sections'}</button></>}>
     <p className="muted">Move sections up or down and change their names. Changes apply to this team's scorecard and cadence.</p><ErrorBanner error={error}/>
-    <div className="section-editor">{sections.map((section,index) => <div className="section-editor__row" key={section.name}><label>Section name<input className="input" aria-label={`Section name for ${section.name || 'Ungrouped'}`} value={section.newName} disabled={busy} placeholder="Ungrouped" onChange={event => setSections(current => current.map((value,i) => i === index ? {...value,newName:event.target.value} : value))}/></label><button className="btn btn--sm" aria-label={`Move ${section.newName || 'Ungrouped'} up`} disabled={busy || index === 0} onClick={() => move(index,-1)}>↑</button><button className="btn btn--sm" aria-label={`Move ${section.newName || 'Ungrouped'} down`} disabled={busy || index === sections.length - 1} onClick={() => move(index,1)}>↓</button></div>)}</div>
+    <div className="section-editor">{sections.map((section,index) => <div className="section-editor__row" key={section.name}><label>Section name<input autoFocus={focusSection !== undefined && section.name === focusSection} className="input" aria-label={`Section name for ${section.name || 'Ungrouped'}`} value={section.newName} disabled={busy} placeholder="Ungrouped" onChange={event => setSections(current => current.map((value,i) => i === index ? {...value,newName:event.target.value} : value))}/></label><button className="btn btn--sm" aria-label={`Move ${section.newName || 'Ungrouped'} up`} disabled={busy || index === 0} onClick={() => move(index,-1)}>↑</button><button className="btn btn--sm" aria-label={`Move ${section.newName || 'Ungrouped'} down`} disabled={busy || index === sections.length - 1} onClick={() => move(index,1)}>↓</button></div>)}</div>
   </Modal>
 }

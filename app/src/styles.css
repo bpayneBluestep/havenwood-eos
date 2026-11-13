@@ -664,3 +664,24 @@ input, select, textarea { font: inherit; color: inherit; }
 .action-item-row--overdue { background:color-mix(in srgb, var(--red-bg) 65%, var(--panel)); }
 .action-item-row--overdue:hover { background:var(--red-bg); }
 .action-item-toolbar > .btn--primary { margin-left:auto; }
+
+/* Shared scorecard geometry for the scorecard page and meeting review. */
+.scorecard-workspace { min-width:0; }
+.scorecard-workspace--embedded { padding:12px; }
+.scorecard-workspace--embedded .page__head { gap:12px; flex-wrap:wrap; }
+.scorecard-workspace .grid .c-meas { width:440px; min-width:440px; max-width:440px; padding:7px 11px; }
+.scorecard-workspace .meas__title { flex-wrap:nowrap; font-size:12px; min-width:0; }
+.meas__title-link { appearance:none; background:none; border:0; padding:0; color:inherit; font:inherit; font-weight:500; text-align:left; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.meas__title-link:disabled { cursor:default; opacity:1; }
+.meas__title-link:focus-visible,.section-title:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.scorecard-workspace .meas__sub { white-space:nowrap; font-size:11px; }
+.scorecard-workspace .owner__name { max-width:130px; overflow:hidden; text-overflow:ellipsis; }
+.section-title { background:none; border:0; padding:0; color:inherit; text-align:left; font:inherit; text-transform:inherit; letter-spacing:inherit; cursor:pointer; }
+.section-title span { color:var(--accent); }
+.cell__display { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; font-family:var(--mono); font-size:12px; font-weight:600; }
+.cell__in--formatted { color:transparent !important; }
+@media(max-width:700px) { .scorecard-workspace .grid .c-meas { width:300px; min-width:300px; max-width:300px; } }
+
+.scorecard-workspace .cell { width:96px; min-width:96px; }
+.cell--green .cell__display { color:var(--green); }
+.cell--red .cell__display { color:var(--red); }

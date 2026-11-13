@@ -34,10 +34,10 @@ export function avatarColor(seed: string): string {
 
 export function fmtValue(v: number | null | undefined, valueType = 'number'): string {
   if (v === null || v === undefined) return ''
-  if (valueType === 'currency') return '$' + Math.round(v).toLocaleString()
-  if (valueType === 'percent') return v + '%'
+  if (valueType === 'currency') return v.toLocaleString('en-US', {style:'currency',currency:'USD',maximumFractionDigits:2})
+  if (valueType === 'percent') return v.toLocaleString('en-US', {maximumFractionDigits:10}) + '%'
   if (valueType === 'yesno') return v ? 'Yes' : 'No'
-  return String(Math.round(v * 100) / 100)
+  return v.toLocaleString('en-US', {maximumFractionDigits:10})
 }
 
 const OPS: Record<string, string> = { gte: '≥', gt: '>', lte: '≤', lt: '<', eq: '=', between: '', none: '' }
