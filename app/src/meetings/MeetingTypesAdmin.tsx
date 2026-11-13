@@ -5,7 +5,7 @@ import {sectionKinds,validateMeetingTypes} from '../../../platform/meetingTypes'
 import type {MeetingType,MeetingTypeCatalog} from '../../../platform/meetingTypes'
 import type {LiveSection} from '../../../platform/liveSessionModel'
 
-const kindLabels:Record<string,string>={segue:'Segue / check-in',headlines:'Headlines',todos:'Action Items',scorecard:'Scorecard',ids:'Issues',conclude:'Conclusion and ratings',notes:'Discussion prompt'}
+const kindLabels:Record<string,string>={segue:'Segue / check-in',headlines:'Headlines',todos:'Action Items',scorecard:'Scorecard',rocks:'Rocks',ids:'Issues',conclude:'Conclusion and ratings',notes:'Discussion prompt'}
 export default function MeetingTypesAdmin({teams}:{teams:{id:string;name:string;archivedAt?:string|null}[]}) {
  const activeTeams=teams.filter(team=>!team.archivedAt)
  const [teamId,setTeamId]=useState(activeTeams[0]?.id || ''),[catalog,setCatalog]=useState<MeetingTypeCatalog|null>(null),[selected,setSelected]=useState('l10'),[error,setError]=useState(''),[busy,setBusy]=useState(false),[dirty,setDirty]=useState(false)

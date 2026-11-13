@@ -16,7 +16,7 @@ import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
 const ActiveReviewSection = createContext<{id:string;label?:string;number?:number} | undefined>(undefined)
 const reviewSections = ['segue','scorecard','rocks','headlines','todos','ids','conclude']
 
-export default function L10({embedded=false,section,sectionLabel,sectionNumber}:{embedded?:boolean;section?:string;sectionLabel?:string;sectionNumber?:number}) {
+export default function L10({embedded=false,section,sectionLabel,sectionNumber,companyId}:{embedded?:boolean;section?:string;sectionLabel?:string;sectionNumber?:number;companyId?:string}) {
   const { company, nameOf } = useApp()
   const [data, setData] = useState<L10Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -25,8 +25,8 @@ export default function L10({embedded=false,section,sectionLabel,sectionNumber}:
 
   const load = useCallback(() => {
     setErr(null)
-    getL10(company.id).then(setData).catch(e => setErr(e.message))
-  }, [company.id])
+    getL10(companyId || company.id).then(setData).catch(e => setErr(e.message))
+  }, [company.id,companyId])
 
   useEffect(() => { setData(null); load(); if (!embedded) return; const timer=window.setInterval(load,10000); return()=>window.clearInterval(timer) }, [load,embedded])
 

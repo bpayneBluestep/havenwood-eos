@@ -60,8 +60,8 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange}:{
  {session.supersededBy&&<p className="muted">This earlier session was superseded. Its recorded history is retained.</p>}
  {active?.prompt&&currentKind!=='notes'&&<p className="live-meeting__prompt">{active.prompt}</p>}
  {currentKind==='notes'&&<div className="card card__body"><h2>{currentLabel}</h2><p className="muted">{active?.prompt || 'Use this time for the discussion.'}</p></div>}
- {!meetingId && currentKind!=='notes' && (currentKind==='ids' ? <Issues key={companyId} embedded headingLabel={currentLabel}/> : <L10 key={companyId} embedded section={currentKind} sectionLabel={currentLabel} sectionNumber={session.activeIndex+1}/>)}
- {meetingId && <p className="muted">Review this meeting's {currentLabel.toLowerCase()} using the private follow-ups below.</p>}
+ {(!meetingId || currentKind==='rocks') && currentKind!=='notes' && (currentKind==='ids' ? <Issues key={companyId} embedded headingLabel={currentLabel}/> : <L10 key={companyId} companyId={companyId} embedded section={currentKind} sectionLabel={currentLabel} sectionNumber={session.activeIndex+1}/>)}
+ {meetingId && currentKind!=='rocks' && <p className="muted">Review this meeting's {currentLabel.toLowerCase()} using the private follow-ups below.</p>}
  {(currentKind==='conclude'||session.status==='ended')&&<section><h3>Participants</h3>{session.participants.map(person=><p key={person.userId}>{person.name} {person.rating===null?'· Not rated':`· ${person.rating}/10`}</p>)}</section>}
  </div>
  {(session.status==='ended'||currentKind==='conclude')&&session.joined&&<section className="live-meeting__ratings"><h3>Rate this meeting: 1–10</h3><p className="muted">Each joined participant submits their own rating. You can update yours here.</p><div className="seg" role="group" aria-label="Your meeting rating">{Array.from({length:10},(_,i)=>i+1).map(rating=><button key={rating} disabled={busy} aria-pressed={session.participants.find(person=>person.userId===me.id)?.rating===rating} onClick={()=>void act('rate',session,{rating})}>{rating}</button>)}</div></section>}

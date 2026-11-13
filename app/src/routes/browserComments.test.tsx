@@ -263,3 +263,16 @@ describe('meeting lobby and type settings',()=>{
   api.adminSaveMeetingTypes.mockRejectedValue(new Error('Agenda changed. Reload first.'));render(<MeetingTypesAdmin teams={[{id:'source',name:'Source team'}]}/>);const user=userEvent.setup();await user.clear(await screen.findByLabelText('Section 1 name'));await user.type(screen.getByLabelText('Section 1 name'),'Opening');await user.click(screen.getByRole('button',{name:'Save meeting types'}));await screen.findByText('Agenda changed. Reload first.');expect((screen.getByLabelText('Section 1 name') as HTMLInputElement).value).toBe('Opening')
  })
 })
+
+describe('Rocks agenda content',()=>{
+ it('saves Rocks as a selectable agenda content kind',async()=>{
+  render(<MeetingTypesAdmin teams={[{id:'source',name:'Source team'}]}/>);const user=userEvent.setup();await user.selectOptions(await screen.findByLabelText('Section 1 content'),'rocks');await user.click(screen.getByRole('button',{name:'Save meeting types'}));await waitFor(()=>expect(api.adminSaveMeetingTypes).toHaveBeenCalledWith('source',expect.objectContaining({types:expect.arrayContaining([expect.objectContaining({sections:expect.arrayContaining([expect.objectContaining({kind:'rocks'})])})])})))
+ })
+ it.each([undefined,'private-series'])('shows populated Rocks for the explicit meeting team (private=%s)',async meetingId=>{
+  state.current.liveMeetings=true
+  const review=await api.getL10();api.getL10.mockClear();api.getL10.mockResolvedValue({...review,rocks:[rock]})
+  const sections=[{id:'rock-review',kind:'rocks',label:'Quarterly Rocks',minutes:5,spentMs:0},{id:'finish',kind:'conclude',label:'Conclusion',minutes:5,spentMs:0}]
+  const session={id:'rocks-session',companyId:'meeting-team',meetingId:meetingId || '',date:'2026-11-12',meetingTypeId:'custom',title:'Example meeting',hostId:'a',hostName:'Owner A',status:'running',activeIndex:0,activeStartedAt:Date.now(),startedAt:Date.now(),endedAt:null,sections,rev:1,participants:[],joined:true,canControl:true,serverNow:Date.now()}
+  api.getLiveSessions.mockResolvedValue({serverNow:Date.now(),sessions:[session]});render(<LiveMeetings companyId="meeting-team" meetingId={meetingId} date={meetingId?'2026-11-12':undefined}/>);await userEvent.setup().click(await screen.findByRole('button',{name:'Open meeting'}));await screen.findByText('Example Rock');expect(screen.getByRole('heading',{name:'Quarterly Rocks',level:2})).toBeTruthy();expect(api.getL10).toHaveBeenCalledWith('meeting-team');expect(screen.queryByText('Example issue description')).toBeNull()
+ })
+})
