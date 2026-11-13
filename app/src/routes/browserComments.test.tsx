@@ -18,7 +18,7 @@ import My90 from './My90'
 import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
 import {defaultMeetingTypes} from '../../../platform/meetingTypes'
 import {defaultLiveSections} from '../../../platform/liveSessionModel'
-import Issues,{IssuePriority} from './Issues'
+import Issues,{IssuePriority,IssueModal} from './Issues'
 import Rocks from './Rocks'
 import Scorecard,{SectionsModal} from './Scorecard'
 const people=[{id:'a',name:'Owner A'},{id:'b',name:'Owner B'}]
@@ -360,4 +360,17 @@ it('saves headline completion without opening details and keeps the gray row vis
  render(<Headlines embedded/>);const checkbox=await screen.findByRole('checkbox',{name:'Complete headline: Team update'});await userEvent.setup().click(checkbox);
  await waitFor(()=>expect(api.markHeadlineRead).toHaveBeenCalledWith(['news'],false));expect((checkbox as HTMLInputElement).checked).toBe(true);expect(checkbox.closest('.headline-row')?.classList.contains('rowitem--done')).toBe(true);expect(screen.queryByRole('dialog')).toBeNull();
  await userEvent.setup().click(checkbox);await waitFor(()=>expect(api.markHeadlineRead).toHaveBeenCalledWith(['news'],true));expect((checkbox as HTMLInputElement).checked).toBe(false);
+})
+
+describe('issue links and compact rows',()=>{
+ it('shows a safe link beside Solved and dates beside owners without repeated metadata',async()=>{
+  api.getIssues.mockResolvedValue({rows:[{...baseIssue,sourceUrl:'https://example.com/context'}]})
+  render(<Issues/>);const link=await screen.findByRole('link',{name:'Open Link'});expect(link.getAttribute('href')).toBe('https://example.com/context');expect(link.getAttribute('rel')).toContain('noopener');expect(link.closest('.issue-actions')).not.toBeNull();const row=link.closest('.issue-row')!;expect(row.querySelector('.rowitem__owner')?.nextElementSibling?.tagName).toBe('TIME');expect(row.querySelector('.issue-date')?.getAttribute('datetime')).toBe('2026-11-11');expect(row.textContent).not.toContain('Importance:');expect(row.querySelector('.rowitem__main > .rowitem__meta')).toBeNull()
+ })
+ it('saves and clears links from the inline editor and retains the revision',async()=>{
+  api.getIssues.mockResolvedValue({rows:[{...baseIssue,sourceUrl:'https://example.com/old'}]});render(<Issues/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Edit issue Zulu issue'}));await user.clear(screen.getByLabelText('Link URL (optional)'));await user.type(screen.getByLabelText('Link URL (optional)'),'https://example.com/new');await user.click(screen.getByRole('button',{name:'Save issue'}));await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith(expect.objectContaining({id:'one',rev:4,sourceUrl:'https://example.com/new'})))
+ })
+ it('validates links before modal saves and permits removal',async()=>{
+  render(<IssueModal initial={{...baseIssue,sourceUrl:'https://example.com/old'}} companyId="source" team={people} term="short" defaultOwnerId="a" onClose={()=>{}} onSaved={()=>{}}/>);const user=userEvent.setup();const input=screen.getByLabelText('Link URL (optional)');await user.clear(input);await user.type(input,'javascript:alert(1)');await user.click(screen.getByRole('button',{name:'Save'}));await screen.findByText(/Use an http/);expect(api.saveIssue).not.toHaveBeenCalled();await user.clear(input);await user.click(screen.getByRole('button',{name:'Save'}));await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith(expect.objectContaining({sourceUrl:'',rev:4})))
+ })
 })

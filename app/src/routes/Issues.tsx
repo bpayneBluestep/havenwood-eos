@@ -1,3 +1,4 @@
+import {validateSourceUrl} from '../../../platform/scorecardModel'
 import QuickCreateButtons from '../components/QuickCreateButtons'
 import IssueTeamPicker from '../components/IssueTeamPicker'
 import {compareNames, compareDates, priorityLabel, priorityLabels} from '../lib/listModel'
@@ -147,7 +148,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
             {visible.map(issue => (
               <div
                 key={issue.id}
-                className={'rowitem' + (overId === issue.id ? ' rowitem--dragover' : '') + (issue.status === 'solved' ? ' rowitem--done' : '')}
+                className={'rowitem issue-row' + (overId === issue.id ? ' rowitem--dragover' : '') + (issue.status === 'solved' ? ' rowitem--done' : '')}
                 draggable={!issue.readOnly && sort === 'manual' && inlineId !== issue.id}
                 onDragStart={() => { dragId.current = issue.id }}
                 onDragOver={e => { e.preventDefault(); setOverId(issue.id) }}
@@ -156,6 +157,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
               >
                 {sort === 'manual' && <span className="rowitem__grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>}
                 <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><PersonName name={ownerName(issue)} id={issue.ownerId}/></div>
+                <time className="issue-date" dateTime={issue.createdDate || undefined} title="Created date">{issue.createdDate ? fmtDate(issue.createdDate) : '—'}</time>
                 <IssuePriority issue={issue} companyId={company.id} disabled={inlineId === issue.id} onSaved={load}/>
 
                 <div className="rowitem__main">
@@ -169,14 +171,11 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
                     )}
                     {issue.status === 'solved' && <span className="pill pill--green"><span className="pill__glyph" aria-hidden="true">✓</span>solved</span>}
                   </div>
-                  <div className="rowitem__meta">
-                    <span className="mono">Importance: {priorityLabel(issue.priority)}</span>
-                    {issue.createdByName && <span>{firstLast({ name: issue.createdByName })}</span>}
-                    {issue.createdDate && <span>{fmtDate(issue.createdDate)}</span>}
+                  {issue.linkedTodoIds.length > 0 && <div className="rowitem__meta">
                     {issue.linkedTodoIds.length > 0 && (
                       <span>{issue.linkedTodoIds.length} linked to-do{issue.linkedTodoIds.length > 1 ? 's' : ''}</span>
                     )}
-                  </div>
+                  </div>}
 
                   <div id={`issue-details-${issue.id}`} hidden={!expanded.has(issue.id)}>
                   {issue.description && (
@@ -192,6 +191,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
                 </div>
                 <div className="rowitem__end issue-actions">
                   {inlineId !== issue.id && (issue.description || issue.solution) && <button className="detail-toggle" aria-expanded={expanded.has(issue.id)} aria-controls={`issue-details-${issue.id}`} onClick={() => setExpanded(current => {const next = new Set(current); if (next.has(issue.id)) next.delete(issue.id); else next.add(issue.id); return next})}>{expanded.has(issue.id) ? 'Hide details' : 'Show details'}</button>}
+                {issue.sourceUrl && /^https?:\/\//i.test(issue.sourceUrl) && <a className="btn btn--sm" href={issue.sourceUrl} target="_blank" rel="noopener noreferrer">Open Link</a>}
                 {!issue.readOnly && <>
 
                   {issue.status === 'open' && (
@@ -293,6 +293,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   const [teamIds,setTeamIds] = useState(() => (issue.assignedTeamIds || [companyId]).filter(id => companies.some(team => team.id === id)))
   const [title, setTitle] = useState(issue.title)
   const [description, setDescription] = useState(issue.description)
+  const [sourceUrl,setSourceUrl]=useState(issue.sourceUrl || '')
   const [priority, setPriority] = useState(issue.priority ?? 3)
   const [ownerId, setOwnerId] = useState(issue.ownerId)
   const [busy, setBusy] = useState(false)
@@ -300,7 +301,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   async function save() {
     if (!title.trim()) {setError('Enter an issue title.'); return}
     setBusy(true); setError(null)
-    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, priority, ownerId,...(issueTeamMapping && !issue.meetingId ? {assignedTeamIds:teamIds} : {})}); onSaved()}
+    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, sourceUrl:validateSourceUrl(sourceUrl), priority, ownerId,...(issueTeamMapping && !issue.meetingId ? {assignedTeamIds:teamIds} : {})}); onSaved()}
     catch (error: unknown) {setError(error instanceof Error ? error.message : 'Could not save the issue.')}
     finally {setBusy(false)}
   }
@@ -309,6 +310,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
     <fieldset className="edit-fields" disabled={busy}>
     <label>Issue title<input className="input" autoFocus value={title} disabled={busy} onChange={event => setTitle(event.target.value)}/></label>
     <label>Issue notes<textarea className="textarea" value={description} disabled={busy} onChange={event => setDescription(event.target.value)}/></label>
+    <label>Link URL (optional)<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>
     <div className="inline-editor-fields"><label>Importance<select className="select" value={priority} disabled={busy} onChange={event => setPriority(Number(event.target.value))}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{priorityLabels[value]}</option>)}</select></label><label>Owner<OwnerPicker team={team} value={ownerId} valueName={issue.ownerName || ''} onChange={id => {if (!busy) setOwnerId(id)}}/></label></div>
     </fieldset>{issueTeamMapping && !issue.meetingId && <IssueTeamPicker teams={companies} selected={teamIds} onChange={setTeamIds} disabled={busy}/>}
     <div className="inline-editor-actions"><button type="submit" className="btn btn--sm btn--primary" disabled={busy}>{busy ? 'Saving…' : 'Save issue'}</button><button type="button" className="btn btn--sm" disabled={busy} onClick={onCancel}>Cancel</button></div>
@@ -332,6 +334,7 @@ export function IssueModal({
   const [responsibleTeamId,setResponsibleTeam]=useState(initial?.responsibleTeamId??'')
   const [title, setTitle] = useState(initial?.title || '')
   const [description, setDescription] = useState(initial?.description || '')
+  const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl || '')
   const [issueTerm, setIssueTerm] = useState(initial?.term || term)
   const [priority, setPriority] = useState(initial?.priority ?? 3)
   const [ownerId, setOwnerId] = useState(initial?.ownerId || defaultOwnerId || '')
@@ -345,7 +348,7 @@ export function IssueModal({
     try {
       await saveIssue({
         companyId, id: initial?.id, rev: initial?.rev,
-        title: title.trim(), description, term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),...(issueTeamMapping && !initial?.meetingId ? {assignedTeamIds:teamIds} : {}),
+        title: title.trim(), description, sourceUrl:validateSourceUrl(sourceUrl), term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),...(issueTeamMapping && !initial?.meetingId ? {assignedTeamIds:teamIds} : {}),
       })
       onSaved()
     } catch (e: any) {
@@ -375,6 +378,7 @@ export function IssueModal({
         <label htmlFor="i-desc">Context <span className="faint">(optional)</span></label>
         <textarea id="i-desc" className="textarea" value={description} onChange={e => setDescription(e.target.value)} />
       </div>
+      <label className="field">Link URL (optional)<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>
       <div className="row3 issue-form-options">
         <div className="field">
           <label htmlFor="i-term">List</label>
