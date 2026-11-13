@@ -51,7 +51,7 @@
 
 .tangent-fireworks { position:fixed; inset:0; pointer-events:none; z-index:1200; overflow:hidden; }
 .tangent-fireworks__burst { position:absolute; width:0; height:0; }
-.tangent-fireworks__spark { position:absolute; display:block; width:4px; height:4px; border-radius:50%; opacity:0; box-shadow:0 0 7px currentColor; animation:tangent-burst 1.9s ease-out both; }
+.tangent-fireworks__spark { position:absolute; display:block; width:7px; height:7px; border-radius:50%; opacity:0; box-shadow:0 0 12px 2px #ffffff80; animation:tangent-burst 1.9s ease-out both; }
 @keyframes tangent-burst {
  0% { opacity:0; transform:translate(0,0) scale(.3); }
  12% { opacity:1; }
