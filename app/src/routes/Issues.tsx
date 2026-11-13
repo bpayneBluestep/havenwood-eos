@@ -61,8 +61,10 @@ export default function Issues() {
 
   const visible = (rows || []).filter(issue => (!ownerFilter || (ownerFilter === 'unassigned' ? !issue.ownerId : issue.ownerId === ownerFilter)) && (!assignedTeam || (assignedTeam === 'unassigned' ? !issue.responsibleTeamId : issue.responsibleTeamId === assignedTeam))).sort((a, b) => {
     if (sort === 'owner') return compareNames(ownerName(a), ownerName(b))
-    if (sort === 'topic') return a.title.localeCompare(b.title, undefined, {sensitivity: 'base'})
-    if (sort === 'topic-desc') return b.title.localeCompare(a.title, undefined, {sensitivity: 'base'})
+    if (sort === 'importance' || sort === 'importance-asc') {
+      if (a.priority === null || b.priority === null) return a.priority === b.priority ? 0 : a.priority === null ? 1 : -1
+      return sort === 'importance' ? b.priority - a.priority : a.priority - b.priority
+    }
     if (sort === 'owner-desc') return compareNames(ownerName(b), ownerName(a))
     if (sort === 'newest' || sort === 'oldest') return compareDates(a.createdDate, b.createdDate, sort === 'newest')
     return 0
@@ -76,7 +78,7 @@ export default function Issues() {
         <div>
           <div className="issues-heading"><h1>Issues</h1><p className="ids-guide">IDS: Identify the root issue · Discuss openly · Solve with an action and owner.</p></div>
           <div className="page__sub">
-            Ranked highest first. Drag to reorder — the top of this list is what the L10 works on.
+            Drag to reorder. Select a sort button; click it again to reverse the order.
           </div>
         </div>
         <div className="page__actions">          <div className="seg" role="group" aria-label="Term">
@@ -106,7 +108,18 @@ export default function Issues() {
 
       <div className="list-toolbar" aria-label="Issue filters and sorting">
         <label className="sort-control">Person<select className="select" value={ownerFilter} onChange={event => setOwnerFilter(event.target.value)}><option value="">All people</option><option value="unassigned">Unassigned</option>{[...new Map((rows || []).filter(issue => issue.ownerId).map(issue => [issue.ownerId, ownerName(issue) || 'Assigned person'])).entries()].sort((a,b) => compareNames(a[1],b[1])).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-<label className="sort-control">Sort issues<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="manual">Manual order</option><option value="owner">Owner A–Z</option><option value="owner-desc">Owner Z–A</option><option value="topic">Topic A–Z</option><option value="topic-desc">Topic Z–A</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>{meetingWorkflow&&<label>Responsible team<select className="select" value={assignedTeam} onChange={e=>setAssignedTeam(e.target.value)}><option value="">All responsible teams</option><option value="unassigned">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
+        <div className="seg issue-sort-buttons" role="group" aria-label="Sort issues">
+          {[
+            {key:'importance', reverse:'importance-asc', label:'Importance', forward:'Highest first', backward:'Lowest first', arrow:'↓'},
+            {key:'newest', reverse:'oldest', label:'Date', forward:'Newest first', backward:'Oldest first', arrow:'↓'},
+            {key:'owner', reverse:'owner-desc', label:'Name', forward:'Owner A–Z', backward:'Owner Z–A', arrow:'↑'},
+          ].map(option => {
+            const active = sort === option.key || sort === option.reverse
+            const reversed = sort === option.reverse
+            return <button type="button" key={option.key} aria-pressed={active} title={`${active && reversed ? option.backward : option.forward}. Click ${active ? 'to reverse' : 'to sort'}.`} onClick={() => setSort(current => current === option.key ? option.reverse : option.key)}>{option.label}{active && <span aria-hidden="true"> {reversed ? (option.arrow === '↓' ? '↑' : '↓') : option.arrow}</span>}</button>
+          })}
+        </div>
+        {meetingWorkflow&&<label>Responsible team<select className="select" value={assignedTeam} onChange={e=>setAssignedTeam(e.target.value)}><option value="">All responsible teams</option><option value="unassigned">No team assigned</option>{companies.map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label>}
 
       </div>
 

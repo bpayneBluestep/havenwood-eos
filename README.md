@@ -44,3 +44,5 @@ Manage sections changes section names and order for the selected team's cadence.
 The pure policy helper is `platform/scorecardModel.ts`; its matching endpoint module is `scripts/scorecardModel.ts`. Keep these identical. This endpoint update adds the `scorecardEditing: 1` bootstrap capability. Publish it before the frontend. Existing native fields carry all new data in the measurable definition JSON; no form or field migration is required.
 
 Issue ranking numbers are dropdown controls in the list. Selecting 1–5 saves immediately with a revision check, without opening the issue. A failed save restores the previous number and shows an error. Read-only issues and the row currently being edited remain locked.
+
+The Issues toolbar has three sort buttons: Importance (highest first), Date (newest first), and Name (owner A–Z). Clicking the active button reverses its order. Unranked issues remain last. Before selecting a sort, the saved manual order and drag controls remain available.
