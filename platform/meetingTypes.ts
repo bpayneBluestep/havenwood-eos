@@ -2,7 +2,7 @@ import {defaultLiveSections} from './liveSessionModel'
 import type {LiveSection} from './liveSessionModel'
 export interface MeetingType {id:string;name:string;scope:'team'|'private';shared?:boolean;sections:LiveSection[]}
 export interface MeetingTypeCatalog {rev:number;l10Rev?:number;templateRev?:number;types:MeetingType[]}
-export const sectionKinds=['segue','headlines','todos','scorecard','rocks','ids','conclude','notes']
+export const sectionKinds=['segue','headlines','todos','scorecard','rocks','vision','ids','conclude','notes']
 export function defaultMeetingTypes():MeetingType[] {return [
  {id:'l10',name:'L10',scope:'team',sections:defaultLiveSections().map(section=>({...section,kind:section.id,prompt:''}))},
  {id:'one-on-one',name:'One-on-one',scope:'private',sections:[{id:'check-in',kind:'segue',label:'Check-in',minutes:5,spentMs:0,prompt:'Share a personal and professional update.'},{id:'actions',kind:'todos',label:'Action Items',minutes:10,spentMs:0,prompt:''},{id:'discussion',kind:'notes',label:'Discussion',minutes:25,spentMs:0,prompt:'Discuss progress, concerns, and support needed.'},{id:'conclusion',kind:'conclude',label:'Conclusion',minutes:5,spentMs:0,prompt:'Confirm next steps and rate the meeting.'}]}

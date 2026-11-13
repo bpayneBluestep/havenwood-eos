@@ -94,7 +94,7 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fi
  {session.supersededBy&&<p className="muted">This earlier session was superseded. Its recorded history is retained.</p>}
  {active?.prompt&&currentKind!=='notes'&&<p className="live-meeting__prompt">{active.prompt}</p>}
  {currentKind==='notes'&&<div className="card card__body"><h2>{currentLabel}</h2><p className="muted">{active?.prompt || 'Use this time for the discussion.'}</p></div>}
- {(!meetingId || session.teamContent || currentKind==='rocks') && currentKind!=='notes' && (currentKind==='ids' ? <Issues key={companyId} embedded headingLabel={currentLabel}/> : <L10 key={companyId} companyId={companyId} embedded section={currentKind} sectionLabel={currentLabel} sectionNumber={reviewIndex+1}/>)}
+ {(!meetingId || session.teamContent || currentKind==='rocks' || currentKind==='vision') && currentKind!=='notes' && (currentKind==='ids' ? <Issues key={companyId} embedded headingLabel={currentLabel}/> : <L10 key={companyId} companyId={companyId} embedded section={currentKind} sectionLabel={currentLabel} sectionNumber={reviewIndex+1}/>)}
  {meetingId && !session.teamContent && currentKind!=='rocks' && <p className="muted">Review this meeting's {currentLabel.toLowerCase()} using the private follow-ups below.</p>}
  {(currentKind==='conclude'||session.status==='ended')&&<section><h3>Participants</h3>{session.participants.map(person=><p key={person.userId}><PersonName name={person.name} id={person.userId}/> {person.rating===null?'· Not rated':`· ${person.rating}/10`}</p>)}</section>}
  </div>

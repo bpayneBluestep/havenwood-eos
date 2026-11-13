@@ -1,3 +1,4 @@
+import {useEffect} from 'react'
 import {BHAG} from './lib/brand'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './state'
@@ -15,6 +16,10 @@ import Admin from './routes/Admin'
 import LiveMeetingLink from './components/LiveMeetingLink'
 import MyNotifications from './routes/MyNotifications'
 import MyProfile from './routes/MyProfile'
+import Directory from './routes/Directory'
+import Accountability from './routes/Accountability'
+import Vision from './routes/Vision'
+import WorkDetail from './routes/WorkDetail'
 import NotFound from './routes/NotFound'
 
 /*
@@ -28,6 +33,9 @@ const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: '/issues', label: 'Issues', icon: '◉' },
   { to: '/todos', label: 'Action Items', icon: '✓' },
   { to: '/headlines', label: 'Headlines', icon: '❝' },
+  { to: '/vision', label: 'Vision & Plan', icon: '◇' },
+  { to: '/accountability', label: 'Accountability Chart', icon: '⊞' },
+  { to: '/directory', label: 'Directory', icon: '◉' },
 ]
 
 const MEETING: { to: string; label: string; icon: string; end?: boolean }[] = [
@@ -45,6 +53,7 @@ export default function App() {
 function Shell() {
   const { me, company, companies, multiCompany, setCompanyId, reload, branding } = useApp()
   const loc = useLocation()
+  useEffect(()=>{const id=new URLSearchParams(loc.search).get('team');if(id&&companies.some(c=>c.id===id)&&id!==company.id)setCompanyId(id)},[loc.search,companies,company.id,setCompanyId])
 
   const title =
     [...NAV, ...MEETING].find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))?.label ||
@@ -167,6 +176,7 @@ function Shell() {
           <Route path="/issues" element={<Issues />} />
           <Route path="/todos" element={<Todos />} />
           <Route path="/my-profile" element={<MyProfile/>} />
+          <Route path="/work" element={<WorkDetail/>}/><Route path="/vision" element={<Vision/>}/><Route path="/accountability" element={<Accountability/>}/><Route path="/directory" element={<Directory/>} />
           <Route path="/my-notifications" element={<MyNotifications />} />
           <Route path="/headlines" element={<Headlines />} />
           <Route path="/l10" element={<Navigate to="/meetings" replace />} />

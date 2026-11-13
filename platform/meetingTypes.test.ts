@@ -33,3 +33,20 @@ describe('reusable meeting templates',()=>{
  it('rejects stale template edits and detects removals',()=>{const template=copyMeetingTemplate(undefined,[],'shared'),current=withSharedTemplates({rev:0,types:defaultMeetingTypes()},{rev:3,types:[template]});expect(()=>changedSharedTemplates(current,{...current,templateRev:2})).toThrow('Reload');expect(changedSharedTemplates(current,current)).toBeNull();expect(changedSharedTemplates(current,{...current,types:current.types.filter(type=>!type.shared)})).toEqual([])})
  it('keeps built-in templates under their existing sharing rules',()=>{const types=defaultMeetingTypes();types[0].shared=true;expect(()=>validateMeetingTypes(types)).toThrow('built-in')})
 })
+
+
+describe('Vision & Plan meeting content',()=>{
+ it('accepts an explicit plan review section without changing built-in defaults',()=>{
+  const before=JSON.stringify(defaultMeetingTypes()),types=defaultMeetingTypes();
+  types[0].sections.splice(1,0,{id:'plan-review',kind:'vision',label:'Vision & Plan',minutes:10,spentMs:0,prompt:''});
+  expect(validateMeetingTypes(types)[0].sections[1].kind).toBe('vision');
+  expect(JSON.stringify(defaultMeetingTypes())).toBe(before);
+  expect(defaultMeetingTypes()[0].sections.some(section=>section.kind==='vision')).toBe(false);
+ });
+ it('retains plan review when copying a saved template and leaves its snapshot unchanged',()=>{
+  const source=defaultMeetingTypes()[0];source.sections.splice(1,0,{id:'plan',kind:'vision',label:'Vision & Plan',minutes:10,spentMs:0,prompt:''});
+  const snapshot=structuredClone(source.sections),copy=copyMeetingTemplate(source,[source],'plan_copy');
+  expect(copy.sections[1].kind).toBe('vision');copy.sections[1].minutes=20;
+  expect(snapshot[1].minutes).toBe(10);expect(source.sections[1].minutes).toBe(10);
+ });
+});

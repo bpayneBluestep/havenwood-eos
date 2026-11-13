@@ -672,10 +672,26 @@ export const saveMemberProfile=(profile:{preferredName:string;photo:string;rev:n
 export interface ModuleScopeReply {companies:{id:string;name:string}[];teams:{id:string;name:string;companyId:string}[];scope:import('../../platform/companyModules').ModuleEntity|null}
 export const getModuleScopes=(scopeCompanyId?:string):Promise<ModuleScopeReply>=>get('moduleScopes',scopeCompanyId?{scopeCompanyId}:{})
 export const saveModuleScope=(scopeCompanyId:string,visibility:import('../../platform/companyModules').ModuleVisibility,rev:number):Promise<import('../../platform/companyModules').ModuleEntity>=>post('saveModuleScope',{scopeCompanyId,visibility,rev})
-export const listModuleRecords=(scopeCompanyId:string,kind:import('../../platform/companyModules').ModuleKind):Promise<{records:import('../../platform/companyModules').ModuleEntity[]}>=>get('moduleList',{scopeCompanyId,kind})
+export const listModuleRecords=(scopeCompanyId:string,kind:import('../../platform/companyModules').ModuleKind,includeArchived=false):Promise<{records:import('../../platform/companyModules').ModuleEntity[]}>=>get('moduleList',{scopeCompanyId,kind,includeArchived})
 export const getModuleHistory=(scopeCompanyId:string,kind:import('../../platform/companyModules').ModuleKind,id:string):Promise<{records:import('../../platform/companyModules').ModuleEntity[]}>=>get('moduleHistory',{scopeCompanyId,kind,id})
 export const saveModuleRecord=(record:{scopeCompanyId:string;kind:import('../../platform/companyModules').ModuleKind;id:string;data:Record<string,unknown>;rev:number;archived?:boolean}):Promise<import('../../platform/companyModules').ModuleEntity>=>post('saveModuleRecord',record)
 export const restoreModuleRecord=(record:{scopeCompanyId:string;kind:import('../../platform/companyModules').ModuleKind;id:string;historyId:string;rev:number}):Promise<import('../../platform/companyModules').ModuleEntity>=>post('restoreModuleRecord',record)
 
 export const getToolBranding=():Promise<{logo:string;rev:number}>=>post('toolBranding',{})
 export const saveToolBranding=(logo:string,rev:number):Promise<{logo:string;rev:number}>=>post('saveToolBranding',{logo,rev})
+
+export interface ModuleContext {companies:{id:string;name:string}[];teams:{id:string;name:string}[];people:Person[];allowed:boolean;canEdit:boolean;companyName:string;currentQuarter?:string}
+export const getModuleContext=(module:import('../../platform/companyModules').ModuleName,scopeCompanyId:string):Promise<ModuleContext>=>get('moduleContext',{module,scopeCompanyId})
+export const resolveModuleLink=(reference:import('../../platform/companyModules').CanonicalReference):Promise<{reference:import('../../platform/companyModules').CanonicalReference}>=>post('resolveModuleLink',{reference})
+
+export interface DirectorySourceReply {people:import('../../platform/peopleDirectory').DirectoryPerson[];contactsVerified:boolean;phone:null;companyMappingVerified:boolean;deactivationAuthority:boolean}
+export const getDirectoryPeople=():Promise<DirectorySourceReply>=>get('directoryPeopleSource',{})
+
+export const saveAccountabilitySeat=(record:{scopeCompanyId:string;id:string;data:import('../../platform/accountability').SeatData;rev:number;occupantId:string;effectiveDate:string}):Promise<import('../../platform/companyModules').ModuleEntity>=>post('saveModuleRecord',{...record,kind:'tenk_seat'})
+
+export interface DirectoryPersonWork {seats:{id:string;title:string;companyId:string}[];rocks:{id:string;title:string;teamId:string}[];todos:{id:string;title:string;teamId:string}[];measurables:{id:string;title:string;teamId:string}[]}
+export const getDirectoryPersonWork=(personId:string):Promise<DirectoryPersonWork>=>get('directoryPersonWork',{personId})
+export const getPeopleImportPreview=(scopeCompanyId:string,fields:import('../../platform/peopleImport').ImportField[]):Promise<import('../../platform/peopleImport').PeopleImportPreview>=>post('peopleImportPreview',{scopeCompanyId,fields})
+export const applyPeopleImportPreview=(fields:import('../../platform/peopleImport').PeopleImportRequest&{scopeCompanyId:string}):Promise<{noOp:boolean;appliedCount:number;rev:number;unresolvedIds:string[]}>=>post('applyPeopleImport',{...fields})
+
+export const getWorkDetail=(kind:string,id:string,teamId:string):Promise<{kind:string;teamId:string;teamName:string;item:Rock|Issue|Todo|Measurable}>=>get('workDetail',{kind,id,teamId})

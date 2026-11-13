@@ -1,0 +1,12 @@
+import {describe,it,expect} from 'vitest'
+import {sourceSnapshot,previewPeople,scopedDirectory} from './peopleDirectory'
+const person=(id:string,fullName='Person A',email='a@example.com')=>({id,fullName,firstLast:fullName,email})
+describe('people source adapter',()=>{
+ it('preserves raw source values and separates local overrides',()=>{const p=person('p1','Last, First','A@example.com ');const rows=scopedDirectory([{id:'t1',people:[{id:'p1',name:'Roster A'}]}],{p1:{preferredName:'Preferred'}},sourceSnapshot([p],true),true);expect(rows[0].source).toEqual(p);expect(rows[0].profile).toEqual({preferredName:'Preferred'});expect(p.fullName).toBe('Last, First')})
+ it('limits ordinary people and contacts to explicit roster IDs and verification',()=>{const source=sourceSnapshot([person('p1'),person('p2')],true);expect(scopedDirectory([{id:'t1',people:[{id:'p1',name:'A'}]}],{},source)).toEqual([{id:'p1',rosterName:'A',source:null,profile:null,teamIds:['t1'],contactsVerified:false}]);expect(scopedDirectory([],{},source,true)).toEqual([])})
+ it('builds deterministic counts and repeats identical previews without changes',()=>{const base=[person('p1'),person('p2','Person B'),person('p4','Person D')];const source=sourceSnapshot([person('p3','Person C','c@example.com'),person('p2','Updated B'),person('p1')],true);const a=previewPeople(source,base);expect(a.counts).toEqual({new:1,changed:1,unchanged:1,unmatched:1,conflict:0});expect(previewPeople(source,base)).toEqual(a);expect(a.canApply).toBe(false);expect(a.canDeactivate).toBe(false)})
+ it('never merges different IDs with similar names or emails',()=>{const preview=previewPeople(sourceSnapshot([person('new')],true),[person('old')]);expect(preview.rows.find(p=>p.id==='new')?.status).toBe('conflict');expect(preview.rows.find(p=>p.id==='old')?.status).toBe('unmatched')})
+ it('marks duplicate source IDs as conflicts',()=>{expect(previewPeople(sourceSnapshot([person('p1'),person('p1','Other')],true),[]).counts.conflict).toBe(1)})
+ it('does not infer removals from failed or partial sources',()=>{const source=sourceSnapshot([person('p1'),{id:'__proto__'}],true,['Source query was incomplete.']);const result=previewPeople(source,[person('p1'),person('p2')]);expect(result.complete).toBe(false);expect(result.counts.unmatched).toBe(0);expect(result.canDeactivate).toBe(false);expect(result.errors.length).toBe(2)})
+ it('rejects unbounded and invalid input',()=>{expect(()=>sourceSnapshot(new Array(20001),true)).toThrow();expect(sourceSnapshot([{id:'bad id'}],true).complete).toBe(false)})
+})

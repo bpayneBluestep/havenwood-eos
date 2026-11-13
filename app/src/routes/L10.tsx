@@ -1,4 +1,5 @@
 import Scorecard from './Scorecard'
+import Vision from './Vision'
 import Rocks from './Rocks'
 import Todos from './Todos'
 import Headlines from './Headlines'
@@ -17,7 +18,7 @@ const ActiveReviewSection = createContext<{id:string;label?:string;number?:numbe
 const reviewSections = ['segue','scorecard','rocks','headlines','todos','ids','conclude']
 
 export default function L10({embedded=false,section,sectionLabel,sectionNumber,companyId}:{embedded?:boolean;section?:string;sectionLabel?:string;sectionNumber?:number;companyId?:string}) {
-  const { company, nameOf } = useApp()
+  const { company, companies, nameOf } = useApp()
   const [data, setData] = useState<L10Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [drop, setDrop] = useState<{ kind: string; id: string; label: string; title: string } | null>(null)
@@ -25,10 +26,17 @@ export default function L10({embedded=false,section,sectionLabel,sectionNumber,c
 
   const load = useCallback(() => {
     setErr(null)
+    if(section==='vision')return
     getL10(companyId || company.id).then(setData).catch(e => setErr(e.message))
-  }, [company.id,companyId])
+  }, [company.id,companyId,section])
 
-  useEffect(() => { setData(null); load(); if (!embedded) return; const timer=window.setInterval(load,10000); return()=>window.clearInterval(timer) }, [load,embedded])
+  useEffect(() => { setData(null); load(); if (!embedded||section==='vision') return; const timer=window.setInterval(load,10000); return()=>window.clearInterval(timer) }, [load,embedded])
+
+  if(section==='vision'){
+    const selectedTeam=companies?.find(team=>team.id===(companyId||company.id))||company
+    const homeCompanyId=selectedTeam.homeId||selectedTeam.id
+    return <section className="meeting-review-lists" aria-label="Current meeting section"><div className="card"><div className="card__head"><div className="l10sec"><span className="l10sec__n" aria-hidden="true">{sectionNumber||1}</span><h2>{sectionLabel||'Vision & Plan'}</h2></div></div><div className="card__body--flush"><Vision embedded companyId={homeCompanyId}/></div></div></section>
+  }
 
   if (!data && !err) return <div className="page"><Loading what="Loading the meeting" /></div>
 

@@ -6,6 +6,9 @@ import {MemberProfileEditor} from './MyProfile'
 import MyNotifications from './MyNotifications'
 import SettingsForm from './Settings'
 import ModuleScopeSettings from './ModuleScopeSettings'
+import SeatTemplates from '../modules/SeatTemplates'
+import PeopleImport from './PeopleImport'
+import {getPeopleImportPreview,applyPeopleImportPreview} from '../api'
 import BrandingSettings from './BrandingSettings'
 import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
 
@@ -492,7 +495,7 @@ function SettingsTab({ ov, onChanged }: { ov: Overview; onChanged: () => void })
         </div>
       </div>
       <SettingsForm team={team} onSaved={onChanged} />
-      <BrandingSettings onSaved={onChanged}/><ModuleScopeSettings/>
+      <BrandingSettings onSaved={onChanged}/><ModuleScopeSettings/><SeatTemplates/><PeopleImport companies={live.filter(t=>t.kind==='company').map(t=>({id:t.id,name:t.name}))} loadPreview={getPeopleImportPreview} applyPreview={applyPeopleImportPreview}/>
     </>
   )
 }

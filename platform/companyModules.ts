@@ -1,13 +1,13 @@
-export const MODULE_KINDS = ['tenk_plan','tenk_priority','tenk_seat','tenk_assignment','tenk_visibility','tenk_history','tenk_import_batch'] as const;
+export const MODULE_KINDS = ['tenk_plan','tenk_priority','tenk_seat','tenk_seat_template','tenk_assignment','tenk_visibility','tenk_history','tenk_import_batch'] as const;
 export type ModuleKind = typeof MODULE_KINDS[number];
 export type ModuleName = 'vision'|'accountability';
-export interface ModuleEntity {schemaVersion:number;id:string;kind:ModuleKind;companyId:string;rev:number;createdAt:string;updatedAt:string;editorId:string;archived:boolean;data:Record<string,unknown>}
+export interface ModuleEntity {readOnly?:boolean;schemaVersion:number;id:string;kind:ModuleKind;companyId:string;rev:number;createdAt:string;updatedAt:string;editorId:string;archived:boolean;data:Record<string,unknown>}
 export interface ModuleVisibility {vision:string[];accountability:string[]}
 export interface ScopeTeam {id:string;companyId:string;memberIds:string[];archived?:boolean}
-export function validModuleId(value:unknown):value is string {return typeof value==='string'&&/^[A-Za-z0-9_-]{1,120}$/.test(value)&&['__proto__','constructor','prototype'].indexOf(value)<0;}
+export function validModuleId(value:unknown):value is string {return typeof value==='string'&&/^[A-Za-z0-9_-]{1,120}$/.test(value)&&['__proto__','constructor','prototype','toString','toLocaleString','valueOf','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','__defineGetter__','__defineSetter__','__lookupGetter__','__lookupSetter__'].indexOf(value)<0;}
 export function isInternalTeamKind(kind:string):boolean {return kind==='member_profile'||kind.indexOf('tenk_')===0;}
 export function moduleKind(value:unknown):ModuleKind {if(typeof value!=='string'||(MODULE_KINDS as readonly string[]).indexOf(value)<0)throw Error('Invalid module kind.');return value as ModuleKind;}
-export function moduleForKind(kind:ModuleKind):ModuleName|null {return kind==='tenk_plan'||kind==='tenk_priority'?'vision':kind==='tenk_seat'||kind==='tenk_assignment'?'accountability':null;}
+export function moduleForKind(kind:ModuleKind):ModuleName|null {return kind==='tenk_plan'||kind==='tenk_priority'?'vision':kind==='tenk_seat'||kind==='tenk_seat_template'||kind==='tenk_assignment'?'accountability':null;}
 export function validateVisibility(input:unknown,companyId:string,teams:ScopeTeam[]):ModuleVisibility {
  if(!validModuleId(companyId)||!input||typeof input!=='object')throw Error('Invalid company visibility.');
  const out:ModuleVisibility={vision:[],accountability:[]};
