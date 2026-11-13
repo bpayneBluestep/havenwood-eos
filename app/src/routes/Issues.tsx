@@ -18,7 +18,7 @@ import { LinkedTodoModal } from '../components/DropToIssue'
  * IDS — Identify, Discuss, Solve — is a discipline, not a data structure. What
  * the software owes it is: an order, and a solve action whose output is a To-Do.
  */
-export default function Issues({embedded=false}:{embedded?:boolean}) {
+export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?:boolean;headingLabel?:string}) {
   const {company,team,me,nameOf,companies,meetingWorkflow}=useApp()
   const [assignedTeam,setAssignedTeam]=useState('')
   const [ownerFilter, setOwnerFilter] = useState('')
@@ -82,7 +82,7 @@ export default function Issues({embedded=false}:{embedded?:boolean}) {
     <div className={embedded ? 'meeting-issues' : 'page'}>
       <div className="page__head">
         <div>
-          <div className="issues-heading">{embedded ? <h2>Issues</h2> : <h1>Issues</h1>}<p className="ids-guide">IDS: Identify the root issue · Discuss openly · Solve with an action and owner.</p></div>
+          <div className="issues-heading">{embedded ? <h2>{headingLabel}</h2> : <h1>Issues</h1>}<p className="ids-guide">IDS: Identify the root issue · Discuss openly · Solve with an action and owner.</p></div>
           <div className="page__sub">
             Drag to reorder. Select a sort button; click it again to reverse the order.
           </div>

@@ -685,3 +685,9 @@ input, select, textarea { font: inherit; color: inherit; }
 .scorecard-workspace .cell { width:96px; min-width:96px; }
 .cell--green .cell__display { color:var(--green); }
 .cell--red .cell__display { color:var(--red); }
+
+.agenda-editor { border:1px solid var(--border); border-radius:8px; padding:16px; min-width:0; }
+.agenda-editor__sections { padding-left:24px; }
+.agenda-editor__sections li { padding:14px 0; border-bottom:1px solid var(--border); }
+.agenda-editor__row { display:grid; grid-template-columns:minmax(140px,2fr) 90px minmax(140px,1.5fr) auto; gap:12px; align-items:end; margin-bottom:8px; }
+@media(max-width:800px) { .agenda-editor__row { grid-template-columns:1fr 90px; } }

@@ -3,7 +3,7 @@ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest'
 import {act,cleanup,render,screen,within,waitFor,fireEvent} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type {Issue,Rock,Measurable} from '../api'
-const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),getRocksBoard:vi.fn(),saveScorecardSections:vi.fn(),getScorecard:vi.fn(),saveMeasurable:vi.fn(),setScore:vi.fn(),getLiveSessions:vi.fn(),liveSessionAction:vi.fn(),getTodos:vi.fn(),getL10:vi.fn()}))
+const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),getRocksBoard:vi.fn(),saveScorecardSections:vi.fn(),getScorecard:vi.fn(),saveMeasurable:vi.fn(),setScore:vi.fn(),getLiveSessions:vi.fn(),liveSessionAction:vi.fn(),getTodos:vi.fn(),getL10:vi.fn(),getMeetings:vi.fn(),getMeetingTypes:vi.fn(),adminMeetingTypes:vi.fn(),adminSaveMeetingTypes:vi.fn()}))
 const state=vi.hoisted(()=>({current:{} as any}))
 vi.mock('../api',async()=>({...await vi.importActual('../api'),...api}))
 vi.mock('../state',()=>({useApp:()=>state.current}))
@@ -11,6 +11,10 @@ import {fmtValue} from '../lib/ui'
 import LiveMeetings from '../meetings/LiveMeetings'
 import Todos from './Todos'
 import L10 from './L10'
+import {MemoryRouter} from 'react-router-dom'
+import Meetings from './Meetings'
+import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
+import {defaultMeetingTypes} from '../../../platform/meetingTypes'
 import {defaultLiveSections} from '../../../platform/liveSessionModel'
 import Issues,{IssuePriority} from './Issues'
 import Rocks from './Rocks'
@@ -22,6 +26,7 @@ const rock:Rock={quarterKey:'2026-Q4',companyRock:false,dueDate:null,archivedAt:
 const measurable:Measurable={active:true,archivedAt:null,displayOrder:999,escalate:false,id:'measure',title:'Example measurable',ownerId:'a',ownerName:'Owner A',rev:2,group:'Admissions',cadence:'weekly',goal:{op:'gte',target:1,target2:null},valueType:'number',cells:[],sourceTeamId:'source',assignedTeamIds:['source'],sourceUrl:'https://example.com/report'}
 beforeEach(()=>{
  vi.clearAllMocks()
+ api.getMeetings.mockResolvedValue({rows:[]});api.getMeetingTypes.mockResolvedValue({rev:0,types:defaultMeetingTypes()});api.adminMeetingTypes.mockResolvedValue({rev:0,types:defaultMeetingTypes()});api.adminSaveMeetingTypes.mockImplementation(async(_team,catalog)=>({...catalog,rev:1}))
  state.current={company,team:people,me:{id:'a',name:'Owner A'},nameOf:(id:string)=>people.find(person=>person.id===id)?.name || '',companies:[company,{id:'second',name:'Second team'}],scorecardEditing:true,milestoneWorkflow:false,meetingWorkflow:false}
  api.getIssues.mockResolvedValue({rows:[baseIssue,{...baseIssue,id:'two',title:'Alpha issue',ownerId:'a',createdDate:'2026-11-10'}]})
  api.getRocks.mockResolvedValue({rows:[rock],counts:{companies:1}})
@@ -154,7 +159,7 @@ describe('live meetings and action items',()=>{
   state.current.liveMeetings=true;api.getLiveSessions.mockResolvedValue({sessions:[],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue({...live(),hostId:'a',hostName:'Owner A',joined:true,canControl:true});render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(screen.getByRole('button',{name:'Start a meeting'}));await screen.findByRole('button',{name:'Next section'});expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'start',companyId:'source'}));await user.click(screen.getByRole('button',{name:'Pause'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'pause',sessionId:'live',rev:1})))
  })
  it('offers each joined participant a 1–10 rating after the meeting',async()=>{
-  state.current.liveMeetings=true;const session={...live(),status:'ended' as const,joined:true,participants:[...live().participants,{userId:'a',name:'Owner A',joinedAt:2,rating:null,updatedAt:2}]};api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue(session);render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'View recap'}));const ratings=within(screen.getByRole('group',{name:'Your meeting rating'}));expect(ratings.getAllByRole('button')).toHaveLength(10);await user.click(ratings.getByRole('button',{name:'9'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'rate',rating:9})))
+  state.current.liveMeetings=true;const session={...live(),status:'ended' as const,joined:true,participants:[...live().participants,{userId:'a',name:'Owner A',joinedAt:2,rating:null,updatedAt:2}]};api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue(session);render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Show recaps'}));await user.click(await screen.findByRole('button',{name:'View recap'}));const ratings=within(screen.getByRole('group',{name:'Your meeting rating'}));expect(ratings.getAllByRole('button')).toHaveLength(10);await user.click(ratings.getByRole('button',{name:'9'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'rate',rating:9})))
  })
  it('places the agenda in the sidebar and shows only the active populated section',async()=>{
   const slot=document.createElement('div');slot.id='live-meeting-sidebar';document.body.append(slot)
@@ -235,5 +240,26 @@ describe('live meetings and action items',()=>{
  })
  it('uses Action Items with reversible Date and Name sorting',async()=>{
   api.getTodos.mockResolvedValue({rows:[{id:'one',title:'Example old action',ownerId:'b',ownerName:'Owner B',dueDate:'2026-11-10',status:'open'},{id:'two',title:'Example new action',ownerId:'a',ownerName:'Owner A',dueDate:'2026-11-12',status:'open'}]});render(<Todos/>);await screen.findByRole('button',{name:'Example old action'});expect(screen.getByRole('heading',{name:'Action Items'})).toBeTruthy();const user=userEvent.setup(),sort=within(screen.getByRole('group',{name:'Sort action items'}));await user.click(sort.getByRole('button',{name:'Date'}));expect(screen.getAllByRole('button',{name:/^Example .* action$/})[0].textContent).toBe('Example new action');await user.click(sort.getByRole('button',{name:'Name'}));expect(screen.getAllByRole('button',{name:/^Example .* action$/})[0].textContent).toBe('Example new action');await user.click(sort.getByRole('button',{name:'Name'}));expect(screen.getAllByRole('button',{name:/^Example .* action$/})[0].textContent).toBe('Example old action')
+ })
+})
+
+describe('meeting lobby and type settings',()=>{
+ it('disables starting another live meeting for a busy team',async()=>{
+  state.current.liveMeetings=true;api.getLiveSessions.mockResolvedValue({serverNow:Date.now(),teamBusy:true,sessions:[]});render(<LiveMeetings companyId="source"/>);await screen.findByText(/already has a live meeting in progress/);expect((screen.getByRole('button',{name:'Start a meeting'}) as HTMLButtonElement).disabled).toBe(true);expect(api.liveSessionAction).not.toHaveBeenCalled()
+ })
+ it('keeps scheduled lists and all team review grids out of the lobby',async()=>{
+  state.current.liveMeetings=true;api.getLiveSessions.mockResolvedValue({serverNow:Date.now(),sessions:[]});render(<MemoryRouter><Meetings/></MemoryRouter>);await screen.findByText(/No live meeting to display/);expect(screen.queryByText('Scheduled private meetings')).toBeNull();expect(screen.queryByText('Team scorecard and review lists')).toBeNull();expect(api.getL10).not.toHaveBeenCalled();await userEvent.setup().click(screen.getByRole('button',{name:'Scheduled meetings'}));expect(screen.getByRole('dialog',{name:'Scheduled private meetings'})).toBeTruthy()
+ })
+ it('renders a saved custom agenda order and sends the stored section index',async()=>{
+  state.current.liveMeetings=true
+  const sections=[{id:'discuss',kind:'notes',label:'Strategy discussion',minutes:20,spentMs:0,prompt:'Review priorities.'},{id:'finish',kind:'conclude',label:'Wrap up',minutes:5,spentMs:0,prompt:''}]
+  const session={id:'custom',companyId:'source',meetingTypeId:'custom',title:'Custom meeting',hostId:'a',hostName:'Owner A',status:'running',activeIndex:0,activeStartedAt:Date.now(),startedAt:Date.now(),endedAt:null,sections,rev:1,participants:[],joined:true,canControl:true,serverNow:Date.now()}
+  api.getLiveSessions.mockResolvedValue({serverNow:Date.now(),sessions:[session]});api.liveSessionAction.mockResolvedValue({...session,activeIndex:1});render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Open meeting'}));expect(screen.getByRole('heading',{name:'Strategy discussion',level:2})).toBeTruthy();expect(screen.getByText('Review priorities.')).toBeTruthy();expect(within(screen.getByRole('complementary',{name:'Meeting agenda'})).getAllByRole('button')).toHaveLength(2);await user.click(screen.getByRole('button',{name:'Next section'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'select',index:1})))
+ })
+ it('edits and saves a type with a revision while leaving defaults scoped correctly',async()=>{
+  render(<MeetingTypesAdmin teams={[{id:'source',name:'Source team'}]}/>);const user=userEvent.setup();await user.clear(await screen.findByLabelText('Section 1 name'));await user.type(screen.getByLabelText('Section 1 name'),'Opening check-in');await user.click(screen.getByRole('button',{name:'Save meeting types'}));await waitFor(()=>expect(api.adminSaveMeetingTypes).toHaveBeenCalledWith('source',expect.objectContaining({rev:0,types:expect.arrayContaining([expect.objectContaining({id:'l10',scope:'team',sections:expect.arrayContaining([expect.objectContaining({label:'Opening check-in'})])})])})));await user.selectOptions(screen.getByLabelText('Edit meeting type'),'one-on-one');expect((screen.getByLabelText('Visibility') as HTMLSelectElement).value).toBe('private')
+ })
+ it('keeps unsaved agenda changes after a failed save',async()=>{
+  api.adminSaveMeetingTypes.mockRejectedValue(new Error('Agenda changed. Reload first.'));render(<MeetingTypesAdmin teams={[{id:'source',name:'Source team'}]}/>);const user=userEvent.setup();await user.clear(await screen.findByLabelText('Section 1 name'));await user.type(screen.getByLabelText('Section 1 name'),'Opening');await user.click(screen.getByRole('button',{name:'Save meeting types'}));await screen.findByText('Agenda changed. Reload first.');expect((screen.getByLabelText('Section 1 name') as HTMLInputElement).value).toBe('Opening')
  })
 })

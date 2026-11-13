@@ -644,5 +644,9 @@ export const commandMeetingWorkspace=(fields:Record<string,unknown>):Promise<imp
 export const captureMeetingItem=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('captureMeetingItem',fields)
 export const editMeetingItem=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('editMeetingItem',fields)
 
-export const getLiveSessions = (scope:{companyId:string;meetingId?:string;date?:string}):Promise<{serverNow:number;sessions:import('../../platform/liveSessionModel').LiveSessionView[]}> => get('liveSessions',scope)
+export const getLiveSessions = (scope:{companyId:string;meetingId?:string;date?:string}):Promise<{teamBusy?:boolean;serverNow:number;sessions:import('../../platform/liveSessionModel').LiveSessionView[]}> => get('liveSessions',scope)
 export const liveSessionAction = (fields:Record<string,unknown>):Promise<import('../../platform/liveSessionModel').LiveSessionView> => post('liveSessionAction',fields)
+
+export const getMeetingTypes=(companyId:string):Promise<import('../../platform/meetingTypes').MeetingTypeCatalog>=>get('meetingTypes',{companyId})
+export const adminMeetingTypes=(teamId:string):Promise<import('../../platform/meetingTypes').MeetingTypeCatalog>=>get('adminMeetingTypes',{teamId})
+export const adminSaveMeetingTypes=(teamId:string,catalog:import('../../platform/meetingTypes').MeetingTypeCatalog):Promise<import('../../platform/meetingTypes').MeetingTypeCatalog>=>post('adminSaveMeetingTypes',{teamId,...catalog})

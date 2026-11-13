@@ -13,10 +13,10 @@ import {
 import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
 
 /* Team review data supports the lobby and the active live section. */
-const ActiveReviewSection = createContext<string | undefined>(undefined)
+const ActiveReviewSection = createContext<{id:string;label?:string;number?:number} | undefined>(undefined)
 const reviewSections = ['segue','scorecard','rocks','headlines','todos','ids','conclude']
 
-export default function L10({embedded=false,section}:{embedded?:boolean;section?:string}) {
+export default function L10({embedded=false,section,sectionLabel,sectionNumber}:{embedded?:boolean;section?:string;sectionLabel?:string;sectionNumber?:number}) {
   const { company, nameOf } = useApp()
   const [data, setData] = useState<L10Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -50,7 +50,7 @@ export default function L10({embedded=false,section}:{embedded?:boolean;section?
 
       {data && (
         <>
-          <ActiveReviewSection.Provider value={section}><section aria-label={section ? 'Current meeting section' : 'Team scorecard and review lists'}>{!section && <h2>Team scorecard and review lists</h2>}
+          <ActiveReviewSection.Provider value={section ? {id:section,label:sectionLabel,number:sectionNumber} : undefined}><section aria-label={section ? 'Current meeting section' : 'Team scorecard and review lists'}>{!section && <h2>Team scorecard and review lists</h2>}
           <Section n={1} item={data.agenda[0]}>
             <div className="card__body">
               <p className="muted" style={{ margin: 0 }}>
@@ -214,13 +214,13 @@ function Section({
   children: React.ReactNode
 }) {
   const active = useContext(ActiveReviewSection)
-  if (!item || (active && reviewSections[n-1] !== active)) return null
-  const label = active ? ({todos:'Action Items',ids:'Issues',conclude:'Conclusion'}[active] || item.label) : item.label
+  if (!item || (active && reviewSections[n-1] !== active.id)) return null
+  const label = active ? (active.label || {todos:'Action Items',ids:'Issues',conclude:'Conclusion'}[active.id] || item.label) : item.label
   return (
     <div className="card">
       <div className="card__head">
         <div className="l10sec">
-          <span className="l10sec__n" aria-hidden="true">{active ? ['segue','headlines','todos','scorecard','ids','conclude'].indexOf(active)+1 : n}</span>
+          <span className="l10sec__n" aria-hidden="true">{active ? (active.number || ['segue','headlines','todos','scorecard','ids','conclude'].indexOf(active.id)+1) : n}</span>
           <h2>{label}</h2>
           {!active && <span className="l10sec__min">{item.minutes} min</span>}
           {count !== undefined && <span className="faint mono">{count}</span>}

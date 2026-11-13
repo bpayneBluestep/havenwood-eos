@@ -1,5 +1,4 @@
 import LiveMeetings from '../meetings/LiveMeetings'
-import L10 from './L10'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getMeetings, saveMeeting } from '../api'
@@ -19,6 +18,7 @@ export default function Meetings() {
   const [err, setErr] = useState<string | null>(null)
   const [liveOpen,setLiveOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [scheduledOpen,setScheduledOpen]=useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const nav = useNavigate()
 
@@ -35,10 +35,11 @@ export default function Meetings() {
         <div>
           <h1>Meetings</h1>
           <div className="page__sub">
-            Start and join live meetings here. Level 10 is the 90-minute team agenda; scheduled private meetings are listed below.
+            Start or join one live meeting for this team. Open Scheduled meetings to manage private meeting dates.
           </div>
         </div>
         {!liveOpen && <div className="page__actions">
+          <button className="btn" onClick={()=>setScheduledOpen(true)}>Scheduled meetings</button>
           <button className="btn" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
             {showArchived ? 'Hide archived' : 'Show archived'}
           </button>
@@ -49,8 +50,7 @@ export default function Meetings() {
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
       <LiveMeetings key={company.id} companyId={company.id} onActiveChange={setLiveOpen}/>
-      {!liveOpen && <>
-      <h2>Scheduled private meetings</h2>
+      {scheduledOpen && <Modal title="Scheduled private meetings" onClose={()=>setScheduledOpen(false)}>
       {!rows ? (
         <Loading what="Loading meetings" />
       ) : rows.length === 0 ? (
@@ -84,8 +84,7 @@ export default function Meetings() {
         </div>
       )}
 
-      <L10 embedded/>
-      </>}
+      </Modal>}
 
       {adding && (
         <Modal title="New meeting" onClose={() => setAdding(false)}>

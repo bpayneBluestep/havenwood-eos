@@ -3,6 +3,7 @@ import { adminAudit, adminOverview, adminPeople, adminSaveTeam, adminSetMembersh
 import type { AdminMember, AdminPerson, AdminTeam, AuditRow } from '../api'
 import { Avatar, Empty, ErrorBanner, Loading, Modal, firstLast } from '../lib/ui'
 import SettingsForm from './Settings'
+import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
 
 /*
  * The admin side of Traction (ticket #269). Only the three hard-coded EOS
@@ -14,7 +15,7 @@ import SettingsForm from './Settings'
  * themselves to the team. Every change lands in the audit log.
  */
 
-type Tab = 'teams' | 'people' | 'settings' | 'audit'
+type Tab = 'teams' | 'people' | 'settings' | 'agendas' | 'audit'
 
 interface Overview { teams: AdminTeam[]; companies: { id: string; name: string }[]; admins: { id: string; name: string }[]; reach: string }
 
@@ -47,9 +48,9 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
         </div>
         <div className="page__actions">
           <div className="seg" role="group" aria-label="Admin section">
-            {(['teams', 'people', 'settings', 'audit'] as Tab[]).map(t => (
+            {(['teams', 'people', 'settings', 'agendas', 'audit'] as Tab[]).map(t => (
               <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
-                {t[0].toUpperCase() + t.slice(1)}
+                {t==='agendas'?'Meeting types':t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
           </div>
@@ -63,6 +64,7 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
           {tab === 'teams' && <TeamsTab ov={ov} onChanged={changed} onError={setErr} />}
           {tab === 'people' && <PeopleTab ov={ov} onChanged={changed} onError={setErr} />}
           {tab === 'settings' && <SettingsTab ov={ov} onChanged={() => { load(); onChanged?.() }} />}
+          {tab === 'agendas' && <MeetingTypesAdmin teams={ov.teams}/>}
           {tab === 'audit' && <AuditTab ov={ov} onError={setErr} />}
         </>
       )}
