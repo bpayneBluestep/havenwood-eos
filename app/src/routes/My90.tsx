@@ -105,24 +105,16 @@ export default function My90() {
               {data.rocks.length === 0 ? (
                 <Empty title="You don't own a rock this quarter" />
               ) : (
-                <div className="rows">
+                <div className="dashboard-action-table" role="table" aria-label="My Rocks">
+                  <div className="dashboard-action-row dashboard-rock-row dashboard-action-row--head" role="row"><span role="columnheader">Owner</span><span role="columnheader">Due date</span><span role="columnheader">Team</span><span role="columnheader">Rock</span><span role="columnheader">Milestones</span><span role="columnheader">Status</span></div>
                   {rocks.map(r => (
-                    <div className="rowitem" key={r.id}>
-                      <Avatar name={r.ownerName} id={r.ownerId} sm />
-                      <div className="rowitem__main">
-                        <div className="rowitem__title">
-                          {r.title}
-                          {r.companyRock && <span className="pill pill--muted">company</span>}
-                        </div>
-                        <div className="rowitem__meta">
-                          {r.dueDate && <span className={dueClass(r.dueDate, r.status === 'done')}>due {fmtDate(r.dueDate)}</span>}
-                          {r.milestones.length > 0 && (
-                            <span className="mono">{r.milestones.filter(m => m.done).length}/{r.milestones.length} milestones complete · {r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue</span>
-                          )}
-                          {r.companyName && <span className="faint">{r.companyName}</span>}
-                        </div>
-                      </div>
-                      <div className="rowitem__end">
+                    <div className="dashboard-action-row dashboard-rock-row" role="row" key={r.id}>
+                      <span role="cell" className="dashboard-action-owner"><Avatar name={r.ownerName} id={r.ownerId} sm/><PersonName name={r.ownerName} id={r.ownerId}/></span>
+                      <span role="cell" className={dueClass(r.dueDate,r.status==='done')}>{r.dueDate?fmtDate(r.dueDate):'—'}</span>
+                      <span role="cell" className="dashboard-action-team" title={r.companyName}>{r.companyName||'—'}</span>
+                      <span role="cell" className="dashboard-action-title" title={r.title}>{r.title}</span>
+                      <span role="cell" title={`${r.milestones.filter(m=>m.done).length} of ${r.milestones.length} complete; ${r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue`}>{r.milestones.filter(m=>m.done).length}/{r.milestones.length} complete · {r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue</span>
+                      <div role="cell" className="rowitem__end">
                         {r.milestones.length > 0 ? <StatusPill status={r.status}/> : <div className="seg" role="group" aria-label={`Status for ${r.title}`}>
                           <button aria-pressed={r.status === 'on_track'} onClick={async () => {
                             try { await setRockStatus(r.id, 'on_track', r.rev); load() } catch (e: any) { setErr(e.message) }
@@ -146,9 +138,10 @@ export default function My90() {
             <div className="card">
               <div className="card__head"><h2>My open milestones</h2></div>
               <div className="card__body--flush">
-                <div className="rows">
+                <div className="dashboard-action-table" role="table" aria-label="My open milestones">
+                  <div className="dashboard-action-row dashboard-milestone-row dashboard-action-row--head" role="row"><span/><span role="columnheader">Owner</span><span role="columnheader">Due date</span><span role="columnheader">Team</span><span role="columnheader">Milestone</span><span role="columnheader">Rock</span></div>
                   {data.milestones.map(m => (
-                    <div className="rowitem" key={m.milestone.id}>
+                    <div className="dashboard-action-row dashboard-milestone-row" role="row" key={m.milestone.id}>
                       <button
                         className="check"
                         aria-label={`Mark "${m.milestone.title}" done`}
@@ -163,15 +156,11 @@ export default function My90() {
                       >
                         ✓
                       </button>
-                      <div className="rowitem__main">
-                        <div className="rowitem__title">{m.milestone.title}</div>
-                        <div className="rowitem__meta">
-                          <span className="faint">{m.rockTitle}</span>
-                          {m.milestone.dueDate && (
-                            <span className={dueClass(m.milestone.dueDate, m.milestone.done)}>due {fmtDate(m.milestone.dueDate)}</span>
-                          )}
-                        </div>
-                      </div>
+                      <span role="cell" className="dashboard-action-owner"><Avatar name={me.name} id={m.milestone.ownerId||me.id} sm/><PersonName name={me.name} id={m.milestone.ownerId||me.id}/></span>
+                      <span role="cell" className={dueClass(m.milestone.dueDate,m.milestone.done)}>{m.milestone.dueDate?fmtDate(m.milestone.dueDate):'—'}</span>
+                      <span role="cell" className="dashboard-action-team" title={m.companyName}>{m.companyName||'—'}</span>
+                      <span role="cell" className="dashboard-action-title" title={m.milestone.title}>{m.milestone.title}</span>
+                      <span role="cell" className="dashboard-action-title muted" title={m.rockTitle}>{m.rockTitle}</span>
                     </div>
                   ))}
                 </div>
@@ -189,10 +178,10 @@ export default function My90() {
                 <Empty title="You don't own a measurable" />
               ) : (
                 <div className="gridwrap">
-                  <table className="grid">
+                  <table className="grid dashboard-scorecard">
                     <thead>
                       <tr>
-                        <th className="c-meas">Measurable</th>
+                        <th className="c-meas">Measurable</th><th>Team</th><th>Goal</th>
                         {data.measurables[0].cells.slice(-6).map(c => (
                           <th key={c.periodKey} title={c.periodKey}>{shortPeriod(c.periodKey)}</th>
                         ))}
@@ -203,15 +192,10 @@ export default function My90() {
                       {data.measurables.map(m => (
                         <tr key={m.id}>
                           <th className="c-meas" scope="row">
-                            <div className="meas__title">
-                              <span>{m.title}</span>
-                              {m.escalate && <span className="badge-escalate"><span aria-hidden="true">▲</span> 3 red</span>}
-                            </div>
-                            <div className="meas__sub">
-                              <span className="meas__goal">{fmtGoal(m.goal, m.valueType)}</span>
-                              {m.companyName && <span className="faint" style={{ fontSize: 11 }}>{m.companyName}</span>}
-                            </div>
+                            <div className="dashboard-action-title" title={m.title}>{m.title}</div>
                           </th>
+                          <td className="dashboard-scorecard-team" title={m.companyName}>{m.companyName||'—'}</td>
+                          <td className="dashboard-scorecard-goal">{fmtGoal(m.goal,m.valueType)}</td>
                           {m.cells.slice(-6).map(c => (
                             <td key={c.periodKey} className={cellClass(c.status)}>
                               {cellMark(c.status) && <span className="cell__mark" aria-hidden="true">{cellMark(c.status)}</span>}
