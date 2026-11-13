@@ -1,7 +1,7 @@
 import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
 import FollowupContext from '../meetings/FollowupContext'
-import { useCallback, useEffect, useState } from 'react'
+import { createContext, useContext, useCallback, useEffect, useState } from 'react'
 import { getL10, setScore, setRockStatus, setTodoStatus, markHeadlineRead } from '../api'
 import type { L10 as L10Data, Rock, Issue, Todo, Headline, Measurable, Cell } from '../api'
 import { useApp } from '../state'
@@ -11,9 +11,11 @@ import {
 } from '../lib/ui'
 import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
 
-/* Current team lists remain below the shared live-meeting workspace.
- * Timing and captured agenda records require the paired endpoint update. */
-export default function L10({embedded=false}:{embedded?:boolean}) {
+/* Team review data supports the lobby and the active live section. */
+const ActiveReviewSection = createContext<string | undefined>(undefined)
+const reviewSections = ['segue','scorecard','rocks','headlines','todos','ids','conclude']
+
+export default function L10({embedded=false,section}:{embedded?:boolean;section?:string}) {
   const { company, nameOf } = useApp()
   const [data, setData] = useState<L10Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -47,7 +49,7 @@ export default function L10({embedded=false}:{embedded?:boolean}) {
 
       {data && (
         <>
-          <section aria-label="Team scorecard and review lists"><h2>Team scorecard and review lists</h2>
+          <ActiveReviewSection.Provider value={section}><section aria-label={section ? 'Current meeting section' : 'Team scorecard and review lists'}>{!section && <h2>Team scorecard and review lists</h2>}
           <Section n={1} item={data.agenda[0]}>
             <div className="card__body">
               <p className="muted" style={{ margin: 0 }}>
@@ -183,7 +185,7 @@ export default function L10({embedded=false}:{embedded?:boolean}) {
               </div>
             </div>
           </Section>
-          </section>
+          </section></ActiveReviewSection.Provider>
         </>
       )}
 
@@ -217,14 +219,16 @@ function Section({
   right?: React.ReactNode
   children: React.ReactNode
 }) {
-  if (!item) return null
+  const active = useContext(ActiveReviewSection)
+  if (!item || (active && reviewSections[n-1] !== active)) return null
+  const label = active ? ({todos:'Action Items',ids:'Issues',conclude:'Conclusion'}[active] || item.label) : item.label
   return (
     <div className="card">
       <div className="card__head">
         <div className="l10sec">
-          <span className="l10sec__n" aria-hidden="true">{n}</span>
-          <h2>{item.label}</h2>
-          <span className="l10sec__min">{item.minutes} min</span>
+          <span className="l10sec__n" aria-hidden="true">{active ? ['segue','headlines','todos','scorecard','ids','conclude'].indexOf(active)+1 : n}</span>
+          <h2>{label}</h2>
+          {!active && <span className="l10sec__min">{item.minutes} min</span>}
           {count !== undefined && <span className="faint mono">{count}</span>}
         </div>
         <div className="card__end">{right}</div>
@@ -265,7 +269,7 @@ function ScorecardSection({
   onDrop: (m: Measurable) => void
 }) {
   if (scorecard.rows.length === 0) return <Empty title="No measurables yet" />
-  const shown = scorecard.periods.slice(-5)
+  const shown = scorecard.periods.slice(-5).reverse()
 
   return (
     <div className="gridwrap">

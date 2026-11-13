@@ -3,7 +3,12 @@ export interface LiveSession {id:string;title:string;companyId:string;meetingId:
 export interface LiveParticipant {userId:string;name:string;joinedAt:number;rating:number|null;updatedAt:number}
 export interface LiveSessionView extends LiveSession {participants:LiveParticipant[];joined:boolean;canControl:boolean;serverNow:number}
 export const defaultLiveSections=():LiveSection[]=>[
- {id:'segue',label:'Segue',minutes:5,spentMs:0},{id:'scorecard',label:'Scorecard',minutes:5,spentMs:0},{id:'rocks',label:'Rock review',minutes:5,spentMs:0},{id:'headlines',label:'Headlines',minutes:5,spentMs:0},{id:'todos',label:'Action item review',minutes:5,spentMs:0},{id:'ids',label:'IDS',minutes:60,spentMs:0},{id:'conclude',label:'Conclude and rate',minutes:5,spentMs:0}]
+ {id:'segue',label:'Segue',minutes:5,spentMs:0},
+ {id:'headlines',label:'Headlines',minutes:5,spentMs:0},
+ {id:'todos',label:'Action Items',minutes:5,spentMs:0},
+ {id:'scorecard',label:'Scorecard',minutes:5,spentMs:0},
+ {id:'ids',label:'Issues',minutes:65,spentMs:0},
+ {id:'conclude',label:'Conclusion',minutes:5,spentMs:0}]
 export function liveSectionMs(session:LiveSession,index:number,now:number):number {
  return (session.sections[index]?.spentMs || 0)+(session.status==='running'&&session.activeIndex===index&&session.activeStartedAt!==null?Math.max(0,now-session.activeStartedAt):0)
 }

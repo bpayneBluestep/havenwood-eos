@@ -25,6 +25,7 @@ beforeEach(()=>{
  api.getIssues.mockResolvedValue({rows:[baseIssue,{...baseIssue,id:'two',title:'Alpha issue',ownerId:'a',createdDate:'2026-11-10'}]})
  api.getRocks.mockResolvedValue({rows:[rock],counts:{companies:1}})
  api.getScorecard.mockResolvedValue({rows:[measurable,{...measurable,id:'measure2',title:'Second measure',group:'Finance'}],periods:['2026-11-09'],currentPeriod:'2026-11-09'})
+ api.getL10.mockResolvedValue({agenda:['Segue','Scorecard','Rock review','Headlines','Action Items','Issues','Conclusion'].map(label=>({label,minutes:5})),scorecard:{rows:[],periods:[]},rocks:[],headlines:[],todos:{rows:[],completed:0,total:0,pct:null,target:.9},issues:[]});
  api.setScore.mockResolvedValue({});api.saveIssue.mockResolvedValue({});api.saveMeasurable.mockResolvedValue({});api.saveScorecardSections.mockResolvedValue({})
 })
 afterEach(cleanup)
@@ -133,13 +134,43 @@ describe('issue team checkboxes',()=>{
 describe('live meetings and action items',()=>{
  const live=()=>({id:'live',companyId:'source',meetingId:'',date:'2026-11-12',title:'Example live meeting',hostId:'b',hostName:'Owner B',status:'running' as const,activeIndex:0,activeStartedAt:Date.now(),startedAt:Date.now(),endedAt:null,sections:defaultLiveSections(),rev:1,participants:[{userId:'b',name:'Owner B',joinedAt:1,rating:null,updatedAt:1}],joined:false,canControl:false,serverNow:Date.now()})
  it('joins an existing session from the lobby',async()=>{
-  state.current.liveMeetings=true;const session=live();api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue({...session,joined:true,participants:[...session.participants,{userId:'a',name:'Owner A',joinedAt:2,rating:null,updatedAt:2}]});render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Join meeting'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'join',sessionId:'live'})));expect(screen.getByRole('heading',{name:'Participants'})).toBeTruthy();expect(screen.queryByRole('button',{name:'Next section'})).toBeNull()
+  state.current.liveMeetings=true;const session=live();api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue({...session,joined:true,participants:[...session.participants,{userId:'a',name:'Owner A',joinedAt:2,rating:null,updatedAt:2}]});render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Join meeting'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'join',sessionId:'live'})));expect(screen.getByRole('complementary',{name:'Meeting agenda'})).toBeTruthy();expect(screen.queryByRole('button',{name:'Next section'})).toBeNull()
  })
  it('starts a shared meeting and gives the facilitator timer controls',async()=>{
   state.current.liveMeetings=true;api.getLiveSessions.mockResolvedValue({sessions:[],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue({...live(),hostId:'a',hostName:'Owner A',joined:true,canControl:true});render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(screen.getByRole('button',{name:'Start a meeting'}));await screen.findByRole('button',{name:'Next section'});expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'start',companyId:'source'}));await user.click(screen.getByRole('button',{name:'Pause'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'pause',sessionId:'live',rev:1})))
  })
  it('offers each joined participant a 1–10 rating after the meeting',async()=>{
   state.current.liveMeetings=true;const session={...live(),status:'ended' as const,joined:true,participants:[...live().participants,{userId:'a',name:'Owner A',joinedAt:2,rating:null,updatedAt:2}]};api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue(session);render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'View recap'}));const ratings=within(screen.getByRole('group',{name:'Your meeting rating'}));expect(ratings.getAllByRole('button')).toHaveLength(10);await user.click(ratings.getByRole('button',{name:'9'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'rate',rating:9})))
+ })
+ it('places the agenda in the sidebar and shows only the active populated section',async()=>{
+  const slot=document.createElement('div');slot.id='live-meeting-sidebar';document.body.append(slot)
+  try {
+   state.current.liveMeetings=true
+   const session={...live(),hostId:'a',joined:true,canControl:true}
+   api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()})
+   api.liveSessionAction.mockResolvedValue({...session,activeIndex:1,rev:2})
+   const review=await api.getL10();api.getL10.mockResolvedValue({...review,headlines:[{id:'headline',body:'Example team headline',ownerId:'a',authorName:'Owner A',read:false}],issues:[baseIssue]})
+   render(<LiveMeetings companyId="source"/>);const user=userEvent.setup()
+   await user.click(await screen.findByRole('button',{name:'Open meeting'}))
+   const sidebar=within(slot);expect(sidebar.getAllByRole('button').map(button=>button.textContent?.split('0:00')[0])).toHaveLength(6)
+   expect(sidebar.getByRole('complementary',{name:'Meeting agenda'})).toBeTruthy()
+   const panel=within(await screen.findByRole('region',{name:'Current meeting section'}))
+   expect(panel.getByRole('heading',{name:'Segue'})).toBeTruthy();expect(screen.queryByText('Example team headline')).toBeNull();expect(screen.queryByText('Zulu issue')).toBeNull()
+   await user.click(screen.getByRole('button',{name:'Next section'}))
+   await screen.findByText('Example team headline');expect(panel.queryByRole('heading',{name:'Segue'})).toBeNull();expect(screen.queryByText('Zulu issue')).toBeNull()
+   expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'select',index:1}));expect(api.getL10).toHaveBeenCalledWith('source')
+   await user.click(screen.getByRole('button',{name:'All meetings'}));expect(slot.childElementCount).toBe(0)
+  } finally {cleanup();slot.remove()}
+ })
+ it('uses stored indexes to advance older sessions in the requested order',async()=>{
+  state.current.liveMeetings=true
+  const legacy={...live(),joined:true,canControl:true,sections:['segue','scorecard','rocks','headlines','todos','ids','conclude'].map(id=>({id,label:id,minutes:5,spentMs:1234}))}
+  api.getLiveSessions.mockResolvedValue({sessions:[legacy],serverNow:Date.now()});api.liveSessionAction.mockResolvedValue({...legacy,activeIndex:3})
+  render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Open meeting'}));await user.click(screen.getByRole('button',{name:'Next section'}));await waitFor(()=>expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'select',index:3})))
+  expect(screen.queryByRole('button',{name:/Rock review/})).toBeNull()
+ })
+ it.each(['headlines','todos','scorecard','ids','conclude'])('renders only the selected %s review panel',async section=>{
+  render(<L10 embedded section={section}/>);const panel=within(await screen.findByRole('region',{name:'Current meeting section'}));await waitFor(()=>expect(panel.getAllByRole('heading')).toHaveLength(1));expect(screen.queryByRole('heading',{name:'Team scorecard and review lists'})).toBeNull()
  })
  it('keeps the team review lists permanently expanded',async()=>{
   api.getL10.mockResolvedValue({agenda:defaultLiveSections().map(section=>({key:section.id,label:section.label,minutes:section.minutes})),scorecard:{rows:[],periods:[]},rocks:[],headlines:[],todos:{rows:[],completed:0,total:0,pct:null,target:.9},issues:[]});render(<L10 embedded/>);const heading=await screen.findByRole('heading',{name:'Team scorecard and review lists'});expect(heading.closest('details')).toBeNull();expect(screen.queryByText(/matching BlueStep endpoint/)).toBeNull()

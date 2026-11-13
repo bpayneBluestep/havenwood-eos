@@ -78,6 +78,8 @@ function Shell() {
             </NavLink>
           ))}
 
+          <div id="live-meeting-sidebar" />
+
           {/* Admin (teams, people, settings, audit) is for the three hard-coded
               EOS admins only (ticket #269). The endpoint refuses everyone else;
               hiding it here just keeps it out of their way. */}

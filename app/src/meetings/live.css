@@ -14,3 +14,21 @@
 .live-meeting__ratings { border-top:1px solid var(--border); margin-top:15px; }
 .live-meeting__ratings .seg { flex-wrap:wrap; }
 @media(max-width:700px) { .live-meeting__columns {grid-template-columns:1fr;} }
+
+.live-meeting__content { margin-top:20px; min-width:0; }
+.live-meeting__sidebar { border-top:1px solid var(--border); margin:12px 0; padding:10px 4px; }
+.live-meeting__sidebar h3 { font-size:11px; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; padding:0 7px; }
+.live-meeting__sidebar .live-meeting__agenda li { padding:0; }
+.live-meeting__agenda button { display:block; width:100%; border:0; background:transparent; color:var(--fg); text-align:left; padding:10px 8px; font:inherit; font-size:13px; cursor:pointer; }
+.live-meeting__agenda button:disabled { cursor:default; opacity:1; }
+.live-meeting__agenda button span { display:block; margin-top:4px; color:var(--faint); font-size:11px; }
+.live-meeting__agenda button[aria-current="step"] { color:var(--accent); font-weight:600; }
+.live-meeting__agenda button:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+#live-meeting-sidebar:empty { display:none; }
+@media(max-width:700px) {
+ #live-meeting-sidebar { min-width:190px; }
+ .live-meeting__sidebar { margin:0; padding:0; }
+ .live-meeting__sidebar h3 { display:none; }
+ .live-meeting__sidebar .live-meeting__agenda { display:flex; margin:0; }
+ .live-meeting__agenda button { white-space:nowrap; }
+}

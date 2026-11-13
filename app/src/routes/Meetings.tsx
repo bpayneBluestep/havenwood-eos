@@ -17,6 +17,7 @@ export default function Meetings() {
   const { company } = useApp()
   const [rows, setRows] = useState<Meeting[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [liveOpen,setLiveOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const nav = useNavigate()
@@ -37,17 +38,18 @@ export default function Meetings() {
             Start and join live meetings here. Level 10 is the 90-minute team agenda; scheduled private meetings are listed below.
           </div>
         </div>
-        <div className="page__actions">
+        {!liveOpen && <div className="page__actions">
           <button className="btn" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
             {showArchived ? 'Hide archived' : 'Show archived'}
           </button>
           <button className="btn btn--primary" onClick={() => setAdding(true)}>+ Schedule meeting</button>
-        </div>
+        </div>}
       </div>
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
-      <LiveMeetings key={company.id} companyId={company.id}/>
+      <LiveMeetings key={company.id} companyId={company.id} onActiveChange={setLiveOpen}/>
+      {!liveOpen && <>
       <h2>Scheduled private meetings</h2>
       {!rows ? (
         <Loading what="Loading meetings" />
@@ -83,6 +85,7 @@ export default function Meetings() {
       )}
 
       <L10 embedded/>
+      </>}
 
       {adding && (
         <Modal title="New meeting" onClose={() => setAdding(false)}>
