@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest'
-import {cleanup,render,screen,within,waitFor,fireEvent} from '@testing-library/react'
+import {act,cleanup,render,screen,within,waitFor,fireEvent} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type {Issue,Rock,Measurable} from '../api'
 const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),getRocksBoard:vi.fn(),saveScorecardSections:vi.fn(),getScorecard:vi.fn(),saveMeasurable:vi.fn(),setScore:vi.fn(),getLiveSessions:vi.fn(),liveSessionAction:vi.fn(),getTodos:vi.fn(),getL10:vi.fn()}))
@@ -171,6 +171,50 @@ describe('live meetings and action items',()=>{
  })
  it.each(['headlines','todos','scorecard','ids','conclude'])('renders only the selected %s review panel',async section=>{
   render(<L10 embedded section={section}/>);const panel=within(await screen.findByRole('region',{name:'Current meeting section'}));await waitFor(()=>expect(panel.getAllByRole('heading')).toHaveLength(1));expect(screen.queryByRole('heading',{name:'Team scorecard and review lists'})).toBeNull()
+ })
+ it('shows total and section time separately and calls a tangent without timer control',async()=>{
+  state.current.liveMeetings=true
+  const sectionTime=Date.now()-12000
+  const session={...live(),joined:true,canControl:false,activeIndex:1,activeStartedAt:sectionTime,sections:defaultLiveSections().map((section,index)=>({...section,spentMs:index===0?60000:0})),tangents:[]}
+  api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()})
+  api.liveSessionAction.mockResolvedValue({...session,tangents:[{id:'new-tangent',userId:'a',name:'Owner A',calledAt:Date.now()}]})
+  render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Open meeting'}))
+  const seconds=(label:string)=>{const [m,s]=screen.getByLabelText(label).textContent!.split(':').map(Number);return m*60+s}
+  expect(seconds('Total time spent')-seconds('Section time spent')).toBe(60)
+  expect(screen.queryByRole('button',{name:'Next section'})).toBeNull()
+  await user.click(screen.getByRole('button',{name:'Tangent'}));await screen.findByText('Tangent called.')
+  expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'tangent',sessionId:'live'}))
+  expect(screen.getByRole('alert').textContent).toContain('Owner A')
+  await user.click(screen.getByRole('button',{name:'Dismiss tangent alert'}));expect(screen.queryByText('Tangent called.')).toBeNull()
+ })
+ it('alerts a joined viewer when another participant calls a tangent through shared updates',async()=>{
+  vi.useFakeTimers()
+  try {
+   state.current.liveMeetings=true
+   const session={...live(),joined:true,tangents:[]}
+   api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()})
+   render(<LiveMeetings companyId="source"/>);await act(async()=>{await Promise.resolve()})
+   fireEvent.click(screen.getByRole('button',{name:'Open meeting'}))
+   api.getLiveSessions.mockResolvedValue({sessions:[{...session,tangents:[{id:'remote',userId:'b',name:'Owner B',calledAt:Date.now()}]}],serverNow:Date.now()})
+   await act(async()=>{await vi.advanceTimersByTimeAsync(3000)})
+   expect(screen.getByRole('alert').textContent).toContain('Tangent called.');expect(screen.getByRole('alert').textContent).toContain('Owner B');expect(api.liveSessionAction).not.toHaveBeenCalled()
+   fireEvent.click(screen.getByRole('button',{name:'Dismiss tangent alert'}));await act(async()=>{await vi.advanceTimersByTimeAsync(3000)});expect(screen.queryByText('Tangent called.')).toBeNull()
+  } finally {cleanup();vi.useRealTimers()}
+ })
+ it('does not replay old tangent alerts when opening a session',async()=>{
+  state.current.liveMeetings=true
+  api.getLiveSessions.mockResolvedValue({sessions:[{...live(),joined:true,tangents:[{id:'old',userId:'b',name:'Owner B',calledAt:1}]}],serverNow:Date.now()})
+  render(<LiveMeetings companyId="source"/>);await userEvent.setup().click(await screen.findByRole('button',{name:'Open meeting'}));expect(screen.queryByText('Tangent called.')).toBeNull()
+ })
+ it('uses normal Issues controls and collapsed details inside the active meeting',async()=>{
+  state.current.liveMeetings=true;api.getLiveSessions.mockResolvedValue({sessions:[{...live(),activeIndex:4,joined:true}],serverNow:Date.now()})
+  render(<LiveMeetings companyId="source"/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Open meeting'}))
+  await screen.findByRole('button',{name:'Edit issue Zulu issue'})
+  const sort=within(screen.getByRole('group',{name:'Sort issues'}));expect(sort.getAllByRole('button').map(button=>button.textContent)).toEqual(['Importance','Date','Name'])
+  expect(screen.getAllByText('Example issue description')[0].closest('[hidden]')).toBeTruthy()
+  await user.click(screen.getAllByRole('button',{name:'Show details'})[0]);expect(screen.getAllByText('Example issue description')[0].closest('[hidden]')).toBeNull()
+  await user.click(sort.getByRole('button',{name:'Name'}));expect(screen.getAllByRole('button',{name:/^Edit issue /})[0].textContent).toBe('Alpha issue')
+  await user.click(sort.getByRole('button',{name:'Name'}));expect(screen.getAllByRole('button',{name:/^Edit issue /})[0].textContent).toBe('Zulu issue')
  })
  it('keeps the team review lists permanently expanded',async()=>{
   api.getL10.mockResolvedValue({agenda:defaultLiveSections().map(section=>({key:section.id,label:section.label,minutes:section.minutes})),scorecard:{rows:[],periods:[]},rocks:[],headlines:[],todos:{rows:[],completed:0,total:0,pct:null,target:.9},issues:[]});render(<L10 embedded/>);const heading=await screen.findByRole('heading',{name:'Team scorecard and review lists'});expect(heading.closest('details')).toBeNull();expect(screen.queryByText(/matching BlueStep endpoint/)).toBeNull()

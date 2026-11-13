@@ -18,7 +18,7 @@ import { LinkedTodoModal } from '../components/DropToIssue'
  * IDS — Identify, Discuss, Solve — is a discipline, not a data structure. What
  * the software owes it is: an order, and a solve action whose output is a To-Do.
  */
-export default function Issues() {
+export default function Issues({embedded=false}:{embedded?:boolean}) {
   const {company,team,me,nameOf,companies,meetingWorkflow}=useApp()
   const [assignedTeam,setAssignedTeam]=useState('')
   const [ownerFilter, setOwnerFilter] = useState('')
@@ -44,6 +44,11 @@ export default function Issues() {
   }, [company.id, term, showSolved])
 
   useEffect(() => { setRows(null); load() }, [load])
+  useEffect(() => {
+    if (!embedded || inlineId || editing || solving || linkFor) return
+    const timer=window.setInterval(load,10000)
+    return()=>window.clearInterval(timer)
+  },[embedded,inlineId,editing,solving,linkFor,load])
 
   const onDrop = async (targetId: string) => {
     const from = dragId.current
@@ -74,10 +79,10 @@ export default function Issues() {
   const solvedCount = rows ? rows.filter(r => r.status === 'solved').length : 0
 
   return (
-    <div className="page">
+    <div className={embedded ? 'meeting-issues' : 'page'}>
       <div className="page__head">
         <div>
-          <div className="issues-heading"><h1>Issues</h1><p className="ids-guide">IDS: Identify the root issue · Discuss openly · Solve with an action and owner.</p></div>
+          <div className="issues-heading">{embedded ? <h2>Issues</h2> : <h1>Issues</h1>}<p className="ids-guide">IDS: Identify the root issue · Discuss openly · Solve with an action and owner.</p></div>
           <div className="page__sub">
             Drag to reorder. Select a sort button; click it again to reverse the order.
           </div>
