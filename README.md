@@ -46,3 +46,11 @@ The pure policy helper is `platform/scorecardModel.ts`; its matching endpoint mo
 Issue ranking numbers are dropdown controls in the list. Selecting 1–5 saves immediately with a revision check, without opening the issue. A failed save restores the previous number and shows an error. Read-only issues and the row currently being edited remain locked.
 
 The Issues toolbar has three sort buttons: Importance (highest first), Date (newest first), and Name (owner A–Z). Clicking the active button reverses its order. Unranked issues remain last. Before selecting a sort, the saved manual order and drag controls remain available.
+
+## Independent issue team mappings
+
+Issue dialogs and inline editors use checkboxes for all teams in the caller's accessible team list. A public issue remains one record with one ID, text, importance, solved state, and linked-action list across its mapped teams. The original team can be unchecked; its native containing row is only a storage location. Legacy issues keep their original visibility until saved. No bulk data migration or copies are created.
+
+New mappings must belong to the caller's accessible teams. Existing mappings outside the caller's current access are preserved when the caller saves their visible checkboxes. At least one total mapping must remain. Removing a team's mapping removes that team's application access, including edits, solves, ranking, and archive actions. Company lists, planning-board issue lists, and L10 lists use the same access rule. Private meeting issues retain their meeting-attendee gate and cannot be disclosed through these checkboxes.
+
+Linked To-Dos for public issues are created on the selected mapped team. Private issue actions retain their meeting context. The endpoint advertises `issueTeamMapping: 1`. The pure policy helper `platform/issueModel.ts` must match `scripts/issueModel.ts` in the endpoint. Publish the endpoint before this frontend build.

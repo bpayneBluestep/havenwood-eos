@@ -1,3 +1,4 @@
+import IssueTeamPicker from '../components/IssueTeamPicker'
 import {compareNames, compareDates, priorityLabel, priorityLabels} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
@@ -281,6 +282,8 @@ export function IssuePriority({issue, companyId, disabled, onSaved}: {issue: Iss
 }
 
 export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {issue: Issue; companyId: string; team: any[]; onCancel: () => void; onSaved: () => void}) {
+  const {companies,issueTeamMapping} = useApp()
+  const [teamIds,setTeamIds] = useState(() => (issue.assignedTeamIds || [companyId]).filter(id => companies.some(team => team.id === id)))
   const [title, setTitle] = useState(issue.title)
   const [description, setDescription] = useState(issue.description)
   const [priority, setPriority] = useState(issue.priority ?? 3)
@@ -290,7 +293,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   async function save() {
     if (!title.trim()) {setError('Enter an issue title.'); return}
     setBusy(true); setError(null)
-    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, priority, ownerId}); onSaved()}
+    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, priority, ownerId,...(issueTeamMapping && !issue.meetingId ? {assignedTeamIds:teamIds} : {})}); onSaved()}
     catch (error: unknown) {setError(error instanceof Error ? error.message : 'Could not save the issue.')}
     finally {setBusy(false)}
   }
@@ -300,7 +303,8 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
     <label>Issue title<input className="input" autoFocus value={title} disabled={busy} onChange={event => setTitle(event.target.value)}/></label>
     <label>Issue notes<textarea className="textarea" value={description} disabled={busy} onChange={event => setDescription(event.target.value)}/></label>
     <div className="inline-editor-fields"><label>Importance<select className="select" value={priority} disabled={busy} onChange={event => setPriority(Number(event.target.value))}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{priorityLabels[value]}</option>)}</select></label><label>Owner<OwnerPicker team={team} value={ownerId} valueName={issue.ownerName || ''} onChange={id => {if (!busy) setOwnerId(id)}}/></label></div>
-    </fieldset><div className="inline-editor-actions"><button type="submit" className="btn btn--sm btn--primary" disabled={busy}>{busy ? 'Saving…' : 'Save issue'}</button><button type="button" className="btn btn--sm" disabled={busy} onClick={onCancel}>Cancel</button></div>
+    </fieldset>{issueTeamMapping && !issue.meetingId && <IssueTeamPicker teams={companies} selected={teamIds} onChange={setTeamIds} disabled={busy}/>}
+    <div className="inline-editor-actions"><button type="submit" className="btn btn--sm btn--primary" disabled={busy}>{busy ? 'Saving…' : 'Save issue'}</button><button type="button" className="btn btn--sm" disabled={busy} onClick={onCancel}>Cancel</button></div>
   </form>
 }
 
@@ -315,7 +319,8 @@ function IssueModal({
   onClose: () => void
   onSaved: () => void
 }) {
-  const {companies,meetingWorkflow}=useApp()
+  const {companies,meetingWorkflow,issueTeamMapping}=useApp()
+  const [teamIds,setTeamIds] = useState(() => (initial?.assignedTeamIds || [companyId]).filter(id => companies.some(team => team.id === id)))
   const [responsibleTeamId,setResponsibleTeam]=useState(initial?.responsibleTeamId??'')
   const [title, setTitle] = useState(initial?.title || '')
   const [description, setDescription] = useState(initial?.description || '')
@@ -332,7 +337,7 @@ function IssueModal({
     try {
       await saveIssue({
         companyId, id: initial?.id, rev: initial?.rev,
-        title: title.trim(), description, term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),
+        title: title.trim(), description, term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),...(issueTeamMapping && !initial?.meetingId ? {assignedTeamIds:teamIds} : {}),
       })
       onSaved()
     } catch (e: any) {
@@ -382,6 +387,7 @@ function IssueModal({
           <OwnerPicker team={team} value={ownerId} valueName={ownerName} onChange={(id, n) => { setOwnerId(id); setOwnerName(n) }} />
         </div>
       </div>
+      {issueTeamMapping && !initial?.meetingId && <IssueTeamPicker teams={companies} selected={teamIds} onChange={setTeamIds} disabled={busy}/>}
     </Modal>
   )
 }

@@ -147,7 +147,7 @@ export interface CompanyBrief {
 export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
-  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number}
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -250,6 +250,7 @@ export interface Rock {
 export interface Origin { kind: string; id: string; label: string }
 
 export interface Issue {
+  assignedTeamIds?: string[]
   meetingSource?: MeetingSource
   sharedFrom?: MeetingDisclosure
   sharedTeamIds?: string[]
@@ -432,7 +433,7 @@ export const saveTodo = (fields: Record<string, unknown>): Promise<Todo> => post
 export const setTodoStatus = (id: string, status: string, rev: number): Promise<Todo> =>
   post('setTodoStatus', { id, status, rev })
 
-export const createLinkedTodo = (fields: { issueId: string; title: string; ownerId?: string; ownerName?: string; dueDate?: string }): Promise<{ todo: Todo; issue: Issue }> =>
+export const createLinkedTodo = (fields: { issueId: string; companyId?: string; title: string; ownerId?: string; ownerName?: string; dueDate?: string }): Promise<{ todo: Todo; issue: Issue }> =>
   post('createLinkedTodo', fields)
 
 export const getHeadlines = (companyId: string, unreadOnly = false): Promise<{ rows: Headline[] }> =>

@@ -103,7 +103,7 @@ export function LinkedTodoModal({
   onClose: () => void
   onDone?: () => void
 }) {
-  const { team } = useApp()
+  const { team, company } = useApp()
   const [title, setTitle] = useState('')
   const [ownerId, setOwnerId] = useState('')
   const [ownerName, setOwnerName] = useState('')
@@ -115,7 +115,7 @@ export function LinkedTodoModal({
     if (!title.trim()) { setErr('A to-do needs a title.'); return }
     setBusy(true); setErr(null)
     try {
-      await createLinkedTodo({ issueId, title: title.trim(), ownerId, ownerName, dueDate })
+      await createLinkedTodo({ issueId, companyId:company.id, title: title.trim(), ownerId, ownerName, dueDate })
       onDone?.()
       onClose()
     } catch (e: any) {

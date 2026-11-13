@@ -106,3 +106,22 @@ describe('direct issue ranking',()=>{
   render(<IssuePriority issue={{...baseIssue,priority:null}} companyId="source" onSaved={()=>{}}/>);const select=screen.getByRole('combobox',{name:'Ranking for Zulu issue'});expect((select as HTMLSelectElement).value).toBe('');await userEvent.setup().selectOptions(select,'4');await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith(expect.objectContaining({priority:4})))
  })
 })
+
+describe('issue team checkboxes',()=>{
+ beforeEach(()=>{state.current.issueTeamMapping=true})
+ it('shows only accessible teams and allows removing the original mapping in the modal',async()=>{
+  render(<Issues/>);await screen.findByRole('button',{name:'Edit issue Zulu issue'});const user=userEvent.setup();await user.click(screen.getAllByRole('button',{name:'Row actions'})[0]);await user.click(screen.getByRole('button',{name:'Edit issue'}));const group=within(screen.getByRole('group',{name:'Issue team mappings'}));expect(group.getAllByRole('checkbox')).toHaveLength(2);expect(group.queryByRole('combobox')).toBeNull();await user.click(group.getByRole('checkbox',{name:'Source team'}));await user.click(group.getByRole('checkbox',{name:'Second team'}));await user.click(screen.getByRole('button',{name:'Save'}));await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith(expect.objectContaining({id:'one',rev:4,assignedTeamIds:['second']})))
+ })
+ it('offers the same mappings in the inline editor',async()=>{
+  render(<Issues/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Edit issue Zulu issue'}));await user.click(screen.getByRole('checkbox',{name:'Second team'}));await user.click(screen.getByRole('button',{name:'Save issue'}));await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith(expect.objectContaining({assignedTeamIds:['source','second']})))
+ })
+ it('defaults new issues to the selected team and accepts additional teams',async()=>{
+  render(<Issues/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'+ Issue'}));expect((screen.getByRole('checkbox',{name:'Source team'}) as HTMLInputElement).checked).toBe(true);await user.type(screen.getByLabelText('Issue',{exact:true}),'Example mapped issue');await user.click(screen.getByRole('checkbox',{name:'Second team'}));await user.click(screen.getByRole('button',{name:'Save'}));await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith(expect.objectContaining({title:'Example mapped issue',assignedTeamIds:['source','second']})))
+ })
+ it('retains checkbox selections when a mapping save fails',async()=>{
+  api.saveIssue.mockRejectedValue(new Error('Mapping save failed'));render(<Issues/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Edit issue Zulu issue'}));await user.click(screen.getByRole('checkbox',{name:'Second team'}));await user.click(screen.getByRole('button',{name:'Save issue'}));await screen.findByText('Mapping save failed');expect((screen.getByRole('checkbox',{name:'Second team'}) as HTMLInputElement).checked).toBe(true)
+ })
+ it('does not expose team mappings on private meeting issues',async()=>{
+  api.getIssues.mockResolvedValue({rows:[{...baseIssue,meetingId:'private'}]});render(<Issues/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Edit issue Zulu issue'}));expect(screen.queryByRole('group',{name:'Issue team mappings'})).toBeNull();await user.click(screen.getByRole('button',{name:'Save issue'}));await waitFor(()=>expect(api.saveIssue).toHaveBeenCalled());expect(api.saveIssue.mock.calls[0][0]).not.toHaveProperty('assignedTeamIds')
+ })
+})
