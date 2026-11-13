@@ -1,7 +1,7 @@
 import {defaultLiveSections} from './liveSessionModel'
 import type {LiveSection} from './liveSessionModel'
 export interface MeetingType {id:string;name:string;scope:'team'|'private';sections:LiveSection[]}
-export interface MeetingTypeCatalog {rev:number;types:MeetingType[]}
+export interface MeetingTypeCatalog {rev:number;l10Rev?:number;types:MeetingType[]}
 export const sectionKinds=['segue','headlines','todos','scorecard','rocks','ids','conclude','notes']
 export function defaultMeetingTypes():MeetingType[] {return [
  {id:'l10',name:'L10',scope:'team',sections:defaultLiveSections().map(section=>({...section,kind:section.id,prompt:''}))},
@@ -33,4 +33,15 @@ export function validateMeetingTypes(input:unknown):MeetingType[] {
  })
  if(!types.some(type=>type.id==='l10'&&type.scope==='team')||!types.some(type=>type.id==='one-on-one'&&type.scope==='private'))throw new Error('Keep L10 as a team type and One-on-one as a private type.')
  return types
+}
+
+export interface SharedL10 {rev:number;type:MeetingType}
+export function withSharedL10(catalog:MeetingTypeCatalog,shared?:SharedL10|null):MeetingTypeCatalog {
+ return {...catalog,l10Rev:shared?.rev||0,types:catalog.types.map(type=>type.id==='l10'&&shared?shared.type:type)}
+}
+export function changedSharedL10(current:MeetingTypeCatalog,input:MeetingTypeCatalog):MeetingType|null {
+ if((input.l10Rev||0)!==(current.l10Rev||0))throw new Error('The shared L10 format changed. Reload before saving.')
+ const next=validateMeetingTypes(input.types).find(type=>type.id==='l10')!
+ const before=validateMeetingTypes(current.types).find(type=>type.id==='l10')!
+ return JSON.stringify(next)===JSON.stringify(before)?null:next
 }

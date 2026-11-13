@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {defaultMeetingTypes,validateMeetingTypes} from './meetingTypes'
+import {defaultMeetingTypes,validateMeetingTypes,withSharedL10,changedSharedL10} from './meetingTypes'
 import {resolveTeamSessions,defaultLiveSections,validateLiveRating,uniqueLiveParticipants} from './liveSessionModel'
 import type {LiveSession} from './liveSessionModel'
 const session=(id:string,startedAt:number,extra:Partial<LiveSession>={}):LiveSession=>({id,startedAt,title:'Example',companyId:'team',meetingId:'',date:'2026-11-12',hostId:'host',hostName:'Host',status:'running',activeIndex:0,activeStartedAt:startedAt,endedAt:null,sections:defaultLiveSections(),rev:1,...extra})
@@ -17,4 +17,11 @@ describe('one effective live meeting per team',()=>{
  it('does not revive a losing concurrent start after the winner ends',()=>{const a=session('a',1000,{previousSessionId:'',status:'ended',endedAt:5000}),b=session('b',1001,{previousSessionId:''});expect(resolveTeamSessions([a,b]).filter(row=>row.status!=='ended')).toHaveLength(0)})
  it('allows the next generation after a completed meeting while retaining recap history',()=>{const old=session('old',1000,{previousSessionId:'',status:'ended',endedAt:5000}),next=session('next',6000,{previousSessionId:'old'});expect(resolveTeamSessions([old,next]).filter(row=>row.status!=='ended').map(row=>row.id)).toEqual(['next'])})
  it('treats paused meetings as occupying the live slot',()=>{const paused=session('a',1000,{status:'paused',activeStartedAt:null,previousSessionId:''}),race=session('b',1001,{previousSessionId:''});expect(resolveTeamSessions([paused,race]).filter(row=>row.status!=='ended').map(row=>row.id)).toEqual(['a'])})
+})
+
+describe('shared L10 format',()=>{
+ it('overrides only L10 for all teams and future default catalogs',()=>{const global=defaultMeetingTypes()[0];global.sections[0].label='Shared check-in';const custom=defaultMeetingTypes();custom[1].name='Team private type';for(const catalog of [{rev:4,types:custom},{rev:0,types:defaultMeetingTypes()}]){const result=withSharedL10(catalog,{rev:2,type:global});expect(result.types[0].sections[0].label).toBe('Shared check-in');expect(result.types[1].name).toBe(catalog.types[1].name);expect(result.l10Rev).toBe(2);expect(result.rev).toBe(catalog.rev)}})
+ it('does not publish global changes for unrelated type edits',()=>{const current=withSharedL10({rev:1,types:defaultMeetingTypes()},null);const input=structuredClone(current);input.types[1].sections[0].label='Local check-in';expect(changedSharedL10(current,input)).toBeNull()})
+ it('detects L10 edits and rejects stale shared revisions from another team',()=>{const current=withSharedL10({rev:1,types:defaultMeetingTypes()},{rev:3,type:defaultMeetingTypes()[0]});const input=structuredClone(current);input.types[0].sections[0].minutes=7;expect(changedSharedL10(current,input)?.sections[0].minutes).toBe(7);input.l10Rev=2;expect(()=>changedSharedL10(current,input)).toThrow('Reload')})
+ it('does not alter a meeting agenda snapshot when the shared template changes',()=>{const initial=withSharedL10({rev:0,types:defaultMeetingTypes()},null);const snapshot=structuredClone(initial.types[0].sections);const next=structuredClone(initial.types[0]);next.sections[0].minutes=10;withSharedL10(initial,{rev:1,type:next});expect(snapshot[0].minutes).toBe(5)})
 })
