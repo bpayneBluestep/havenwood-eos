@@ -134,8 +134,8 @@ export default function Issues() {
                 onDragLeave={() => setOverId(o => (o === issue.id ? null : o))}
                 onDrop={e => { e.preventDefault(); onDrop(issue.id) }}
               >
-                <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><span>{ownerName(issue) || 'Unassigned'}</span></div>
                 {sort === 'manual' && <span className="rowitem__grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>}
+                <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><span>{ownerName(issue) || 'Unassigned'}</span></div>
                 <IssuePriority issue={issue} companyId={company.id} disabled={inlineId === issue.id} onSaved={load}/>
 
                 <div className="rowitem__main">
