@@ -124,7 +124,7 @@ export default function Rocks({embedded=false,companyId}:{embedded?:boolean;comp
         ) : (
           <div className="rock-owner-groups">
             {groupRocks(displayRows || [],team).map(group=><details className="card rock-owner-group" open key={group.id}>
-              <summary><Avatar name={group.name} id={group.id}/><span>{group.name}</span><small>{group.rocks.length} rocks · {group.rocks.reduce((count,rock)=>count+rock.milestones.filter(item=>!item.done).length,0)} open milestones</small></summary>
+              <summary><span className="rock-group-toggle" aria-hidden="true"/><Avatar name={group.name} id={group.id}/><span>{group.name}</span><small>{group.rocks.length} rocks · {group.rocks.reduce((count,rock)=>count+rock.milestones.filter(item=>!item.done).length,0)} open milestones</small></summary>
               <div className="rows">{group.rocks.length===0?<p className="card__body muted">No rocks assigned for this quarter.</p>:group.rocks.map(r=><RockRow key={r.id} rock={r} onChanged={load} onEdit={()=>setEditing(r)} onDrop={()=>setDropFor(r)} onNote={()=>setNoteFor(r)} onError={setErr}/>)}</div>
             </details>)}
           </div>
@@ -267,7 +267,7 @@ function RockRow({
           aria-label={open ? 'Hide milestones' : 'Show milestones'}
           style={{ padding: '2px 5px' }}
         >
-          {open ? '▾' : '▸'}
+          {open ? '−' : '+'}
         </button>
         <Avatar name={rock.ownerName} id={rock.ownerId} />
         <div className="rowitem__main">

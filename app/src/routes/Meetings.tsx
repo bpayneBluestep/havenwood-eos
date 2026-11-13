@@ -31,7 +31,7 @@ export default function Meetings() {
 
   return (
     <div className="page">
-      <div className="page__head">
+      {!liveOpen&&<div className="page__head">
         <div>
           <h1>Meetings</h1>
           <div className="page__sub">
@@ -45,7 +45,7 @@ export default function Meetings() {
           </button>
           <button className="btn btn--primary" onClick={() => setAdding(true)}>+ Schedule meeting</button>
         </div>}
-      </div>
+      </div>}
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 

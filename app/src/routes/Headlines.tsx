@@ -29,6 +29,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
   const [editing,setEditing]=useState<Headline|null>(null)
   const [detail, setDetail] = useState<Headline | null>(null)
   const [sort, setSort] = useState('newest')
+  const [permanentSort,setPermanentSort]=useState('newest')
   const [dropFor, setDropFor] = useState<Headline | null>(null)
 
   const load = useCallback(() => {
@@ -39,7 +40,9 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
   useEffect(() => { setRows(null); load();if(!embedded)return;const timer=window.setInterval(load,10000);return()=>window.clearInterval(timer) }, [load,embedded])
 
   const unread = rows ? rows.filter(r => !r.readDate) : []
-  const visible = [...(rows || [])].sort((a, b) => sort === 'author' ? compareNames(a.createdByName, b.createdByName) : sort === 'author-desc' ? compareNames(b.createdByName, a.createdByName) : compareDates(a.createdAt, b.createdAt, sort === 'newest'))
+  const ordered=(order:string)=>[...(rows||[])].sort((a,b)=>order === 'author' ? compareNames(a.createdByName, b.createdByName) : order === 'author-desc' ? compareNames(b.createdByName, a.createdByName) : compareDates(a.createdAt, b.createdAt, order === 'newest'))
+  const visible=ordered(sort)
+  const permanentRows=ordered(permanentSort).filter(h=>h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))
 
   return (
     <div className={embedded?"meeting-headlines":"page"}>
@@ -47,7 +50,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         <div>
           {!embedded&&<h1>Headlines</h1>}
           <div className="page__sub">
-            Customer and employee news, one or two sentences. Unread ones roll into the next L10.
+            Customer and employee news, one or two sentences.
           </div>
         </div>
         <div className="page__actions"><label className="sort-control">Sort headlines<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label>
@@ -61,8 +64,8 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
       <section className="card permanent-headlines" aria-label="Permanent headlines">
-        <div className="card__head"><h2>Permanent headlines</h2><button className="btn btn--sm" onClick={()=>{setPermanentNew(true);setAdding(true)}}>+ Permanent headline</button></div>
-        {(rows||[]).filter(h=>h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body)).map(h=><div className="permanent-headline" key={h.id}>
+        <div className="card__head"><h2>Permanent headlines</h2><label className="sort-control">Sort permanent headlines<select className="select" value={permanentSort} onChange={event=>setPermanentSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label><button className="btn btn--sm" onClick={()=>{setPermanentNew(true);setAdding(true)}}>+ Permanent headline</button></div>
+        {permanentRows.map(h=><div className="permanent-headline" key={h.id}>
           <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={event=>setChecked({...checked,[h.id]:event.target.checked})}/>
           <button className="rowitem__title-link" title={h.body} onClick={()=>setDetail(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
           {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{h.sourceLabel||'Open source'}</a>}
@@ -84,8 +87,9 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         <div className="card card__body--flush">
           <div className="rows">
             {visible.filter(h=>!(h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))).map(h => (
-              <div className={'rowitem rowitem--clickable' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
+              <div className={'rowitem rowitem--clickable headline-row' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
                 <div className="rowitem__owner"><Avatar name={h.createdByName} id={h.createdByName} sm/><span>{firstLast({name: h.createdByName}) || 'Unassigned'}</span></div>
+                <time className="headline-date muted" dateTime={h.createdAt?.slice(0,10)} title="Publication date">{h.createdAt?fmtDate(h.createdAt.slice(0,10)):'—'}</time>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
                     <button type="button" className="rowitem__title-link headline-preview" aria-label={`Open headline: ${h.body.slice(0, 120)}`} onClick={event => {event.stopPropagation(); setDetail(h)}}>{h.body.split(/\r?\n/)[0].slice(0, 140)}{h.body.length > 140 || h.body.includes('\n') ? '…' : ''}</button><FollowupContext hideOwner item={h}/>
@@ -94,10 +98,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
                       {h.type}
                     </span>
                   </div>
-                  <div className="rowitem__meta">
-                    {h.createdAt && <span>{fmtDate(h.createdAt.slice(0, 10))}</span>}
-                    {!h.readDate && <span className="duesoon">unread — rolls forward</span>}
-                  </div>
+
                 </div>
                 {!h.readOnly&&<div className="rowitem__end" onClick={event => event.stopPropagation()}>
                   <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button>

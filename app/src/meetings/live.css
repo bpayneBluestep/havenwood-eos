@@ -43,3 +43,6 @@
 .meeting-issues .page__head { gap:14px; flex-wrap:wrap; }
 .meeting-issues .list-toolbar { margin-top:12px; }
 @media(max-width:700px) { .live-meeting__clocks { gap:16px; } .live-meeting__clocks strong { font-size:24px; } }
+
+.live-meeting__timer h3 { font-size:1.02rem; }
+.live-meetings--active .live-meeting__timer { border-top:0; padding-top:0; }
