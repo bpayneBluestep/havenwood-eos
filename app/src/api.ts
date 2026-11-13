@@ -51,13 +51,13 @@ async function handle(res: Response): Promise<any> {
     }
     if (res.status >= 500) {
       throw new ApiError(
-        `Traction returned HTTP ${res.status} with a non-JSON body. A bare "Error" here ` +
+        `TenK returned HTTP ${res.status} with a non-JSON body. A bare "Error" here ` +
         `means the endpoint exists on the platform but no compiled code is published — the ` +
         `live snapshot needs scripts/app.js, not just a draft.`,
         { code: 'NOT_PUBLISHED', status: res.status },
       )
     }
-    throw new ApiError(`Traction returned a non-JSON response (HTTP ${res.status}).`, {
+    throw new ApiError(`TenK returned a non-JSON response (HTTP ${res.status}).`, {
       code: 'NON_JSON', status: res.status,
     })
   }
@@ -91,7 +91,7 @@ export async function get(action: string, params: Record<string, string | number
       cache: 'no-store',
     })
   } catch {
-    throw new ApiError('Could not reach Traction. Check your connection.', { code: 'NETWORK' })
+    throw new ApiError('Could not reach TenK. Check your connection.', { code: 'NETWORK' })
   }
   return handle(res)
 }
@@ -106,7 +106,7 @@ export async function post(action: string, payload: Record<string, unknown> = {}
       body: JSON.stringify({ action, ...payload }),
     })
   } catch {
-    throw new ApiError('Could not reach Traction. Check your connection.', { code: 'NETWORK' })
+    throw new ApiError('Could not reach TenK. Check your connection.', { code: 'NETWORK' })
   }
   return handle(res)
 }
@@ -147,7 +147,8 @@ export interface CompanyBrief {
 export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
-  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number;liveMeetings?:number}
+  memberProfiles?:Record<string,import('../../platform/memberProfile').MemberProfile>
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number;liveMeetings?:number;memberProfiles?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -660,3 +661,7 @@ export const adminSaveMeetingTypes=(teamId:string,catalog:import('../../platform
 
 export interface LiveMeetingListing {companyId:string;companyName:string;sessionId:string;title:string;meetingId:string;date:string;joined:boolean}
 export const getLiveMeetingDirectory=():Promise<{rows:LiveMeetingListing[]}>=>get('liveMeetingDirectory',{})
+
+export interface MemberProfileReply {personId:string;fullName:string;profile:import('../../platform/memberProfile').MemberProfile}
+export const getMemberProfile=(personId?:string):Promise<MemberProfileReply>=>get(personId?'adminMemberProfile':'myProfile',personId?{personId}:{})
+export const saveMemberProfile=(profile:{preferredName:string;photo:string;rev:number},personId?:string):Promise<MemberProfileReply>=>post(personId?'adminSaveMemberProfile':'saveMyProfile',{...profile,...(personId?{personId}:{})})

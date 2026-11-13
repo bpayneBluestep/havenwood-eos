@@ -1,3 +1,4 @@
+import {BHAG} from './lib/brand'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { login, logout, nativeLoginSubmit } from './api'
@@ -32,8 +33,8 @@ export function Login({ onSignedIn, onNoAccess }: { onSignedIn: (d: Bootstrap) =
   return (
     <div className="auth-wrap">
       <form className="auth-card" onSubmit={submit} autoComplete="on">
-        <div className="auth-mark" aria-hidden="true">HW</div>
-        <h1 className="auth-title">Sign in to Traction</h1>
+        <div className="auth-mark" aria-hidden="true">10K</div>
+        <h1 className="auth-title" title={BHAG}>Sign in to TenK</h1>
         <p className="auth-sub">Use your BlueStep account.</p>
 
         <div className="field">
@@ -70,8 +71,8 @@ export function NoAccess({ message, onSignedOut }: { message: string; onSignedOu
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <div className="auth-mark" aria-hidden="true">HW</div>
-        <h1 className="auth-title">No access to Traction yet</h1>
+        <div className="auth-mark" aria-hidden="true">10K</div>
+        <h1 className="auth-title" title={BHAG}>No access to TenK yet</h1>
         <p className="auth-sub">{message || 'Ask an administrator to add you to a team on your EOS Teams form.'}</p>
         <button className="btn auth-btn" onClick={out} disabled={busy}>{busy ? 'Signing out…' : 'Sign out'}</button>
       </div>

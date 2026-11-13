@@ -3,6 +3,7 @@ import {createPortal} from 'react-dom'
 import type { ReactNode } from 'react'
 import type { CellStatus, Goal, Person } from '../api'
 import { useApp } from '../state'
+import {useMemberDisplay} from './memberProfiles'
 
 /* ------------------------------------------------------------------ format */
 
@@ -92,34 +93,18 @@ export function shortPeriod(key: string): string {
 
 /* -------------------------------------------------------------- components */
 
-export function Avatar({ name, id, sm }: { name?: string; id?: string; sm?: boolean }) {
-  const label = firstLast({ name })
-  if (!label) {
-    return (
-      <span className={'avatar avatar--none' + (sm ? ' avatar--sm' : '')} title="No owner" aria-label="No owner">
-        –
-      </span>
-    )
-  }
-  return (
-    <span
-      className={'avatar' + (sm ? ' avatar--sm' : '')}
-      style={{ background: avatarColor(id || label) }}
-      title={label}
-      aria-label={label}
-    >
-      {initials(name || '')}
-    </span>
-  )
+export function PersonName({name,id}:{name?:string;id?:string}) {
+  const member=useMemberDisplay(id,name)
+  return <span title={firstLast({name:member.fullName})} aria-label={firstLast({name:member.fullName})||'Unassigned'}>{member.enabled?member.displayName:firstLast({name:member.fullName})||'Unassigned'}</span>
 }
-
+export function Avatar({ name, id, sm }: { name?: string; id?: string; sm?: boolean }) {
+  const member=useMemberDisplay(id,name),label=firstLast({name:member.fullName})
+  const [failed,setFailed]=useState('')
+  if(!label)return <span className={'avatar avatar--none'+(sm?' avatar--sm':'')} title="No owner" aria-label="No owner">–</span>
+  return <span className={'avatar'+(sm?' avatar--sm':'')} style={{background:avatarColor(id||label),overflow:'hidden'}} title={label} aria-label={label}>{member.photo&&failed!==member.photo?<img src={member.photo} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} onError={()=>setFailed(member.photo)}/>:initials(name||member.fullName)}</span>
+}
 export function Owner({ name, id, hideName }: { name?: string; id?: string; hideName?: boolean }) {
-  return (
-    <span className="owner">
-      <Avatar name={name} id={id} sm />
-      {!hideName && <span className="owner__name">{firstLast({ name }) || 'Unassigned'}</span>}
-    </span>
-  )
+  return <span className="owner"><Avatar name={name} id={id} sm/>{!hideName&&<span className="owner__name"><PersonName name={name} id={id}/></span>}</span>
 }
 
 /*
@@ -309,6 +294,7 @@ export function OwnerPicker({
         {!inTeam && value && <option value={value}>{firstLast({ name: valueName }) || value}</option>}
       </select>
 
+      <div className="field__hint">Choose a person from a team you can access. Assignment does not change team access.</div>
       <div style={{ marginTop: 6 }}>
         <input
           className="input"

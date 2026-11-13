@@ -6,7 +6,7 @@ import {
   saveTodo, setOccurrenceAttendees, setTodoStatus, solveIssue,
 } from '../api'
 import type { Meeting as MeetingT, MeetingOccurrence, Occurrence, Person } from '../api'
-import { Avatar, Empty, ErrorBanner, Loading, Modal, dueClass, fmtDate, firstLast, todayIso } from '../lib/ui'
+import { Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, dueClass, fmtDate, firstLast, todayIso } from '../lib/ui'
 import { MeetingForm, freqLabel } from './Meetings'
 
 /*
@@ -112,7 +112,7 @@ export default function Meeting() {
             <div className="card__body" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
               {occ.attendees.map(a => (
                 <span key={a.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Avatar name={a.name} id={a.id} sm />{firstLast({ name: a.name }) || 'Unknown'}
+                  <Avatar name={a.name} id={a.id} sm /><PersonName name={a.name} id={a.id}/>
                 </span>
               ))}
             </div>

@@ -10,7 +10,7 @@ import { getRocks, getRocksBoard, saveRock, setRockStatus, setRockRollUp, saveMi
 import type { Rock, Milestone, RockScope, RockScopeCounts } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu, StatusPill,
+  Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu, StatusPill,
   dueClass, fmtDate, firstLast, plusDaysIso,
 } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
@@ -125,7 +125,7 @@ export default function Rocks({embedded=false,companyId}:{embedded?:boolean;comp
         ) : (
           <div className="rock-owner-groups">
             {groupRocks(displayRows || [],team).map(group=><details className="card rock-owner-group" open key={group.id}>
-              <summary><span className="rock-group-toggle" aria-hidden="true"/><Avatar name={group.name} id={group.id}/><span>{group.name}</span><small>{group.rocks.length} rocks · {group.rocks.reduce((count,rock)=>count+rock.milestones.filter(item=>!item.done).length,0)} open milestones</small></summary>
+              <summary><span className="rock-group-toggle" aria-hidden="true"/><Avatar name={group.name} id={group.id}/><PersonName name={group.name} id={group.id}/><small>{group.rocks.length} rocks · {group.rocks.reduce((count,rock)=>count+rock.milestones.filter(item=>!item.done).length,0)} open milestones</small></summary>
               <div className="rows">{group.rocks.length===0?<p className="card__body muted">No rocks assigned for this quarter.</p>:group.rocks.map(r=><RockRow key={r.id} rock={r} onChanged={load} onEdit={()=>setEditing(r)} onDrop={()=>setDropFor(r)} onNote={()=>setNoteFor(r)} onError={setErr}/>)}</div>
             </details>)}
           </div>
@@ -297,7 +297,7 @@ function RockRow({
             )}
           </div>
           <div className="rowitem__meta">
-            <span>{firstLast({ name: rock.ownerName }) || 'Unassigned'}</span>
+            <PersonName name={rock.ownerName} id={rock.ownerId}/>
             {rock.dueDate && <span className={dueClass(rock.dueDate, rock.status === 'done')}>due {fmtDate(rock.dueDate)}</span>}
             {rock.milestones.length > 0 && (
               <span className="mono">{done}/{rock.milestones.length} milestones</span>
@@ -392,7 +392,7 @@ function RockRow({
               <div className="nav__section" style={{ padding: '0 0 4px' }}>Notes</div>
               {rock.notes.slice().reverse().map(n => (
                 <div key={n.id} style={{ fontSize: 12.5, padding: '4px 0', borderTop: '1px dashed var(--border)' }}>
-                  <span className="faint">{firstLast({ name: n.byName })} · {n.at.slice(0, 10)}</span>
+                  <span className="faint"><PersonName name={n.byName} id={n.byId}/> · {n.at.slice(0, 10)}</span>
                   <div>{n.body}</div>
                 </div>
               ))}

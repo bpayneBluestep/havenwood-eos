@@ -1,6 +1,7 @@
+import {BHAG} from './lib/brand'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './state'
-import { Avatar, firstLast } from './lib/ui'
+import { Avatar,PersonName } from './lib/ui'
 import { logout } from './api'
 import My90 from './routes/My90'
 import Scorecard from './routes/Scorecard'
@@ -13,6 +14,7 @@ import Meeting from './routes/Meeting'
 import Admin from './routes/Admin'
 import LiveMeetingLink from './components/LiveMeetingLink'
 import MyNotifications from './routes/MyNotifications'
+import MyProfile from './routes/MyProfile'
 import NotFound from './routes/NotFound'
 
 /*
@@ -46,7 +48,7 @@ function Shell() {
 
   const title =
     [...NAV, ...MEETING].find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))?.label ||
-    (loc.pathname.startsWith('/my-notifications') ? 'My Notifications' : loc.pathname.startsWith('/admin') ? 'Admin' : 'Traction')
+    (loc.pathname.startsWith('/my-profile') ? 'My Profile' : loc.pathname.startsWith('/my-notifications') ? 'My Notifications' : loc.pathname.startsWith('/admin') ? 'Admin' : 'TenK')
 
   // Company teams first, then the teams admins made on top of them.
   const companyTeams = companies.filter(c => (c.kind || 'company') === 'company')
@@ -57,10 +59,10 @@ function Shell() {
     <div className="shell">
       <nav className="nav" aria-label="Tools">
         <div className="nav__brand">
-          <span className="nav__mark" aria-hidden="true">HW</span>
+          <span className="nav__mark" aria-hidden="true">10K</span>
           <span>
-            <div className="nav__name">Traction</div>
-            <div className="nav__sub">Hope Group EOS</div>
+            <div className="nav__name" title={BHAG} tabIndex={0}>TenK</div>
+            <div className="nav__sub">Crisis to Capability</div>
           </span>
         </div>
 
@@ -83,6 +85,7 @@ function Shell() {
           <LiveMeetingLink/>
           <div id="live-meeting-sidebar" />
 
+          <NavLink to="/my-profile"><span className="nav__ico" aria-hidden="true">◉</span>My Profile</NavLink>
           <NavLink to="/my-notifications"><span className="nav__ico" aria-hidden="true">♧</span>My Notifications</NavLink>
           {/* Admin (teams, people, settings, audit) is for the three hard-coded
               EOS admins only (ticket #269). The endpoint refuses everyone else;
@@ -151,7 +154,7 @@ function Shell() {
                 Log in as…
               </button>
             )}
-            <span className="topbar__meta nowrap" title={me.email}>{firstLast({ name: me.name })}</span>
+            <span className="topbar__meta nowrap" title={me.email}><PersonName name={me.name} id={me.id}/></span>
             <Avatar name={me.name} id={me.id || me.userId} />
             <button className="btn" onClick={signOut}>Sign out</button>
           </div>
@@ -163,6 +166,7 @@ function Shell() {
           <Route path="/rocks" element={<Rocks />} />
           <Route path="/issues" element={<Issues />} />
           <Route path="/todos" element={<Todos />} />
+          <Route path="/my-profile" element={<MyProfile/>} />
           <Route path="/my-notifications" element={<MyNotifications />} />
           <Route path="/headlines" element={<Headlines />} />
           <Route path="/l10" element={<Navigate to="/meetings" replace />} />

@@ -765,3 +765,9 @@ input, select, textarea { font: inherit; color: inherit; }
 @media(prefers-reduced-motion:reduce){.recording-dot{animation:none}}
 .meeting-local-view { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; margin-top:5px; }
 .ms__t.rowitem__title-link { text-align:left; font-weight:400; }
+
+.dashboard-summaries > .card { margin:0; }
+.profile-photo-preview { margin:12px 0; }
+.profile-photo-preview img { width:96px; height:96px; border-radius:50%; object-fit:cover; }
+.profile-photo-preview .avatar { width:96px; height:96px; font-size:32px; }
+.member-profile .field input[type=file] { max-width:100%; }

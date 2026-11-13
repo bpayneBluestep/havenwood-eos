@@ -4,6 +4,7 @@ import { bootstrap, ApiError } from './api'
 import type { Bootstrap, CompanyBrief, Me, Person } from './api'
 import { Login, NoAccess } from './Login'
 import Admin from './routes/Admin'
+import {MemberProfilesContext} from './lib/memberProfiles'
 
 /*
  * One bootstrap call carries the whole app shell: who I am, which TEAMS I'm on
@@ -104,7 +105,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return (
       <div className="loading">
         <span className="spinner" aria-hidden="true" />
-        <span>Loading Traction…</span>
+        <span>Loading TenK…</span>
       </div>
     )
   }
@@ -130,8 +131,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       <div className="page">
         <div className="banner banner--warn">
           <div>
-            <div className="banner__b">You aren't on a Traction team yet.</div>
-            Ask a Traction admin to add you to your team.
+            <div className="banner__b">You aren't on a TenK team yet.</div>
+            Ask a TenK admin to add you to your team.
           </div>
         </div>
       </div>
@@ -165,7 +166,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     nameOf,
   }
 
-  return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
+  const profilePeople=[...new Map([...Object.values(data.teams||{current:team}).flat(),data.me].map(person=>[person.id,person])).values()]
+  return <MemberProfilesContext.Provider value={{enabled:data.capabilities?.memberProfiles===1,profiles:data.memberProfiles||{},people:profilePeople}}><AppCtx.Provider value={value}>{children}</AppCtx.Provider></MemberProfilesContext.Provider>
 }
 
 /*
@@ -177,7 +179,7 @@ function GateError({ err, onRetry }: { err: ApiError; onRetry: () => void }) {
   return (
     <div className="page">
       <div className="card" style={{ maxWidth: 560, margin: '8vh auto' }}>
-        <div className="card__head"><h2>Traction could not load</h2></div>
+        <div className="card__head"><h2>TenK could not load</h2></div>
         <div className="card__body">
           <div className="banner banner--error" style={{ marginBottom: 12 }}>
             <div>

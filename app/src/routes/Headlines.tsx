@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getHeadlines, saveHeadline, cascadeHeadline } from '../api'
 import type { Headline } from '../api'
 import { useApp } from '../state'
-import { Avatar, Empty, ErrorBanner, Loading, Modal, OwnerPicker,fmtDate, firstLast } from '../lib/ui'
+import { Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker,fmtDate } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
 
 /*
@@ -89,7 +89,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
           <div className="rows">
             {visible.filter(h=>!(h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))).map(h => (
               <div className={'rowitem rowitem--clickable headline-row' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
-                <div className="rowitem__owner"><Avatar name={h.ownerName||h.createdByName} id={h.ownerId||h.createdByName} sm/><span>{firstLast({name: h.ownerName||h.createdByName}) || 'Unassigned'}</span></div>
+                <div className="rowitem__owner"><Avatar name={h.ownerName||h.createdByName} id={h.ownerId||h.createdByName} sm/><PersonName name={h.ownerName||h.createdByName} id={h.ownerId}/></div>
                 <time className="headline-date muted" dateTime={h.createdAt?.slice(0,10)} title="Publication date">{h.createdAt?fmtDate(h.createdAt.slice(0,10)):'—'}</time>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
@@ -111,7 +111,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         </div>
       )}
 
-      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted">{firstLast({name: detail.createdByName}) || 'Unassigned'}{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{detail.sourceLabel||'Open source'}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
+      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted"><PersonName name={detail.createdByName}/>{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{detail.sourceLabel||'Open source'}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
       {editing&&<Modal title="Edit headline" onClose={()=>setEditing(null)}><HeadlineForm companyId={targetCompanyId} initial={editing} onDone={()=>{setEditing(null);load()}} onCancel={()=>setEditing(null)}/></Modal>}
       {cascadeFor&&<Modal title="Cascade headline" onClose={()=>setCascadeFor(null)}><p>Publish a separate copy to another team.</p><label className="field">Team<select className="select" value={targetTeam} onChange={event=>setTargetTeam(event.target.value)}><option value="">Select a team</option>{companies.filter(team=>team.id!==targetCompanyId).map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><button className="btn btn--primary" disabled={!targetTeam||busy} onClick={async()=>{setBusy(true);try{await cascadeHeadline(cascadeFor.id,targetTeam);setCascadeFor(null)}catch(error:any){setErr(error.message)}finally{setBusy(false)}}}>{busy?'Publishing…':'Publish headline'}</button></Modal>}
       {adding && (

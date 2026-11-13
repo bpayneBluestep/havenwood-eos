@@ -7,9 +7,9 @@ export default function NotFound() {
         <div className="card__head"><h2>Not a page</h2></div>
         <div className="card__body">
           <p style={{ marginTop: 0 }} className="muted">
-            That address isn't part of Traction.
+            That address isn't part of TenK.
           </p>
-          <Link className="btn btn--primary" to="/">Go to My 90</Link>
+          <Link className="btn btn--primary" to="/">Go to My Dashboard</Link>
         </div>
       </div>
     </div>

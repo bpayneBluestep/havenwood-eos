@@ -6,7 +6,7 @@ import { getMy90, setTodoStatus, setRockStatus, saveMilestone } from '../api'
 import type { My90 as My90Data } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, firstLast, Empty, ErrorBanner, Loading, StatusPill,
+  Avatar, PersonName, Empty, ErrorBanner, Loading, StatusPill,
   cellClass, cellMark, dueClass, fmtDate, fmtGoal, shortPeriod,
 } from '../lib/ui'
 
@@ -60,7 +60,7 @@ export default function My90() {
           <div>
             <div className="banner__b">Your login has no staff record in this organisation.</div>
             My 90 matches on the staff record that owns each item, so nothing can appear here. Everything
-            else in Traction works normally.
+            else in TenK works normally.
           </div>
         </div>
       )}
@@ -86,7 +86,7 @@ export default function My90() {
                   <div className="dashboard-action-row dashboard-action-row--head" role="row"><span/><span role="columnheader">Owner</span><span role="columnheader">Due date</span><span role="columnheader">Team</span><span role="columnheader">Action Item</span></div>
                   {openTodos.map(todo=><div role="row" key={todo.id} className={'dashboard-action-row'+(todo.dueDate&&todo.dueDate<today?' action-item-row--overdue':'')}>
                     <button className="check" aria-label={`Mark "${todo.title}" done`} onClick={async()=>{try{await setTodoStatus(todo.id,'done',todo.rev);load()}catch(error){setErr((error as Error).message)}}}>✓</button>
-                    <span role="cell" className="dashboard-action-owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><span title={todo.ownerName}>{firstLast({name:todo.ownerName})}</span></span>
+                    <span role="cell" className="dashboard-action-owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><PersonName name={todo.ownerName} id={todo.ownerId}/></span>
                     <span role="cell" className={dueClass(todo.dueDate,false)}>{todo.dueDate?fmtDate(todo.dueDate):'—'}</span>
                     <span role="cell" className="dashboard-action-team" title={todo.companyName}>{todo.companyName||'—'}</span>
                     <span role="cell" className="dashboard-action-title" title={todo.title}>{todo.title}</span>

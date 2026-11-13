@@ -7,8 +7,8 @@ import { getTodos, saveTodo, setTodoStatus } from '../api'
 import type { Todo } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu,
-  dueClass, fmtDate, firstLast, plusDaysIso,
+  Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu,
+  dueClass, fmtDate, plusDaysIso,
 } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
 
@@ -74,7 +74,7 @@ export default function Todos({embedded=false,companyId}:{embedded?:boolean;comp
       <section className="action-track-record" aria-label="Action item on-time rates">
         <div className="action-track-record__head"><strong>On-time completion</strong><div className="seg" aria-label="Completion rate period">{([['all','All time'],['3m','Last 3 months'],['1m','Last 1 month']] as const).map(([value,label])=><button key={value} className={trackRange===value?'active':''} aria-pressed={trackRange===value} onClick={()=>setTrackRange(value)}>{label}</button>)}</div></div>
         <p className="muted">Based on due dates. Includes overdue open items. — means no scored items.</p>
-        <div className="action-track-record__members">{(trackRecord || team.map(member=>({id:member.id,name:member.name,onTime:0,scored:0,unscored:0,rate:null}))).map(member=><div className="action-track-record__member" key={member.id} title={`${member.name}: ${member.onTime} on time / ${member.scored} scored action items. ${member.unscored} unscored. Includes archived completions; excludes personal and private meeting items.`}><Avatar name={member.name} id={member.id}/><span className="action-track-record__name">{member.name}</span><strong className="mono">{member.rate===null?'—':`${Math.round(member.rate*100)}%`}</strong></div>)}</div>
+        <div className="action-track-record__members">{(trackRecord || team.map(member=>({id:member.id,name:member.name,onTime:0,scored:0,unscored:0,rate:null}))).map(member=><div className="action-track-record__member" key={member.id} title={`${member.name}: ${member.onTime} on time / ${member.scored} scored action items. ${member.unscored} unscored. Includes archived completions; excludes personal and private meeting items.`}><Avatar name={member.name} id={member.id}/><span className="action-track-record__name"><PersonName name={member.name} id={member.id}/></span><strong className="mono">{member.rate===null?'—':`${Math.round(member.rate*100)}%`}</strong></div>)}</div>
       </section>
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
@@ -169,7 +169,7 @@ export function TodoRow({
       >
         ✓
       </button>
-      <div className="rowitem__owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><span>{firstLast({name: todo.ownerName}) || 'Unassigned'}</span></div>
+      <div className="rowitem__owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><PersonName name={todo.ownerName} id={todo.ownerId}/></div>
       <div className="rowitem__main">
         <div className="rowitem__title">
           {onEdit ? <button type="button" className="rowitem__title-link" onClick={onEdit}>{todo.title}</button> : todo.title}<FollowupContext hideOwner item={todo}/>

@@ -7,7 +7,7 @@ import { getIssues, saveIssue, rankIssues, solveIssue, archiveIssues } from '../
 import type { Issue } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu,
+  Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu,
   fmtDate, firstLast,
 } from '../lib/ui'
 import { LinkedTodoModal } from '../components/DropToIssue'
@@ -155,7 +155,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
                 onDrop={e => { e.preventDefault(); onDrop(issue.id) }}
               >
                 {sort === 'manual' && <span className="rowitem__grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>}
-                <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><span>{ownerName(issue) || 'Unassigned'}</span></div>
+                <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><PersonName name={ownerName(issue)} id={issue.ownerId}/></div>
                 <IssuePriority issue={issue} companyId={company.id} disabled={inlineId === issue.id} onSaved={load}/>
 
                 <div className="rowitem__main">

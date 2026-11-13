@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { adminAudit, adminOverview, adminPeople, adminSaveTeam, adminSetMembership, adminTeam } from '../api'
 import type { AdminMember, AdminPerson, AdminTeam, AuditRow } from '../api'
 import { Avatar, Empty, ErrorBanner, Loading, Modal, firstLast } from '../lib/ui'
+import {MemberProfileEditor} from './MyProfile'
 import MyNotifications from './MyNotifications'
 import SettingsForm from './Settings'
 import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
@@ -254,7 +255,7 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
                 <div className="rowitem__main">
                   <div className="rowitem__title">
                     {firstLast(m)}
-                    {m.former && <span className="pill pill--amber" title="No longer current staff, so they can't sign in to Traction">former staff</span>}
+                    {m.former && <span className="pill pill--amber" title="No longer current staff, so they can't sign in to TenK">former staff</span>}
                   </div>
                   <div className="rowitem__meta">{m.email && <span>{m.email}</span>}</div>
                 </div>
@@ -331,6 +332,7 @@ function NewTeamModal({ companies, onClose, onCreated }: {
 // ------------------------------------------------------------------ People
 
 function PeopleTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: AdminTeam) => void; onError: (m: string) => void }) {
+  const [profileFor,setProfileFor]=useState<AdminPerson|null>(null)
   const [q, setQ] = useState('')
   const [rows, setRows] = useState<AdminPerson[] | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -363,7 +365,7 @@ function PeopleTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: A
   return (
     <div className="card">
       <div className="card__head">
-        <h2>People</h2>
+        <h2>People</h2>{profileFor&&<Modal title="Edit member profile" onClose={()=>setProfileFor(null)}><MemberProfileEditor personId={profileFor.id} embedded onSaved={()=>{setProfileFor(null);onChanged()}}/></Modal>}
         <span className="card__end faint" style={{ fontSize: 12.5 }}>
           {q.trim().length >= 2 ? 'Search results' : 'Everyone on a team, plus the admins'}
         </span>
@@ -388,6 +390,7 @@ function PeopleTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: A
                 <div className="rowitem__main">
                   <div className="rowitem__title">
                     {firstLast(p)}
+                    {!p.former&&<button className="btn btn--sm" onClick={()=>setProfileFor(p)} aria-label={`Edit profile for ${firstLast(p)}`}>Profile</button>}
                     {p.isAdmin && <span className="pill pill--muted">admin</span>}
                     {p.former && <span className="pill pill--amber">former staff</span>}
                   </div>
