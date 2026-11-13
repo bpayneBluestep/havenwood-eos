@@ -206,8 +206,8 @@ describe('live meetings and action items',()=>{
   expect(screen.queryByRole('button',{name:'Next'})).toBeNull()
   await user.click(screen.getByRole('button',{name:'Tangent'}));await screen.findByText('Tangent called.')
   expect(api.liveSessionAction).toHaveBeenCalledWith(expect.objectContaining({command:'tangent',sessionId:'live'}))
-  expect(screen.getByRole('alert').textContent).toContain('Owner A')
-  await user.click(screen.getByRole('button',{name:'Dismiss tangent alert'}));expect(screen.queryByText('Tangent called.')).toBeNull()
+  expect(screen.getByRole('alert').textContent).toContain('Owner A');expect(screen.getByTestId('tangent-fireworks')).toBeTruthy()
+  await user.click(screen.getByRole('button',{name:'Dismiss tangent alert'}));expect(screen.queryByText('Tangent called.')).toBeNull();expect(screen.queryByTestId('tangent-fireworks')).toBeNull()
  })
  it('alerts a joined viewer when another participant calls a tangent through shared updates',async()=>{
   vi.useFakeTimers()
@@ -219,8 +219,8 @@ describe('live meetings and action items',()=>{
    fireEvent.click(screen.getByRole('button',{name:'Open meeting'}))
    api.getLiveSessions.mockResolvedValue({sessions:[{...session,tangents:[{id:'remote',userId:'b',name:'Owner B',calledAt:Date.now()}]}],serverNow:Date.now()})
    await act(async()=>{await vi.advanceTimersByTimeAsync(3000)})
-   expect(screen.getByRole('alert').textContent).toContain('Tangent called.');expect(screen.getByRole('alert').textContent).toContain('Owner B');expect(api.liveSessionAction).not.toHaveBeenCalled()
-   fireEvent.click(screen.getByRole('button',{name:'Dismiss tangent alert'}));await act(async()=>{await vi.advanceTimersByTimeAsync(3000)});expect(screen.queryByText('Tangent called.')).toBeNull()
+   expect(screen.getByTestId('tangent-fireworks')).toBeTruthy();expect(screen.getByRole('alert').textContent).toContain('Tangent called.');expect(screen.getByRole('alert').textContent).toContain('Owner B');expect(api.liveSessionAction).not.toHaveBeenCalled()
+   await act(async()=>{await vi.advanceTimersByTimeAsync(3500)});expect(screen.queryByTestId('tangent-fireworks')).toBeNull();expect(screen.getByRole('alert')).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:'Dismiss tangent alert'}));await act(async()=>{await vi.advanceTimersByTimeAsync(3000)});expect(screen.queryByText('Tangent called.')).toBeNull()
   } finally {cleanup();vi.useRealTimers()}
  })
  it('does not replay old tangent alerts when opening a session',async()=>{

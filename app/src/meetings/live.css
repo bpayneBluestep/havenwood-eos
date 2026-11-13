@@ -36,7 +36,9 @@
 .live-meeting__clocks { display:flex; gap:30px; }
 .live-meeting__clocks > div { display:flex; flex-direction:column; align-items:flex-end; }
 .live-meeting__clocks span { font-size:12px; color:var(--muted); margin-bottom:4px; }
-.live-meeting__tangent { border-color:var(--amber); color:var(--amber); }
+.btn.live-meeting__tangent { border-color:#d23d4f; background:#b52335; color:#fff; }
+.btn.live-meeting__tangent:hover:not(:disabled) { background:#cf3045; border-color:#ed7080; }
+.btn.live-meeting__tangent:focus-visible { outline:2px solid #ff94a2; outline-offset:3px; }
 .live-meeting__alert { position:sticky; top:12px; z-index:30; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:16px; margin:16px 0; border:2px solid var(--amber); border-radius:8px; background:var(--panel-2); box-shadow:0 6px 24px #0003; }
 .live-meeting__alert strong { font-size:20px; color:var(--amber); }
 .live-meeting__alert .btn { margin-left:auto; }
@@ -46,3 +48,14 @@
 
 .live-meeting__timer h3 { font-size:1.02rem; }
 .live-meetings--active .live-meeting__timer { border-top:0; padding-top:0; }
+
+.tangent-fireworks { position:fixed; inset:0; pointer-events:none; z-index:1200; overflow:hidden; }
+.tangent-fireworks__burst { position:absolute; width:0; height:0; }
+.tangent-fireworks__spark { position:absolute; display:block; width:4px; height:4px; border-radius:50%; opacity:0; box-shadow:0 0 7px currentColor; animation:tangent-burst 1.9s ease-out both; }
+@keyframes tangent-burst {
+ 0% { opacity:0; transform:translate(0,0) scale(.3); }
+ 12% { opacity:1; }
+ 65% { opacity:.9; transform:translate(var(--dx),var(--dy)) scale(1); }
+ 100% { opacity:0; transform:translate(var(--dx),var(--fall)) scale(.2); }
+}
+@media(prefers-reduced-motion:reduce) { .tangent-fireworks { display:none; } }
