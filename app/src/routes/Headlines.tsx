@@ -75,7 +75,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         </div>)}
         {rows&&!rows.some(h=>h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))&&<p className="muted">Add recurring review items and source links here.</p>}
       </section>
-      <div className="card__head headline-ribbon headline-new-ribbon"><h2>New headlines</h2></div>
+      <div className="card__head headline-ribbon headline-new-ribbon"><h2>New headlines</h2><label className="sort-control">Sort new headlines<select className="select" value={sort} onChange={event=>setSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label><button className="btn btn--sm" aria-label="Add new headline" onClick={()=>{setPermanentNew(false);setAdding(true)}}>+ Headline</button></div>
       {!rows ? (
         <Loading what="Loading headlines" />
       ) : rows.length === 0 ? (

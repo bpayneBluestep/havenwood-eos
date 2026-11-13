@@ -252,6 +252,7 @@ export interface Rock {
 export interface Origin { kind: string; id: string; label: string }
 
 export interface Issue {
+  permanent?: boolean
   sourceUrl?: string
   assignedTeamIds?: string[]
   meetingSource?: MeetingSource

@@ -22,10 +22,9 @@ import { LinkedTodoModal } from '../components/DropToIssue'
  */
 export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?:boolean;headingLabel?:string}) {
   const {company,team,me,nameOf,companies,meetingWorkflow}=useApp()
-  const [assignedTeam,setAssignedTeam]=useState('')
-  const [ownerFilter, setOwnerFilter] = useState('')
+  const [sectionFilters,setSectionFilters]=useState<Record<string,{owner:string;team:string;sort:string}>>({permanent:{owner:'',team:'',sort:'manual'},new:{owner:'',team:'',sort:'manual'}})
+  const [newPermanent,setNewPermanent]=useState(false)
   const [inlineId, setInlineId] = useState<string | null>(null)
-  const [sort, setSort] = useState('manual')
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const ownerName = (issue: Issue) => firstLast({name: issue.ownerName || nameOf(issue.ownerId)})
   const [term, setTerm] = useState<'short' | 'long'>('short')
@@ -52,31 +51,21 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
     return()=>window.clearInterval(timer)
   },[embedded,inlineId,editing,solving,linkFor,load])
 
-  const onDrop = async (targetId: string) => {
+  const onDrop = async (targetId: string, sort:string, sectionRows:Issue[]) => {
     const from = dragId.current
     dragId.current = null
     setOverId(null)
     if (sort !== 'manual' || !from || !rows || from === targetId || rows.find(r=>r.id===targetId)?.readOnly) return
-    const ids = rows.filter(r=>!r.readOnly).map(r => r.id)
+    const ids = sectionRows.filter(r=>!r.readOnly).map(r => r.id)
     const fi = ids.indexOf(from), ti = ids.indexOf(targetId)
     if (fi < 0 || ti < 0) return
     ids.splice(ti, 0, ids.splice(fi, 1)[0])
     // Optimistic: reorder locally, then let the server confirm.
     let index = 0
-    setRows(rows.map(row => row.readOnly ? row : rows.find(item => item.id === ids[index++])!))
+    setRows(rows.map(row => ids.includes(row.id) ? rows.find(item => item.id === ids[index++])! : row))
     try { await rankIssues(ids); load() } catch (e: any) { setErr(e.message); load() }
   }
 
-  const visible = (rows || []).filter(issue => (!ownerFilter || (ownerFilter === 'unassigned' ? !issue.ownerId : issue.ownerId === ownerFilter)) && (!assignedTeam || (assignedTeam === 'unassigned' ? !issue.responsibleTeamId : issue.responsibleTeamId === assignedTeam))).sort((a, b) => {
-    if (sort === 'owner') return compareNames(ownerName(a), ownerName(b))
-    if (sort === 'importance' || sort === 'importance-asc') {
-      if (a.priority === null || b.priority === null) return a.priority === b.priority ? 0 : a.priority === null ? 1 : -1
-      return sort === 'importance' ? b.priority - a.priority : a.priority - b.priority
-    }
-    if (sort === 'owner-desc') return compareNames(ownerName(b), ownerName(a))
-    if (sort === 'newest' || sort === 'oldest') return compareDates(a.createdDate, b.createdDate, sort === 'newest')
-    return 0
-  })
 
   const solvedCount = rows ? rows.filter(r => r.status === 'solved').length : 0
 
@@ -114,8 +103,30 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
+      {(['permanent','new'] as const).map(section=>{
+        const permanent=section==='permanent'
+        const label=permanent?'Permanent issues':'New issues'
+        const sectionRows=(rows||[]).filter(issue=>!!issue.permanent===permanent)
+        const {owner:ownerFilter,team:assignedTeam,sort}=sectionFilters[section]
+        const change=(patch:Partial<typeof sectionFilters[string]>)=>setSectionFilters(current=>({...current,[section]:{...current[section],...patch}}))
+        const setOwnerFilter=(owner:string)=>change({owner})
+        const setAssignedTeam=(team:string)=>change({team})
+        const setSort=(update:(current:string)=>string)=>change({sort:update(sort)})
+        const visible = sectionRows.filter(issue => (!ownerFilter || (ownerFilter === 'unassigned' ? !issue.ownerId : issue.ownerId === ownerFilter)) && (!assignedTeam || (assignedTeam === 'unassigned' ? !issue.responsibleTeamId : issue.responsibleTeamId === assignedTeam))).sort((a, b) => {
+    if (sort === 'owner') return compareNames(ownerName(a), ownerName(b))
+    if (sort === 'importance' || sort === 'importance-asc') {
+      if (a.priority === null || b.priority === null) return a.priority === b.priority ? 0 : a.priority === null ? 1 : -1
+      return sort === 'importance' ? b.priority - a.priority : a.priority - b.priority
+    }
+    if (sort === 'owner-desc') return compareNames(ownerName(b), ownerName(a))
+    if (sort === 'newest' || sort === 'oldest') return compareDates(a.createdDate, b.createdDate, sort === 'newest')
+    return 0
+  })
+
+        return <section className="issue-section" aria-label={label} key={section}>
+          <div className="card__head headline-ribbon"><h2>{label}</h2><button className="btn btn--sm" aria-label={permanent?'Add permanent issue':'Add new issue'} onClick={()=>{setNewPermanent(permanent);setEditing('new')}}>+ {permanent?'Permanent issue':'Issue'}</button></div>
       <div className="list-toolbar" aria-label="Issue filters and sorting">
-        <label className="sort-control">Person<select className="select" value={ownerFilter} onChange={event => setOwnerFilter(event.target.value)}><option value="">All people</option><option value="unassigned">Unassigned</option>{[...new Map((rows || []).filter(issue => issue.ownerId).map(issue => [issue.ownerId, ownerName(issue) || 'Assigned person'])).entries()].sort((a,b) => compareNames(a[1],b[1])).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+        <label className="sort-control">Person<select className="select" value={ownerFilter} onChange={event => setOwnerFilter(event.target.value)}><option value="">All people</option><option value="unassigned">Unassigned</option>{[...new Map(sectionRows.filter(issue => issue.ownerId).map(issue => [issue.ownerId, ownerName(issue) || 'Assigned person'])).entries()].sort((a,b) => compareNames(a[1],b[1])).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
         <div className="seg issue-sort-buttons" role="group" aria-label="Sort issues">
           {[
             {key:'importance', reverse:'importance-asc', label:'Importance', forward:'Highest first', backward:'Lowest first', arrow:'↓'},
@@ -133,14 +144,8 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
 
       {!rows ? (
         <Loading what="Loading issues" />
-      ) : rows.length === 0 ? (
-        <div className="card">
-          <Empty title={term === 'short' ? 'No open short-term issues' : 'No long-term issues'}>
-            {term === 'short'
-              ? 'Anything that needs discussing belongs here. Most get here by being dropped from the scorecard, a rock or a headline.'
-              : 'The parking lot. Long-term issues are where next quarter’s Rocks come from.'}
-          </Empty>
-        </div>
+      ) : sectionRows.length === 0 ? (
+        <div className="card"><Empty title={permanent?'No permanent issues':'No new issues'}>Use the plus button to add an issue.</Empty></div>
       ) : (
         <div className="card card__body--flush">
           <div className="rows">
@@ -153,7 +158,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
                 onDragStart={() => { dragId.current = issue.id }}
                 onDragOver={e => { e.preventDefault(); setOverId(issue.id) }}
                 onDragLeave={() => setOverId(o => (o === issue.id ? null : o))}
-                onDrop={e => { e.preventDefault(); onDrop(issue.id) }}
+                onDrop={e => { e.preventDefault(); onDrop(issue.id,sort,sectionRows) }}
               >
                 {sort === 'manual' && <span className="rowitem__grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>}
                 <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><PersonName name={ownerName(issue)} id={issue.ownerId}/></div>
@@ -233,9 +238,13 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
         </div>
       )}
 
+        </section>
+      })}
+
       {editing && (
         <IssueModal
           initial={editing === 'new' ? null : editing}
+          defaultPermanent={newPermanent}
           companyId={company.id}
           team={team}
           term={term}
@@ -293,6 +302,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   const [teamIds,setTeamIds] = useState(() => (issue.assignedTeamIds || [companyId]).filter(id => companies.some(team => team.id === id)))
   const [title, setTitle] = useState(issue.title)
   const [description, setDescription] = useState(issue.description)
+  const [permanent,setPermanent]=useState(!!issue.permanent)
   const [sourceUrl,setSourceUrl]=useState(issue.sourceUrl || '')
   const [priority, setPriority] = useState(issue.priority ?? 3)
   const [ownerId, setOwnerId] = useState(issue.ownerId)
@@ -301,7 +311,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   async function save() {
     if (!title.trim()) {setError('Enter an issue title.'); return}
     setBusy(true); setError(null)
-    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, sourceUrl:validateSourceUrl(sourceUrl), priority, ownerId,...(issueTeamMapping && !issue.meetingId ? {assignedTeamIds:teamIds} : {})}); onSaved()}
+    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, permanent, sourceUrl:validateSourceUrl(sourceUrl), priority, ownerId,...(issueTeamMapping && !issue.meetingId ? {assignedTeamIds:teamIds} : {})}); onSaved()}
     catch (error: unknown) {setError(error instanceof Error ? error.message : 'Could not save the issue.')}
     finally {setBusy(false)}
   }
@@ -309,6 +319,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
     <ErrorBanner error={error}/>
     <fieldset className="edit-fields" disabled={busy}>
     <label>Issue title<input className="input" autoFocus value={title} disabled={busy} onChange={event => setTitle(event.target.value)}/></label>
+    <label><input type="checkbox" checked={permanent} onChange={event=>setPermanent(event.target.checked)}/> Permanent issue</label>
     <label>Issue notes<textarea className="textarea" value={description} disabled={busy} onChange={event => setDescription(event.target.value)}/></label>
     <label>Link URL (optional)<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>
     <div className="inline-editor-fields"><label>Importance<select className="select" value={priority} disabled={busy} onChange={event => setPriority(Number(event.target.value))}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{priorityLabels[value]}</option>)}</select></label><label>Owner<OwnerPicker team={team} value={ownerId} valueName={issue.ownerName || ''} onChange={id => {if (!busy) setOwnerId(id)}}/></label></div>
@@ -318,8 +329,9 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
 }
 
 export function IssueModal({
-  initial, companyId, team, term, defaultOwnerId, onClose, onSaved, teamSelect,
+  initial, companyId, team, term, defaultOwnerId, onClose, onSaved, teamSelect, defaultPermanent=false,
 }: {
+  defaultPermanent?:boolean
   teamSelect?:React.ReactNode
   initial: Issue | null
   companyId: string
@@ -334,6 +346,7 @@ export function IssueModal({
   const [responsibleTeamId,setResponsibleTeam]=useState(initial?.responsibleTeamId??'')
   const [title, setTitle] = useState(initial?.title || '')
   const [description, setDescription] = useState(initial?.description || '')
+  const [permanent,setPermanent]=useState(initial?.permanent??defaultPermanent)
   const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl || '')
   const [issueTerm, setIssueTerm] = useState(initial?.term || term)
   const [priority, setPriority] = useState(initial?.priority ?? 3)
@@ -348,7 +361,7 @@ export function IssueModal({
     try {
       await saveIssue({
         companyId, id: initial?.id, rev: initial?.rev,
-        title: title.trim(), description, sourceUrl:validateSourceUrl(sourceUrl), term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),...(issueTeamMapping && !initial?.meetingId ? {assignedTeamIds:teamIds} : {}),
+        title: title.trim(), description, permanent, sourceUrl:validateSourceUrl(sourceUrl), term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),...(issueTeamMapping && !initial?.meetingId ? {assignedTeamIds:teamIds} : {}),
       })
       onSaved()
     } catch (e: any) {
@@ -370,6 +383,7 @@ export function IssueModal({
       }
     >
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />{teamSelect}
+      <label className="field"><span><input type="checkbox" checked={permanent} onChange={event=>setPermanent(event.target.checked)}/> Permanent issue</span></label>
       <div className="field">
         <label htmlFor="i-title">Issue</label>
         <input id="i-title" className="input" value={title} autoFocus onChange={e => setTitle(e.target.value)} />
