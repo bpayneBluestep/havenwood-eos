@@ -59,3 +59,9 @@
  100% { opacity:0; transform:translate(var(--dx),var(--fall)) scale(.2); }
 }
 @media(prefers-reduced-motion:reduce) { .tangent-fireworks { display:none; } }
+
+.live-meeting__icon { display:inline-flex; align-items:center; justify-content:center; min-width:34px; }
+.live-meeting__icon svg { display:block; }
+.btn.live-meeting__end { background:#b52335; border-color:#d23d4f; color:#fff; }
+.btn.live-meeting__end:hover:not(:disabled) { background:#cf3045; border-color:#ed7080; }
+.btn.live-meeting__end:focus-visible { outline:2px solid #ff94a2; outline-offset:3px; }
