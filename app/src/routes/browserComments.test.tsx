@@ -3,13 +3,14 @@ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest'
 import {act,cleanup,render,screen,within,waitFor,fireEvent} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type {Issue,Rock,Measurable} from '../api'
-const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),getRocksBoard:vi.fn(),saveScorecardSections:vi.fn(),getScorecard:vi.fn(),saveMeasurable:vi.fn(),setScore:vi.fn(),getLiveSessions:vi.fn(),liveSessionAction:vi.fn(),getTodos:vi.fn(),getMy90:vi.fn(),saveMeeting:vi.fn(),getL10:vi.fn(),getMeetings:vi.fn(),getMeetingTypes:vi.fn(),adminMeetingTypes:vi.fn(),adminSaveMeetingTypes:vi.fn()}))
+const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),getRocksBoard:vi.fn(),saveScorecardSections:vi.fn(),getScorecard:vi.fn(),saveMeasurable:vi.fn(),setScore:vi.fn(),getLiveSessions:vi.fn(),liveSessionAction:vi.fn(),getHeadlines:vi.fn(),saveHeadline:vi.fn(),cascadeHeadline:vi.fn(),getTodos:vi.fn(),getMy90:vi.fn(),saveMeeting:vi.fn(),getL10:vi.fn(),getMeetings:vi.fn(),getMeetingTypes:vi.fn(),adminMeetingTypes:vi.fn(),adminSaveMeetingTypes:vi.fn()}))
 const state=vi.hoisted(()=>({current:{} as any}))
 vi.mock('../api',async()=>({...await vi.importActual('../api'),...api}))
 vi.mock('../state',()=>({useApp:()=>state.current}))
 import {fmtValue} from '../lib/ui'
 import LiveMeetings from '../meetings/LiveMeetings'
 import Todos from './Todos'
+import Headlines from './Headlines'
 import L10 from './L10'
 import {MemoryRouter} from 'react-router-dom'
 import Meetings,{MeetingForm} from './Meetings'
@@ -304,4 +305,11 @@ describe('track record and typed meeting scheduling',()=>{
  it('uses initials before each measurable title without a visible full name',async()=>{
   const view=render(<Scorecard/>);const title=await screen.findByRole('button',{name:'Example measurable'});const row=title.closest('th')!;expect(row.querySelector('.meas__title')?.firstElementChild?.classList.contains('avatar')).toBe(true);expect(view.container.querySelector('.owner__name')).toBeNull();expect(row.querySelector('[aria-label="Owner A"]')).toBeTruthy()
  })
+})
+
+describe('permanent and cascaded headlines',()=>{
+ const headline={id:'head',body:'Weekly review (PERMANENT AGENDA ITEM)',type:'customer',createdByName:'Owner A',createdAt:'2026-11-12',readDate:null,rev:1,sourceUrl:'https://example.com/report',sourceLabel:'Review report'}
+ it('separates permanent review rows and replaces the action menu',async()=>{api.getHeadlines.mockResolvedValue({rows:[headline,{...headline,id:'news',body:'New team news'}]});render(<Headlines/>);const section=await screen.findByLabelText('Permanent headlines');await within(section).findByText('Weekly review');expect(within(section).getByRole('link',{name:'Review report'}).getAttribute('href')).toBe(headline.sourceUrl);expect(screen.queryByRole('button',{name:'Row actions'})).toBeNull();expect(screen.queryByRole('button',{name:'Mark read'})).toBeNull();expect(screen.getAllByRole('button',{name:'Cascade'})).toHaveLength(2)})
+ it('publishes only to the selected accessible team',async()=>{api.getHeadlines.mockResolvedValue({rows:[headline]});api.cascadeHeadline.mockResolvedValue({id:'copy'});render(<Headlines/>);await screen.findByText('Weekly review');const user=userEvent.setup();await user.click(screen.getByRole('button',{name:'Cascade'}));const dialog=screen.getByRole('dialog');await user.selectOptions(within(dialog).getByLabelText('Team'),'second');await user.click(within(dialog).getByRole('button',{name:'Publish headline'}));await waitFor(()=>expect(api.cascadeHeadline).toHaveBeenCalledWith('head','second'))})
+ it('saves permanent items with a labeled source link',async()=>{api.getHeadlines.mockResolvedValue({rows:[]});api.saveHeadline.mockResolvedValue({id:'new'});render(<Headlines/>);const user=userEvent.setup();await user.click(screen.getByRole('button',{name:'+ Permanent headline'}));await user.type(screen.getByLabelText('Headline'),'Weekly review');await user.type(screen.getByLabelText('Source URL'),'https://example.com');await user.click(screen.getByRole('button',{name:'Add headline'}));await waitFor(()=>expect(api.saveHeadline).toHaveBeenCalledWith(expect.objectContaining({permanent:true,sourceUrl:'https://example.com',body:'Weekly review'})))})
 })

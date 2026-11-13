@@ -1,10 +1,10 @@
 import {compareNames, compareDates} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
-import { getHeadlines, saveHeadline, markHeadlineRead } from '../api'
+import { getHeadlines, saveHeadline, cascadeHeadline } from '../api'
 import type { Headline } from '../api'
 import { useApp } from '../state'
-import { Avatar, Empty, ErrorBanner, Loading, Modal, RowMenu, fmtDate, firstLast } from '../lib/ui'
+import { Avatar, Empty, ErrorBanner, Loading, Modal, fmtDate, firstLast } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
 
 /*
@@ -15,11 +15,17 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * simply shows up again next week. No extra state and no scheduled job.
  */
 export default function Headlines() {
-  const { company } = useApp()
+  const { company,companies } = useApp()
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [rows, setRows] = useState<Headline[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [permanentNew,setPermanentNew]=useState(false)
+  const [cascadeFor,setCascadeFor]=useState<Headline|null>(null)
+  const [targetTeam,setTargetTeam]=useState('')
+  const [busy,setBusy]=useState(false)
+  const [checked,setChecked]=useState<Record<string,boolean>>({})
+  const [editing,setEditing]=useState<Headline|null>(null)
   const [detail, setDetail] = useState<Headline | null>(null)
   const [sort, setSort] = useState('newest')
   const [dropFor, setDropFor] = useState<Headline | null>(null)
@@ -30,10 +36,6 @@ export default function Headlines() {
   }, [company.id, unreadOnly])
 
   useEffect(() => { setRows(null); load() }, [load])
-
-  const mark = async (h: Headline) => {
-    try { await markHeadlineRead([h.id], !!h.readDate); load() } catch (e: any) { setErr(e.message) }
-  }
 
   const unread = rows ? rows.filter(r => !r.readDate) : []
   const visible = [...(rows || [])].sort((a, b) => sort === 'author' ? compareNames(a.createdByName, b.createdByName) : sort === 'author-desc' ? compareNames(b.createdByName, a.createdByName) : compareDates(a.createdAt, b.createdAt, sort === 'newest'))
@@ -51,12 +53,23 @@ export default function Headlines() {
           <button className="btn" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(u => !u)}>
             {unreadOnly ? 'Show all' : `Unread only${unread.length ? ` (${unread.length})` : ''}`}
           </button>
-          <button className="btn btn--primary" onClick={() => setAdding(true)}>+ Headline</button>
+          <button className="btn btn--primary" onClick={() => {setPermanentNew(false);setAdding(true)}}>+ Headline</button>
         </div>
       </div>
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
+      <section className="card permanent-headlines" aria-label="Permanent headlines">
+        <div className="card__head"><h2>Permanent headlines</h2><button className="btn btn--sm" onClick={()=>{setPermanentNew(true);setAdding(true)}}>+ Permanent headline</button></div>
+        {(rows||[]).filter(h=>h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body)).map(h=><div className="permanent-headline" key={h.id}>
+          <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={event=>setChecked({...checked,[h.id]:event.target.checked})}/>
+          <button className="rowitem__title-link" title={h.body} onClick={()=>setDetail(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
+          {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{h.sourceLabel||'Open source'}</a>}
+          <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button><button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>
+        </div>)}
+        {rows&&!rows.some(h=>h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))&&<p className="muted">Add recurring review items and source links here.</p>}
+      </section>
+      <h2>New headlines</h2>
       {!rows ? (
         <Loading what="Loading headlines" />
       ) : rows.length === 0 ? (
@@ -69,16 +82,8 @@ export default function Headlines() {
       ) : (
         <div className="card card__body--flush">
           <div className="rows">
-            {visible.map(h => (
+            {visible.filter(h=>!(h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))).map(h => (
               <div className={'rowitem rowitem--clickable' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
-                <button
-                  className={'check' + (h.readDate ? ' check--on' : '')}
-                  disabled={h.readOnly} onClick={event => {event.stopPropagation(); void mark(h)}}
-                  aria-label={h.readDate ? 'Mark unread' : 'Mark read'}
-                  title={h.readDate ? `Read ${fmtDate(h.readDate)} — click to unmark` : 'Mark as read'}
-                >
-                  ✓
-                </button>
                 <div className="rowitem__owner"><Avatar name={h.createdByName} id={h.createdByName} sm/><span>{firstLast({name: h.createdByName}) || 'Unassigned'}</span></div>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
@@ -94,16 +99,8 @@ export default function Headlines() {
                   </div>
                 </div>
                 {!h.readOnly&&<div className="rowitem__end" onClick={event => event.stopPropagation()}>
-                  <RowMenu>
-                    {close => (
-                      <>
-                        <button onClick={() => { close(); setDropFor(h) }}>Drop to Issues</button>
-                        <button onClick={() => { close(); mark(h) }}>
-                          Mark {h.readDate ? 'unread' : 'read'}
-                        </button>
-                      </>
-                    )}
-                  </RowMenu>
+                  <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button>
+                  <button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>
                 </div>}
               </div>
             ))}
@@ -111,10 +108,12 @@ export default function Headlines() {
         </div>
       )}
 
-      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted">{firstLast({name: detail.createdByName}) || 'Unassigned'}{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div></Modal>}
+      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted">{firstLast({name: detail.createdByName}) || 'Unassigned'}{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{detail.sourceLabel||'Open source'}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
+      {editing&&<Modal title="Edit headline" onClose={()=>setEditing(null)}><HeadlineForm companyId={company.id} initial={editing} onDone={()=>{setEditing(null);load()}} onCancel={()=>setEditing(null)}/></Modal>}
+      {cascadeFor&&<Modal title="Cascade headline" onClose={()=>setCascadeFor(null)}><p>Publish a separate copy to another team.</p><label className="field">Team<select className="select" value={targetTeam} onChange={event=>setTargetTeam(event.target.value)}><option value="">Select a team</option>{companies.filter(team=>team.id!==company.id).map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><button className="btn btn--primary" disabled={!targetTeam||busy} onClick={async()=>{setBusy(true);try{await cascadeHeadline(cascadeFor.id,targetTeam);setCascadeFor(null)}catch(error:any){setErr(error.message)}finally{setBusy(false)}}}>{busy?'Publishing…':'Publish headline'}</button></Modal>}
       {adding && (
         <Modal title="New headline" onClose={() => setAdding(false)}>
-          <HeadlineForm companyId={company.id} onDone={() => { setAdding(false); load() }} onCancel={() => setAdding(false)} />
+          <HeadlineForm companyId={company.id} permanentDefault={permanentNew} onDone={() => { setAdding(false); load() }} onCancel={() => setAdding(false)} />
         </Modal>
       )}
 
@@ -130,17 +129,20 @@ export default function Headlines() {
 }
 
 export function HeadlineForm({
-  companyId, onDone, onCancel,
-}: { companyId: string; onDone: () => void; onCancel?: () => void }) {
-  const [body, setBody] = useState('')
-  const [type, setType] = useState<'customer' | 'employee'>('customer')
+  companyId, onDone, onCancel, initial, permanentDefault=false,
+}: { companyId: string; initial?:Headline; permanentDefault?:boolean; onDone: () => void; onCancel?: () => void }) {
+  const [body, setBody] = useState(initial?.body||'')
+  const [permanent,setPermanent]=useState(initial?.permanent??permanentDefault)
+  const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl||'')
+  const [sourceLabel,setSourceLabel]=useState(initial?.sourceLabel||'Open source')
+  const [type, setType] = useState<'customer' | 'employee'>(initial?.type||'customer')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   const submit = async () => {
     if (!body.trim()) { setErr('A headline needs some words.'); return }
     setBusy(true); setErr(null)
-    try { await saveHeadline({ companyId, body: body.trim(), type }); setBody(''); onDone() }
+    try { await saveHeadline({ companyId, id:initial?.id,rev:initial?.rev,body: body.trim(), type, permanent,sourceUrl,sourceLabel }); setBody(''); onDone() }
     catch (e: any) { setErr(e.message); }
     finally { setBusy(false) }
   }
@@ -164,10 +166,13 @@ export function HeadlineForm({
           <option value="employee">Employee — personnel or personal news</option>
         </select>
       </div>
+      <label className="field"><span><input type="checkbox" checked={permanent} onChange={event=>setPermanent(event.target.checked)}/> Permanent review item</span></label>
+      <label className="field">Source URL<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>
+      <label className="field">Link button label<input className="input" value={sourceLabel} onChange={event=>setSourceLabel(event.target.value)} maxLength={60}/></label>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         {onCancel && <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>}
         <button className="btn btn--primary" onClick={submit} disabled={busy || !body.trim()}>
-          {busy ? 'Adding…' : 'Add headline'}
+          {busy ? 'Saving…' : initial?'Save headline':'Add headline'}
         </button>
       </div>
     </>
