@@ -48,7 +48,7 @@ describe('company module access and plan editing',()=>{
   api.listModuleRecords.mockImplementation(async(_id,kind)=>({records:kind==='tenk_plan'?[plan]:[]}));mount(<Vision/>);await screen.findByText('Original mission');fireEvent.click(screen.getByRole('button',{name:'Edit plan'}));fireEvent.change(screen.getByLabelText('Mission'),{target:{value:'Updated mission'}});fireEvent.click(screen.getByRole('button',{name:'Save plan'}));await waitFor(()=>expect(api.saveModuleRecord).toHaveBeenCalledWith(expect.objectContaining({id:plan.id,rev:7,data:expect.objectContaining({mission:'Updated mission'})})));await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());fireEvent.click(screen.getByRole('button',{name:'Edit plan'}));fireEvent.change(screen.getByLabelText('Mission'),{target:{value:'Unsaved edit'}});fireEvent.click(screen.getByRole('button',{name:'Cancel'}));expect(api.saveModuleRecord).toHaveBeenCalledTimes(1);
  });
  it('keeps meeting plan review read-only even when the viewer can edit the standalone plan',async()=>{
-  mount(<Vision embedded companyId="c1"/>);await screen.findByRole('heading',{name:'Direction'});expect(screen.queryByRole('button',{name:'Create plan'})).toBeNull();expect(screen.queryByRole('button',{name:'+ Priority'})).toBeNull();expect(screen.queryByRole('button',{name:'Tools'})).toBeNull();expect(api.saveModuleRecord).not.toHaveBeenCalled();expect(api.getIssues).not.toHaveBeenCalled();
+  mount(<Vision embedded companyId="c1"/>);await screen.findByRole('heading',{name:'3-Year Plan'});expect(screen.queryByRole('button',{name:'Create plan'})).toBeNull();expect(screen.queryByRole('button',{name:'+ Priority'})).toBeNull();expect(screen.queryByRole('button',{name:'Tools'})).toBeNull();expect(api.saveModuleRecord).not.toHaveBeenCalled();expect(api.getIssues).not.toHaveBeenCalled();
  });
 })
 describe('accountability seat editing',()=>{
@@ -93,4 +93,21 @@ describe('company scope request ordering',()=>{
   expect(screen.getByRole('button',{name:'Open chart seat New company seat'})).toBeTruthy();expect(screen.queryByRole('button',{name:'Open chart seat Seat A'})).toBeNull();
   expect(api.saveAccountabilitySeat).not.toHaveBeenCalled();
  });
+});
+
+it('shows three-year and one-year segments together and aligns quarterly Rocks in four columns',async()=>{
+ const plan={...baseEntity,id:companyPlanId('c1'),kind:'tenk_plan',data:{...emptyCompanyPlan(2026),mission:'Company mission',threeYearVision:'Three-year destination text'}};
+ api.getModuleContext.mockResolvedValue({...context,currentQuarter:'2026-Q4'});
+ api.listModuleRecords.mockImplementation(async(_id,kind)=>({records:kind==='tenk_plan'?[plan]:[]}));
+ api.getRocks.mockResolvedValue({rows:[{id:'r1',title:'Quarterly delivery goal',ownerId:'p1',ownerName:'Person A',dueDate:'2026-12-15',status:'off_track',quarterKey:'2026-Q4',milestones:[]}]});
+ mount(<Vision/>);
+ await screen.findByText('Three-year destination text');
+ expect(screen.getByRole('heading',{name:'3-Year Plan'})).toBeTruthy();expect(screen.getByRole('heading',{name:'1-Year Plan · 2026'})).toBeTruthy();
+ expect(screen.queryByLabelText('Plan year filter')).toBeNull();
+ const table=within(screen.getByRole('region',{name:'Quarterly Rocks'})).getByRole('table');
+ expect(within(table).getAllByRole('columnheader').map(cell=>cell.textContent)).toEqual(['Name','Date','Status','Title']);
+ const cells=within(within(table).getAllByRole('row')[1]).getAllByRole('cell');
+ expect(cells[0].textContent).toContain('Person A');expect(cells[1].textContent).toBe('Dec 15');expect(cells[2].textContent).toContain('Off Track');expect(within(cells[3]).getByRole('link',{name:'Quarterly delivery goal'})).toBeTruthy();
+ expect(document.querySelectorAll('.vision-ribbon').length).toBe(4);
+ expect(api.saveModuleRecord).not.toHaveBeenCalled();
 });
