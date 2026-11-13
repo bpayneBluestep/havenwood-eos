@@ -16,7 +16,7 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * doctrine rather than a preference — anything longer should be a Rock or a
  * milestone, and the default is where that discipline gets enforced.
  *
- * Personal to-dos are private to their owner and never appear in the L10.
+ * Personal action items are private to their owner and never appear in the L10.
  */
 export default function Todos() {
   const { company, team, me } = useApp()
@@ -55,12 +55,12 @@ export default function Todos() {
     <div className="page">
       <div className="page__head">
         <div>
-          <h1>To-Dos</h1>
+          <h1>Action Items</h1>
           <div className="page__sub">
             Seven-day commitments. If it takes longer than that, it wants to be a Rock.
           </div>
         </div>
-        <div className="page__actions"><label className="sort-control">Sort to-dos<select className="select" value={sort} onChange={event => setSort(event.target.value)}><option value="due">Due date: earliest first</option><option value="due-desc">Due date: latest first</option><option value="owner">Owner A–Z</option><option value="owner-desc">Owner Z–A</option></select></label>
+        <div className="page__actions">
           <div className="seg" role="group" aria-label="Scope">
             <button aria-pressed={!mine} onClick={() => setMine(false)}>Team</button>
             <button aria-pressed={mine} onClick={() => setMine(true)}>Mine</button>
@@ -69,18 +69,20 @@ export default function Todos() {
           <button className="btn" aria-pressed={showDone} onClick={() => setShowDone(s => !s)}>
             {showDone ? 'Hide done' : 'Show done'}
           </button>
-          <button className="btn btn--primary" onClick={() => setEditing('new')}>+ To-Do</button>
+          <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Action Item</button>
         </div>
       </div>
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
+      <div className="list-toolbar"><div className="seg" role="group" aria-label="Sort action items">{[{key:'due',reverse:'due-desc',label:'Date'},{key:'owner',reverse:'owner-desc',label:'Name'}].map(option=><button type="button" key={option.key} aria-pressed={sort===option.key||sort===option.reverse} title={option.key==='due'?(sort==='due-desc'?'Latest due date first':'Earliest due date first'):(sort==='owner-desc'?'Owner Z–A':'Owner A–Z')} onClick={()=>setSort(current=>current===option.key?option.reverse:option.key)}>{option.label}{(sort===option.key||sort===option.reverse)&&<span aria-hidden="true"> {sort===option.key?'↑':'↓'}</span>}</button>)}</div></div>
+
       {!rows ? (
-        <Loading what="Loading to-dos" />
+        <Loading what="Loading action items" />
       ) : rows.length === 0 ? (
         <div className="card">
-          <Empty title={mine ? 'Nothing on your list' : 'No open to-dos'}>
-            Most to-dos are created by solving an issue in the L10 — that's the point of the list.
+          <Empty title={mine ? 'Nothing on your list' : 'No open action items'}>
+            Most action items are created by solving an issue in the L10 — that's the point of the list.
           </Empty>
         </div>
       ) : (
@@ -90,7 +92,7 @@ export default function Todos() {
               {open.map(t => (
                 <TodoRow key={t.id} todo={t} onToggle={() => toggle(t)} onEdit={() => setEditing(t)} onDrop={() => setDropFor(t)} />
               ))}
-              {open.length === 0 && <Empty title={overdueOnly ? 'No overdue to-dos match this scope' : "Everything's done"} />}
+              {open.length === 0 && <Empty title={overdueOnly ? 'No overdue action items match this scope' : "Everything's done"} />}
             </div>
           </div>
 
@@ -143,7 +145,7 @@ export function TodoRow({
 }) {
   const isDone = todo.status === 'done'
   return (
-    <div className={'rowitem' + (isDone ? ' rowitem--done' : '')}>
+    <div className={'rowitem action-item-row' + (isDone ? ' rowitem--done' : '')}>
       <button
         className={'check' + (isDone ? ' check--on' : '')}
         disabled={todo.readOnly} onClick={onToggle}
@@ -174,7 +176,7 @@ export function TodoRow({
           <RowMenu>
             {close => (
               <>
-                {onEdit && <button onClick={() => { close(); onEdit() }}>Edit to-do</button>}
+                {onEdit && <button onClick={() => { close(); onEdit() }}>Edit action item</button>}
                 {onDrop && <button onClick={() => { close(); onDrop() }}>Drop to Issues</button>}
               </>
             )}
@@ -208,7 +210,7 @@ function TodoModal({
   const readOnly = !!initial?.readOnly
   const submit = async () => {
     if (readOnly) return
-    if (!title.trim()) { setErr('A to-do needs a title.'); return }
+    if (!title.trim()) { setErr('A action item needs a title.'); return }
     setBusy(true); setErr(null)
     try {
       await saveTodo({
@@ -225,7 +227,7 @@ function TodoModal({
 
   return (
     <Modal
-      title={readOnly ? 'To-do details' : initial ? 'Edit to-do' : 'New to-do'}
+      title={readOnly ? 'Action item details' : initial ? 'Edit action item' : 'New action item'}
       onClose={onClose}
       footer={
         <>
@@ -237,7 +239,7 @@ function TodoModal({
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
       <fieldset className="edit-fields" disabled={readOnly || busy}>
       <div className="field">
-        <label htmlFor="t-title">To-Do</label>
+        <label htmlFor="t-title">Action Item</label>
         <input id="t-title" className="input" value={title} autoFocus onChange={e => setTitle(e.target.value)} />
       </div>
       <div className="field">

@@ -1,5 +1,4 @@
-import MeetingWorkspace from '../meetings/MeetingWorkspace'
-import {useApp} from '../state'
+import LiveMeetings from '../meetings/LiveMeetings'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -20,7 +19,6 @@ import { MeetingForm, freqLabel } from './Meetings'
  */
 export default function Meeting() {
   const {id=''}=useParams()
-  const {companies,teams}=useApp()
   const [meeting, setMeeting] = useState<MeetingT | null>(null)
   const [occs, setOccs] = useState<Occurrence[]>([])
   const [roster, setRoster] = useState<Person[]>([])
@@ -116,7 +114,7 @@ export default function Meeting() {
               ))}
             </div>
           </div>
-          <MeetingWorkspace key={id+date} companyId={meeting.companyId} meetingId={id} date={date} people={occ.attendees} teams={companies} rosters={teams}/>
+          <LiveMeetings key={id+date} companyId={meeting.companyId} meetingId={id} date={date}/>
           <details className="card"><summary className="card__body">All meeting follow-ups, including earlier dates</summary>
           <TodosCard occ={occ} onChange={loadOcc} onError={setErr} />
           <IssuesCard occ={occ} onChange={loadOcc} onError={setErr} />

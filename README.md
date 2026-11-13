@@ -54,3 +54,13 @@ Issue dialogs and inline editors use checkboxes for all teams in the caller's ac
 New mappings must belong to the caller's accessible teams. Existing mappings outside the caller's current access are preserved when the caller saves their visible checkboxes. At least one total mapping must remain. Removing a team's mapping removes that team's application access, including edits, solves, ranking, and archive actions. Company lists, planning-board issue lists, and L10 lists use the same access rule. Private meeting issues retain their meeting-attendee gate and cannot be disclosed through these checkboxes.
 
 Linked To-Dos for public issues are created on the selected mapped team. Private issue actions retain their meeting context. The endpoint advertises `issueTeamMapping: 1`. The pure policy helper `platform/issueModel.ts` must match `scripts/issueModel.ts` in the endpoint. Publish the endpoint before this frontend build.
+
+## Unified meetings and action items
+
+Meetings is the single meeting entry in the sidebar. The old /l10 route redirects there. A Level 10 is the default 90-minute agenda inside Meetings. Team scorecard and review lists remain expanded and refresh every ten seconds. Scheduled private meetings remain under Meetings; their sessions require occurrence access.
+
+Live sessions use the `liveMeetings: 1` bootstrap capability. A team member can start a session; its facilitator controls Pause, Resume, Next section, direct section selection and End. Other permitted members see the session in their own instance and can Join. The client refreshes session state every three seconds and displays elapsed time using the server time offset. Section totals persist across revisits and exclude pauses. Only joined participants can rate the meeting from 1 to 10 during Conclude or after End. Each participant saves their own rating.
+
+The server stores each session and each participant separately in existing EOS Meetings rows. Participant joins/ratings do not rewrite the shared timer record. Repeated participant rows are collapsed by user identity and update time. Internal rows are excluded from scheduled meeting APIs. The pure helper `platform/liveSessionModel.ts` must match `scripts/liveSessionModel.ts`. The older meeting-workflow patch remains an unused review artifact; it was not applied for these controls.
+
+Milestone date edits now save automatically after a short typing delay or when the field loses focus. Save and Cancel buttons are removed from this shared editor. Failed edits remain visible with an error. The Action Items page uses reversible Date and Name sorting buttons, and its titles use regular weight. My 90 is labeled My Dashboard.

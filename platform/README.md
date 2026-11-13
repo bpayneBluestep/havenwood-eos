@@ -35,3 +35,11 @@ The patch also advertises `milestoneWorkflow: 1`. The existing `saveMilestone` a
 The pure timer and service tests run with `npm test`. The SPA type check and build run with `npm run typecheck` and `npm run build`. The development-only `/meeting-preview.html` uses synthetic records and an in-memory service; it makes no BlueStep writes and is not included in the production artifact.
 
 The patch was checked for clean application. It has not been compiled or executed on BlueStep. Live multi-user synchronization, private row permissions and transactional conflict handling remain platform release gates. Polling updates participants about every five seconds; the countdown renders locally from the server timestamp.
+
+## Current live session implementation
+
+The current interface uses `liveSessions` and `liveSessionAction`, advertised by `liveMeetings: 1`, rather than the older workspace/capture patch above. Its pure timer/rating module is `liveSessionModel.ts`. The endpoint integration is in the current Traction Maestro source. Do not apply the old generated patch over that source.
+
+Session metadata uses internal kind `live_team_session`; per-person join/rating rows use `live_team_attendee`. The native EOS Meetings fields are unchanged. Internal rows are hidden from scheduled-series lookup. The facilitator owns the session timer; member join/rating writes have separate rows and cannot overwrite timer state. Host timer actions require the current revision. Every action resolves the caller's team membership. Private sessions additionally require access to the scheduled occurrence. Ratings use the authenticated actor, require previous participation and accept only integer 1–10 values at Conclude or after End.
+
+Native platform compilation, live session creation, two-account joining, rating persistence, and excluded-user access must be checked separately. Automated UI and policy tests cover the corresponding decisions but do not prove live platform permissions.

@@ -1,3 +1,5 @@
+import LiveMeetings from '../meetings/LiveMeetings'
+import L10 from './L10'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getMeetings, saveMeeting } from '../api'
@@ -32,19 +34,21 @@ export default function Meetings() {
         <div>
           <h1>Meetings</h1>
           <div className="page__sub">
-            1:1s and huddles. Only the people invited can see a meeting and what was raised in it.
+            Start and join live meetings here. Level 10 is the 90-minute team agenda; scheduled private meetings are listed below.
           </div>
         </div>
         <div className="page__actions">
           <button className="btn" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
             {showArchived ? 'Hide archived' : 'Show archived'}
           </button>
-          <button className="btn btn--primary" onClick={() => setAdding(true)}>+ Meeting</button>
+          <button className="btn btn--primary" onClick={() => setAdding(true)}>+ Schedule meeting</button>
         </div>
       </div>
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
+      <LiveMeetings key={company.id} companyId={company.id}/>
+      <h2>Scheduled private meetings</h2>
       {!rows ? (
         <Loading what="Loading meetings" />
       ) : rows.length === 0 ? (
@@ -77,6 +81,8 @@ export default function Meetings() {
           </div>
         </div>
       )}
+
+      <L10 embedded/>
 
       {adding && (
         <Modal title="New meeting" onClose={() => setAdding(false)}>

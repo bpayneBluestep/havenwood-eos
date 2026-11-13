@@ -1,8 +1,6 @@
 import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
 import FollowupContext from '../meetings/FollowupContext'
-import MeetingWorkspace from '../meetings/MeetingWorkspace'
-import {todayIso} from '../lib/ui'
 import { useCallback, useEffect, useState } from 'react'
 import { getL10, setScore, setRockStatus, setTodoStatus, markHeadlineRead } from '../api'
 import type { L10 as L10Data, Rock, Issue, Todo, Headline, Measurable, Cell } from '../api'
@@ -15,8 +13,8 @@ import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
 
 /* Current team lists remain below the shared live-meeting workspace.
  * Timing and captured agenda records require the paired endpoint update. */
-export default function L10() {
-  const { company, nameOf, team, companies, teams } = useApp()
+export default function L10({embedded=false}:{embedded?:boolean}) {
+  const { company, nameOf } = useApp()
   const [data, setData] = useState<L10Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [drop, setDrop] = useState<{ kind: string; id: string; label: string; title: string } | null>(null)
@@ -27,13 +25,13 @@ export default function L10() {
     getL10(company.id).then(setData).catch(e => setErr(e.message))
   }, [company.id])
 
-  useEffect(() => { setData(null); load() }, [load])
+  useEffect(() => { setData(null); load(); if (!embedded) return; const timer=window.setInterval(load,10000); return()=>window.clearInterval(timer) }, [load,embedded])
 
   if (!data && !err) return <div className="page"><Loading what="Loading the meeting" /></div>
 
   return (
-    <div className="page">
-      <div className="page__head">
+    <div className={embedded ? 'meeting-review-lists' : 'page'}>
+      {!embedded && <div className="page__head">
         <div>
           <h1>Level 10 — {data?.company.settings.displayName || company.name}</h1>
           <div className="page__sub">
@@ -43,14 +41,13 @@ export default function L10() {
         <div className="page__actions">
           <button className="btn" onClick={load}>Refresh</button>
         </div>
-      </div>
+      </div>}
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
       {data && (
         <>
-          <MeetingWorkspace key={company.id} companyId={company.id} date={todayIso()} people={team} teams={companies} rosters={teams}/>
-          <details className="card"><summary className="card__body">Team scorecard and review lists</summary>
+          <section aria-label="Team scorecard and review lists"><h2>Team scorecard and review lists</h2>
           <Section n={1} item={data.agenda[0]}>
             <div className="card__body">
               <p className="muted" style={{ margin: 0 }}>
@@ -110,7 +107,7 @@ export default function L10() {
             )}
           </Section>
 
-          {/* To-Dos — last week's list. The 90% target is the one bit of meeting
+          {/* Action Items — last week's list. The 90% target is the one bit of meeting
               arithmetic nobody does by hand. */}
           <Section
             n={5}
@@ -157,7 +154,7 @@ export default function L10() {
                     <div className="rowitem__end">
                       {issue.ownerId && <Avatar name={nameOf(issue.ownerId)} id={issue.ownerId} sm />}
                       <span className="mono faint">P{issue.priority ?? '–'}</span>
-                      <button className="btn btn--sm" disabled={issue.readOnly} onClick={() => setLinkFor(issue)}>Solve → To-Do</button>
+                      <button className="btn btn--sm" disabled={issue.readOnly} onClick={() => setLinkFor(issue)}>Solve → Action Item</button>
                     </div>
                   </div>
                 ))}
@@ -168,7 +165,7 @@ export default function L10() {
           <Section n={7} item={data.agenda[6]}>
             <div className="card__body">
               <p className="muted" style={{ marginTop: 0 }}>
-                Recap the To-Dos created, confirm who is telling whom, and close.
+                Recap the Action Items created, confirm who is telling whom, and close.
               </p>
               <div className="kpis">
                 <div className="kpi">
@@ -177,7 +174,7 @@ export default function L10() {
                 </div>
                 <div className="kpi">
                   <div className="kpi__v">{data.todos.rows.filter(t => t.status === 'open').length}</div>
-                  <div className="kpi__l">To-Dos carried</div>
+                  <div className="kpi__l">Action Items carried</div>
                 </div>
                 <div className="kpi">
                   <div className="kpi__v">{data.rocks.filter(r => r.status === 'off_track').length}</div>
@@ -186,7 +183,7 @@ export default function L10() {
               </div>
             </div>
           </Section>
-          </details>
+          </section>
         </>
       )}
 

@@ -1,0 +1,16 @@
+.live-meetings { margin-bottom:20px; }
+.live-meetings__head { display:flex; justify-content:space-between; gap:16px; align-items:center; flex-wrap:wrap; }
+.live-meetings h2 { margin:0 0 6px; }
+.live-meetings p { font-size:13px; }
+.live-meeting__timer { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px 0; border-top:1px solid var(--border); }
+.live-meeting__timer h3 { margin:5px 0 0; }
+.live-meeting__timer strong { font-size:32px; font-variant-numeric:tabular-nums; }
+.live-meeting__controls { display:flex; flex-wrap:wrap; gap:8px; }
+.live-meeting__columns { display:grid; grid-template-columns:2fr 1fr; gap:24px; }
+.live-meeting__agenda { list-style:none; padding:0; }
+.live-meeting__agenda li { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:4px; border-bottom:1px solid var(--border); }
+.live-meeting__agenda li.is-active { background:var(--accent-weak); }
+.live-meeting__agenda span { white-space:nowrap; font-size:12px; font-variant-numeric:tabular-nums; }
+.live-meeting__ratings { border-top:1px solid var(--border); margin-top:15px; }
+.live-meeting__ratings .seg { flex-wrap:wrap; }
+@media(max-width:700px) { .live-meeting__columns {grid-template-columns:1fr;} }

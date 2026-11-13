@@ -147,7 +147,7 @@ export interface CompanyBrief {
 export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
-  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number}
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number;liveMeetings?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -643,3 +643,6 @@ export const getMeetingWorkspace=(fields:{companyId:string;meetingId?:string;dat
 export const commandMeetingWorkspace=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('commandMeetingWorkspace',fields)
 export const captureMeetingItem=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('captureMeetingItem',fields)
 export const editMeetingItem=(fields:Record<string,unknown>):Promise<import('./meetings/model').Workspace>=>post('editMeetingItem',fields)
+
+export const getLiveSessions = (scope:{companyId:string;meetingId?:string;date?:string}):Promise<{serverNow:number;sessions:import('../../platform/liveSessionModel').LiveSessionView[]}> => get('liveSessions',scope)
+export const liveSessionAction = (fields:Record<string,unknown>):Promise<import('../../platform/liveSessionModel').LiveSessionView> => post('liveSessionAction',fields)

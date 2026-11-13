@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './state'
 import { Avatar, firstLast } from './lib/ui'
 import { logout } from './api'
@@ -8,7 +8,6 @@ import Rocks from './routes/Rocks'
 import Issues from './routes/Issues'
 import Todos from './routes/Todos'
 import Headlines from './routes/Headlines'
-import L10 from './routes/L10'
 import Meetings from './routes/Meetings'
 import Meeting from './routes/Meeting'
 import Admin from './routes/Admin'
@@ -19,16 +18,15 @@ import NotFound from './routes/NotFound'
  * teams have used Ninety for years, and the shape is the part they already know.
  */
 const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
-  { to: '/', label: 'My 90', icon: '◆', end: true },
+  { to: '/', label: 'My Dashboard', icon: '◆', end: true },
   { to: '/scorecard', label: 'Scorecard', icon: '▦' },
   { to: '/rocks', label: 'Rocks', icon: '◈' },
   { to: '/issues', label: 'Issues', icon: '◉' },
-  { to: '/todos', label: 'To-Dos', icon: '✓' },
+  { to: '/todos', label: 'Action Items', icon: '✓' },
   { to: '/headlines', label: 'Headlines', icon: '❝' },
 ]
 
 const MEETING: { to: string; label: string; icon: string; end?: boolean }[] = [
-  { to: '/l10', label: 'Level 10', icon: '▶' },
   { to: '/meetings', label: 'Meetings', icon: '◎' },
 ]
 
@@ -160,7 +158,7 @@ function Shell() {
           <Route path="/issues" element={<Issues />} />
           <Route path="/todos" element={<Todos />} />
           <Route path="/headlines" element={<Headlines />} />
-          <Route path="/l10" element={<L10 />} />
+          <Route path="/l10" element={<Navigate to="/meetings" replace />} />
           <Route path="/meetings" element={<Meetings />} />
           <Route path="/meetings/:id" element={<Meeting />} />
           {me.isAdmin && <Route path="/admin" element={<Admin onChanged={reload} />} />}

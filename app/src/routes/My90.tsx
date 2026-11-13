@@ -13,7 +13,7 @@ import { TodoRow } from './Todos'
 
 /*
  * My 90 — the personal home page, and the only screen most people open daily.
- * Aggregates across every company the caller can see: my to-dos, my rocks and
+ * Aggregates across every company the caller can see: my action items, my rocks and
  * milestones, and the measurables I own.
  */
 export default function My90() {
@@ -42,13 +42,13 @@ export default function My90() {
       })
     : []
 
-  if (!data && !err) return <div className="page"><Loading what="Loading your 90" /></div>
+  if (!data && !err) return <div className="page"><Loading what="Loading your dashboard" /></div>
 
   return (
     <div className="page">
       <div className="page__head">
         <div>
-          <h1>My 90</h1>
+          <h1>My Dashboard</h1>
           <div className="page__sub">
             Everything you're accountable for{multiCompany ? ', across every company you can see' : ''}.
           </div>
@@ -74,7 +74,7 @@ export default function My90() {
           <div className="kpis" style={{ marginBottom: 14 }}>
             <div className="kpi">
               <div className="kpi__v">{openTodos.length}</div>
-              <div className="kpi__l">Open to-dos</div>
+              <div className="kpi__l">Open action items</div>
             </div>
             <div className="kpi">
               <div className="kpi__v" style={{ color: overdue.length ? 'var(--red)' : undefined }}>{overdue.length}</div>
@@ -100,8 +100,8 @@ export default function My90() {
 
           <div className="card">
             <div className="card__head">
-              <h2>My To-Dos</h2>
-              <span className="card__end"><Link to="/todos" className="btn btn--sm">All to-dos</Link></span>
+              <h2>My Action Items</h2>
+              <span className="card__end"><Link to="/todos" className="btn btn--sm">All action items</Link></span>
             </div>
             <div className="card__body--flush">
               {openTodos.length === 0 ? (
