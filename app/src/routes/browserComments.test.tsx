@@ -7,7 +7,7 @@ const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),
 const state=vi.hoisted(()=>({current:{} as any}))
 vi.mock('../api',async()=>({...await vi.importActual('../api'),...api}))
 vi.mock('../state',()=>({useApp:()=>state.current}))
-import Issues from './Issues'
+import Issues,{IssuePriority} from './Issues'
 import Rocks from './Rocks'
 import Scorecard,{SectionsModal} from './Scorecard'
 const people=[{id:'a',name:'Owner A'},{id:'b',name:'Owner B'}]
@@ -80,5 +80,23 @@ describe('scorecard browser comments',()=>{
  it('retains section edits after a conflict',async()=>{
   api.saveScorecardSections.mockRejectedValue(new Error('Reload the scorecard'))
   render(<SectionsModal rows={[measurable]} companyId="source" cadence="weekly" onClose={()=>{}} onSaved={()=>{}}/>);fireEvent.change(screen.getByLabelText('Section name for Admissions'),{target:{value:'Updated section'}});fireEvent.click(screen.getByRole('button',{name:'Save sections'}));await screen.findByText('Reload the scorecard');expect((screen.getByLabelText('Section name for Admissions') as HTMLInputElement).value).toBe('Updated section')
+ })
+})
+
+describe('direct issue ranking',()=>{
+ it('saves a ranking from the list without opening an editor',async()=>{
+  render(<Issues/>);const select=await screen.findByRole('combobox',{name:'Ranking for Zulu issue'});await userEvent.setup().selectOptions(select,'2');await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith({companyId:'source',id:'one',rev:4,title:'Zulu issue',priority:2}));expect(screen.queryByRole('dialog')).toBeNull();expect(screen.queryByRole('form',{name:'Edit issue inline'})).toBeNull()
+ })
+ it('restores the original number and displays a failed-save error',async()=>{
+  api.saveIssue.mockRejectedValue(new Error('Example revision conflict'));render(<Issues/>);const select=await screen.findByRole('combobox',{name:'Ranking for Zulu issue'});await userEvent.setup().selectOptions(select,'1');await screen.findByRole('alert');expect((select as HTMLSelectElement).value).toBe('5');expect(screen.getByText('Example revision conflict')).toBeTruthy()
+ })
+ it('disables ranking changes on read-only issues',()=>{
+  render(<IssuePriority issue={{...baseIssue,readOnly:true}} companyId="source" onSaved={()=>{}}/>);expect((screen.getByRole('combobox',{name:'Ranking for Zulu issue'}) as HTMLSelectElement).disabled).toBe(true)
+ })
+ it('prevents another ranking write while a save is pending',async()=>{
+  let finish:(value:unknown)=>void=()=>{};api.saveIssue.mockReturnValue(new Promise(resolve=>{finish=resolve}));render(<IssuePriority issue={baseIssue} companyId="source" onSaved={()=>{}}/>);const select=screen.getByRole('combobox',{name:'Ranking for Zulu issue'});await userEvent.setup().selectOptions(select,'3');expect((select as HTMLSelectElement).disabled).toBe(true);expect(api.saveIssue).toHaveBeenCalledTimes(1);finish({});await waitFor(()=>expect((select as HTMLSelectElement).disabled).toBe(false))
+ })
+ it('allows an unranked issue to receive a 1–5 ranking',async()=>{
+  render(<IssuePriority issue={{...baseIssue,priority:null}} companyId="source" onSaved={()=>{}}/>);const select=screen.getByRole('combobox',{name:'Ranking for Zulu issue'});expect((select as HTMLSelectElement).value).toBe('');await userEvent.setup().selectOptions(select,'4');await waitFor(()=>expect(api.saveIssue).toHaveBeenCalledWith(expect.objectContaining({priority:4})))
  })
 })

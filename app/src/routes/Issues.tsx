@@ -1,6 +1,6 @@
 import {compareNames, compareDates, priorityLabel, priorityLabels} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { getIssues, saveIssue, rankIssues, solveIssue, archiveIssues } from '../api'
 import type { Issue } from '../api'
 import { useApp } from '../state'
@@ -136,9 +136,8 @@ export default function Issues() {
               >
                 <div className="rowitem__owner"><Avatar name={ownerName(issue)} id={issue.ownerId} sm/><span>{ownerName(issue) || 'Unassigned'}</span></div>
                 {sort === 'manual' && <span className="rowitem__grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>}
-                <span className={'rank' + ((issue.priority || 0) >= 4 ? ' rank--top' : '')} title={`Importance: ${priorityLabel(issue.priority)} (1 lowest, 5 highest)`} aria-label={`Importance: ${priorityLabel(issue.priority)}; 1 lowest, 5 highest`}>
-                  {priorityLabel(issue.priority) === 'Unranked' ? '–' : issue.priority}
-                </span>
+                <IssuePriority issue={issue} companyId={company.id} disabled={inlineId === issue.id} onSaved={load}/>
+
                 <div className="rowitem__main">
                   {inlineId === issue.id && !issue.readOnly ? <IssueInlineEditor issue={issue} companyId={company.id} team={team} onCancel={() => setInlineId(null)} onSaved={() => {setInlineId(null); load()}}/> : <>
                   <div className="rowitem__title">
@@ -240,6 +239,32 @@ export default function Issues() {
       )}
     </div>
   )
+}
+
+export function IssuePriority({issue, companyId, disabled, onSaved}: {issue: Issue; companyId: string; disabled?: boolean; onSaved: () => void}) {
+  const [value, setValue] = useState(issue.priority === null ? '' : String(issue.priority))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const errorId = useId()
+  useEffect(() => {setValue(issue.priority === null ? '' : String(issue.priority))}, [issue.priority, issue.rev])
+  async function save(next: string) {
+    if (busy || disabled || issue.readOnly) return
+    setValue(next); setBusy(true); setError('')
+    try {
+      await saveIssue({companyId, id: issue.id, rev: issue.rev, title: issue.title, priority: Number(next)})
+      onSaved()
+    } catch (error: unknown) {
+      setValue(issue.priority === null ? '' : String(issue.priority))
+      setError(error instanceof Error ? error.message : 'Could not save the ranking.')
+    } finally {setBusy(false)}
+  }
+  return <div className="issue-priority" onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} onDragStart={event => {event.preventDefault(); event.stopPropagation()}}>
+    <select className={'rank rank-select' + (Number(value) >= 4 ? ' rank--top' : '')} aria-label={`Ranking for ${issue.title}`} aria-describedby={error ? errorId : undefined} aria-busy={busy} title={`Importance: ${priorityLabel(value ? Number(value) : null)} (1 lowest, 5 highest)`} value={value} disabled={busy || disabled || issue.readOnly} onChange={event => {void save(event.target.value)}}>
+      {value === '' && <option value="" disabled>–</option>}
+      {[1,2,3,4,5].map(rank => <option value={rank} key={rank}>{priorityLabels[rank]}</option>)}
+    </select>
+    {error && <span id={errorId} className="issue-priority__error" role="alert">{error}</span>}
+  </div>
 }
 
 export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {issue: Issue; companyId: string; team: any[]; onCancel: () => void; onSaved: () => void}) {

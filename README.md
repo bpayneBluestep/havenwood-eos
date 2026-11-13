@@ -42,3 +42,5 @@ Scorecard definitions support an optional http/https source link and multiple as
 Manage sections changes section names and order for the selected team's cadence. The save includes every row revision and rejects stale plans before writes. Section presentation changes do not alter another team's section names or assignments. Shared cells retain a separate source score key so different team calendars write to the same source series.
 
 The pure policy helper is `platform/scorecardModel.ts`; its matching endpoint module is `scripts/scorecardModel.ts`. Keep these identical. This endpoint update adds the `scorecardEditing: 1` bootstrap capability. Publish it before the frontend. Existing native fields carry all new data in the measurable definition JSON; no form or field migration is required.
+
+Issue ranking numbers are dropdown controls in the list. Selecting 1–5 saves immediately with a revision check, without opening the issue. A failed save restores the previous number and shows an error. Read-only issues and the row currently being edited remain locked.
