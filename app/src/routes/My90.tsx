@@ -1,3 +1,5 @@
+import {useTableColumns} from '../components/TableColumns'
+import {useNameForSort} from '../lib/memberProfiles'
 import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
 import { useCallback, useEffect, useState } from 'react'
@@ -16,7 +18,8 @@ import {
  * milestones, and the measurables I own.
  */
 export default function My90() {
-  const { me, multiCompany } = useApp()
+  const { me, multiCompany, teams } = useApp()
+  const sortName=useNameForSort()
   const [data, setData] = useState<My90Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
@@ -37,6 +40,30 @@ export default function My90() {
   const allRockMilestones=rocks.flatMap(rock=>rock.milestones)
   const completeMilestones=allRockMilestones.filter(milestone=>milestone.done).length
   const lateMilestones=allRockMilestones.filter(milestone=>!milestone.done&&milestone.dueDate&&milestone.dueDate<today).length
+
+  const people=[...Object.values(teams||{}).flat(),me]
+  const milestoneOwner=(m:My90Data['milestones'][number])=>people.find(person=>person.id===(m.milestone.ownerId||me.id))?.name||'Unassigned'
+  const todoTable=useTableColumns(openTodos,[
+    {key:'owner',label:'Owner',kind:'select',value:t=>sortName(t.ownerId,t.ownerName)},
+    {key:'due',label:'Due date',kind:'date',value:t=>t.dueDate},
+    {key:'team',label:'Team',kind:'select',value:t=>t.companyName||'Unassigned'},
+    {key:'title',label:'Action Item',value:t=>t.title},
+  ],'My Action Items')
+  const rockTable=useTableColumns(rocks,[
+    {key:'owner',label:'Owner',kind:'select',value:r=>sortName(r.ownerId,r.ownerName)},
+    {key:'due',label:'Due date',kind:'date',value:r=>r.dueDate},
+    {key:'team',label:'Team',kind:'select',value:r=>r.companyName||'Unassigned'},
+    {key:'title',label:'Rock',value:r=>r.title},
+    {key:'milestones',label:'Milestones',kind:'select',value:r=>r.milestones.length?r.milestones.filter(m=>m.done).length/r.milestones.length:null,options:[{value:'overdue',label:'Has overdue milestones'},{value:'incomplete',label:'Has incomplete milestones'},{value:'complete',label:'All milestones complete'},{value:'none',label:'No milestones'}],matches:(r,filter)=>filter==='none'?r.milestones.length===0:filter==='complete'?r.milestones.length>0&&r.milestones.every(m=>m.done):filter==='overdue'?r.milestones.some(m=>!m.done&&!!m.dueDate&&m.dueDate<today):r.milestones.some(m=>!m.done)},
+    {key:'status',label:'Status',kind:'select',value:r=>({off_track:0,on_track:1,done:2}[r.status]??3),filterValue:r=>r.status,options:[{value:'off_track',label:'Off Track'},{value:'on_track',label:'On Track'},{value:'done',label:'Done'}]},
+  ],'My Rocks')
+  const milestoneTable=useTableColumns(data?.milestones||[],[
+    {key:'owner',label:'Owner',kind:'select',value:m=>sortName(m.milestone.ownerId||me.id,milestoneOwner(m))},
+    {key:'due',label:'Due date',kind:'date',value:m=>m.milestone.dueDate},
+    {key:'team',label:'Team',kind:'select',value:m=>m.companyName||'Unassigned'},
+    {key:'title',label:'Milestone',value:m=>m.milestone.title},
+    {key:'rock',label:'Rock',value:m=>m.rockTitle},
+  ],'My open milestones')
 
   if (!data && !err) return <div className="page"><Loading what="Loading your dashboard" /></div>
 
@@ -79,12 +106,13 @@ export default function My90() {
               <span className="card__end"><Link to="/todos" className="btn btn--sm">All action items</Link></span>
             </div>
             <div className="card__body--flush">
+              {todoTable.summary}
               {openTodos.length === 0 ? (
                 <Empty title="Nothing on your list">Enjoy it, or go solve an issue.</Empty>
               ) : (
                 <div className="dashboard-action-table" role="table" aria-label="My Action Items">
-                  <div className="dashboard-action-row dashboard-action-row--head" role="row"><span/><span role="columnheader">Owner</span><span role="columnheader">Due date</span><span role="columnheader">Team</span><span role="columnheader">Action Item</span></div>
-                  {openTodos.map(todo=><div role="row" key={todo.id} className={'dashboard-action-row'+(todo.dueDate&&todo.dueDate<today?' action-item-row--overdue':'')}>
+                  <div className="dashboard-action-row dashboard-action-row--head" role="row"><span/>{['owner','due','team','title'].map(key=><span key={key} role="columnheader" aria-sort={todoTable.ariaSort(key)}>{todoTable.header(key)}</span>)}</div>
+                  {todoTable.rows.map(todo=><div role="row" key={todo.id} className={'dashboard-action-row'+(todo.dueDate&&todo.dueDate<today?' action-item-row--overdue':'')}>
                     <button className="check" aria-label={`Mark "${todo.title}" done`} onClick={async()=>{try{await setTodoStatus(todo.id,'done',todo.rev);load()}catch(error){setErr((error as Error).message)}}}>✓</button>
                     <span role="cell" className="dashboard-action-owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><PersonName name={todo.ownerName} id={todo.ownerId}/></span>
                     <span role="cell" className={dueClass(todo.dueDate,false)}>{todo.dueDate?fmtDate(todo.dueDate):'—'}</span>
@@ -102,12 +130,13 @@ export default function My90() {
               <span className="card__end"><Link to="/rocks" className="btn btn--sm">All rocks</Link></span>
             </div>
             <div className="card__body--flush">
+              {rockTable.summary}
               {data.rocks.length === 0 ? (
                 <Empty title="You don't own a rock this quarter" />
               ) : (
                 <div className="dashboard-action-table" role="table" aria-label="My Rocks">
-                  <div className="dashboard-action-row dashboard-rock-row dashboard-action-row--head" role="row"><span role="columnheader">Owner</span><span role="columnheader">Due date</span><span role="columnheader">Team</span><span role="columnheader">Rock</span><span role="columnheader">Milestones</span><span role="columnheader">Status</span></div>
-                  {rocks.map(r => (
+                  <div className="dashboard-action-row dashboard-rock-row dashboard-action-row--head" role="row">{['owner','due','team','title','milestones','status'].map(key=><span key={key} role="columnheader" aria-sort={rockTable.ariaSort(key)}>{rockTable.header(key)}</span>)}</div>
+                  {rockTable.rows.map(r => (
                     <div className="dashboard-action-row dashboard-rock-row" role="row" key={r.id}>
                       <span role="cell" className="dashboard-action-owner"><Avatar name={r.ownerName} id={r.ownerId} sm/><PersonName name={r.ownerName} id={r.ownerId}/></span>
                       <span role="cell" className={dueClass(r.dueDate,r.status==='done')}>{r.dueDate?fmtDate(r.dueDate):'—'}</span>
@@ -138,9 +167,9 @@ export default function My90() {
             <div className="card">
               <div className="card__head"><h2>My open milestones</h2></div>
               <div className="card__body--flush">
-                <div className="dashboard-action-table" role="table" aria-label="My open milestones">
-                  <div className="dashboard-action-row dashboard-milestone-row dashboard-action-row--head" role="row"><span/><span role="columnheader">Owner</span><span role="columnheader">Due date</span><span role="columnheader">Team</span><span role="columnheader">Milestone</span><span role="columnheader">Rock</span></div>
-                  {data.milestones.map(m => (
+                {milestoneTable.summary}<div className="dashboard-action-table" role="table" aria-label="My open milestones">
+                  <div className="dashboard-action-row dashboard-milestone-row dashboard-action-row--head" role="row"><span/>{['owner','due','team','title','rock'].map(key=><span key={key} role="columnheader" aria-sort={milestoneTable.ariaSort(key)}>{milestoneTable.header(key)}</span>)}</div>
+                  {milestoneTable.rows.map(m => (
                     <div className="dashboard-action-row dashboard-milestone-row" role="row" key={m.milestone.id}>
                       <button
                         className="check"
@@ -156,7 +185,7 @@ export default function My90() {
                       >
                         ✓
                       </button>
-                      <span role="cell" className="dashboard-action-owner"><Avatar name={me.name} id={m.milestone.ownerId||me.id} sm/><PersonName name={me.name} id={m.milestone.ownerId||me.id}/></span>
+                      <span role="cell" className="dashboard-action-owner"><Avatar name={milestoneOwner(m)} id={m.milestone.ownerId||me.id} sm/><PersonName name={milestoneOwner(m)} id={m.milestone.ownerId||me.id}/></span>
                       <span role="cell" className={dueClass(m.milestone.dueDate,m.milestone.done)}>{m.milestone.dueDate?fmtDate(m.milestone.dueDate):'—'}</span>
                       <span role="cell" className="dashboard-action-team" title={m.companyName}>{m.companyName||'—'}</span>
                       <span role="cell" className="dashboard-action-title" title={m.milestone.title}>{m.milestone.title}</span>

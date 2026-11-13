@@ -18,3 +18,5 @@ describe('company plan and linked priorities',()=>{
  it('rejects forged scopes and mismatched quarter years',()=>{expect(()=>validatePlanRecord('tenk_priority','priority',{...priority,companyId:'other'},context())).toThrow('scope');expect(()=>validatePlanPriority({...priority,quarter:'2027-Q1'},context())).toThrow('quarter');expect(()=>validatePlanPriority({...priority,status:'deleted'},context())).toThrow('status')})
  it('bounds source text and rejects control data',()=>{expect(()=>validateCompanyPlan({...emptyCompanyPlan(2026),sourceText:'x'.repeat(100001)})).toThrow('source text');expect(()=>validatePlanPriority({...priority,title:'bad\u0000title'},context())).toThrow('title')})
 })
+
+it('retains target dates and reads older plans without a date',()=>{const old=emptyCompanyPlan(2026);delete old.threeYearTargetDate;expect(validateCompanyPlan(old).threeYearTargetDate).toBe('');expect(validateCompanyPlan({...old,threeYearTargetDate:'2029-12-31'}).threeYearTargetDate).toBe('2029-12-31');expect(()=>validateCompanyPlan({...old,threeYearTargetDate:'2029-02-29'})).toThrow('target date')})

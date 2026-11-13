@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useState} from 'react'
+import {useCallback,useEffect,useState,useRef} from 'react'
 import {Link} from 'react-router-dom'
 import {useApp} from '../state'
 import {getModuleContext,getModuleHistory,restoreModuleRecord} from '../api'
@@ -7,8 +7,8 @@ import {ErrorBanner,Modal,fmtDate} from '../lib/ui'
 import './modules.css'
 export const newModuleId=(prefix:string)=>`${prefix}_${crypto.randomUUID().replace(/-/g,'')}`
 export function useModuleContext(module:ModuleName,initialCompanyId?:string){
- const {company}=useApp(),[context,setContext]=useState<Awaited<ReturnType<typeof getModuleContext>>|null>(null),[id,setId]=useState(initialCompanyId||company.homeId||company.id),[contextId,setContextId]=useState(''),[error,setError]=useState('')
- const load=useCallback(()=>{let active=true;setContext(null);setError('');getModuleContext(module,id).then(value=>{if(active){setContext(value);setContextId(id)}}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[module,id])
+ const {company}=useApp(),[context,setContext]=useState<Awaited<ReturnType<typeof getModuleContext>>|null>(null),[id,setId]=useState(initialCompanyId||company.homeId||company.id),[contextId,setContextId]=useState(''),[error,setError]=useState(''),generation=useRef(0)
+ const load=useCallback(()=>{let active=true;const token=++generation.current;setContext(null);setError('');getModuleContext(module,id).then(value=>{if(active&&token===generation.current){setContext(value);setContextId(id)}}).catch(e=>{if(active&&token===generation.current)setError(e.message)});return()=>{active=false}},[module,id])
  useEffect(()=>{if(initialCompanyId)setId(initialCompanyId)},[initialCompanyId]);
  useEffect(load,[load]);return {context:contextId===id?context:null,id,setId,error,reload:load}
 }

@@ -12,3 +12,7 @@ export function useMemberDisplay(id?:string,name?:string){
  const profile=directory.profiles[person?.id||id||''],fullName=person?.name||name||''
  return {fullName,photo:directory.enabled?profile?.photo||'':'',displayName:directory.enabled?profileFirstName(fullName,profile?.preferredName||''):fullName,preferredName:profile?.preferredName||'',enabled:directory.enabled}
 }
+export function useNameForSort(){
+ const directory=useContext(MemberProfilesContext)
+ return (id?:string,name?:string)=>{const person=directory.people.find(p=>p.id===id),full=person?.name||name||'';return directory.enabled?profileFirstName(full,directory.profiles[id||'']?.preferredName||''):full}
+}

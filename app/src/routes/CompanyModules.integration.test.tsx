@@ -5,7 +5,7 @@ import {MemoryRouter} from 'react-router-dom'
 import {emptyCompanyPlan,companyPlanId} from '../../../platform/companyPlan'
 import {BHAG} from '../lib/brand'
 const state=vi.hoisted(()=>({current:{} as any}))
-const api=vi.hoisted(()=>({getModuleContext:vi.fn(),listModuleRecords:vi.fn(),saveModuleRecord:vi.fn(),saveAccountabilitySeat:vi.fn(),getRocks:vi.fn(),getIssues:vi.fn(),getScorecard:vi.fn(),resolveModuleLink:vi.fn()}))
+const api=vi.hoisted(()=>({getModuleScopes:vi.fn(),saveModuleScope:vi.fn(),getModuleContext:vi.fn(),listModuleRecords:vi.fn(),saveModuleRecord:vi.fn(),saveAccountabilitySeat:vi.fn(),getRocks:vi.fn(),getIssues:vi.fn(),getScorecard:vi.fn(),resolveModuleLink:vi.fn()}))
 vi.mock('../state',()=>({useApp:()=>state.current}))
 vi.mock('../api',async()=>({...await vi.importActual('../api'),...api}))
 vi.mock('../modules/AccountabilityChart',()=>({default:({seats,onOpen,onMove}:{seats:{id:string;data:{title:string}}[];onOpen:(seat:unknown)=>void;onMove:(id:string,parent:string)=>void})=><div aria-label="Test chart">{seats.map(seat=><button key={seat.id} onClick={()=>onOpen(seat)}>{`Open chart seat ${seat.data.title}`}</button>)}<button onClick={()=>onMove('s1','s2')}>Move test seat to parent</button></div>}))
@@ -19,7 +19,7 @@ const assignments=[{...baseEntity,id:'a1',kind:'tenk_assignment',data:{seatId:'s
 const mount=(node:React.ReactNode)=>render(<MemoryRouter>{node}</MemoryRouter>)
 beforeEach(()=>{
  vi.clearAllMocks();state.current={company:{id:'t1',homeId:'c1',name:'Team A'},companies:[{id:'t1',homeId:'c1',name:'Team A'}],me:{id:'p1',name:'Person A',isAdmin:true}};
- vi.mocked(api.getModuleContext).mockResolvedValue(context);
+ vi.mocked(api.getModuleContext).mockResolvedValue(context);api.getModuleScopes.mockResolvedValue({companies:context.companies,teams:[{id:'t1',name:'Team A',companyId:'c1'}],scope:{...baseEntity,id:'visibility_c1',data:{vision:['t1'],accountability:['t1']}}});
  vi.mocked(api.listModuleRecords).mockResolvedValue({records:[]});
  vi.mocked(api.getRocks).mockResolvedValue({rows:[]});vi.mocked(api.getIssues).mockResolvedValue({rows:[]});vi.mocked(api.getScorecard).mockResolvedValue({rows:[]});
  vi.mocked(api.resolveModuleLink).mockRejectedValue(Error('Not available'));
@@ -109,5 +109,25 @@ it('shows three-year and one-year segments together and aligns quarterly Rocks i
  const cells=within(within(table).getAllByRole('row')[1]).getAllByRole('cell');
  expect(cells[0].textContent).toContain('Person A');expect(cells[1].textContent).toBe('Dec 15');expect(cells[2].textContent).toContain('Off Track');expect(within(cells[3]).getByRole('link',{name:'Quarterly delivery goal'})).toBeTruthy();
  expect(document.querySelectorAll('.vision-ribbon').length).toBe(4);
+ expect(api.saveModuleRecord).not.toHaveBeenCalled();
+});
+
+it('saves the three-year date and annual year with the original revision without changing the quarter',async()=>{
+ const data={...emptyCompanyPlan(2026),mission:'Retain this mission'};const plan={...baseEntity,id:companyPlanId('c1'),kind:'tenk_plan',data};
+ api.getModuleContext.mockResolvedValue({...context,currentQuarter:'2026-Q4'});api.listModuleRecords.mockImplementation(async(_id,kind)=>({records:kind==='tenk_plan'?[plan]:[]}));api.saveModuleRecord.mockImplementation(async fields=>({...plan,data:fields.data,rev:fields.rev+1}));
+ mount(<Vision/>);await screen.findByText('Retain this mission');
+ fireEvent.click(screen.getByRole('button',{name:'Edit 3-year target date'}));const date=screen.getByLabelText('3-year target date');fireEvent.change(date,{target:{value:'2029-12-31'}});fireEvent.blur(date);
+ await waitFor(()=>expect(api.saveModuleRecord).toHaveBeenCalledWith(expect.objectContaining({id:plan.id,rev:4,data:expect.objectContaining({threeYearTargetDate:'2029-12-31',mission:'Retain this mission'})})));
+ await screen.findByRole('button',{name:'Edit 3-year target date'});fireEvent.click(screen.getByRole('button',{name:'Edit 1-year target year'}));const yearField=screen.getByLabelText('1-year target year');fireEvent.change(yearField,{target:{value:'2028'}});fireEvent.blur(yearField);
+ await screen.findByRole('heading',{name:'1-Year Plan · 2028'});expect(screen.getByRole('heading',{name:'This Quarter · 2026-Q4'})).toBeTruthy();expect(api.saveModuleRecord).toHaveBeenLastCalledWith(expect.objectContaining({rev:5,data:expect.objectContaining({year:2028,threeYearTargetDate:'2029-12-31',mission:'Retain this mission'})}));
+});
+it('sorts every quarterly Rock column in both directions without saving records',async()=>{
+ api.getModuleContext.mockResolvedValue({...context,currentQuarter:'2026-Q4'});
+ api.getRocks.mockResolvedValue({rows:[{id:'a',title:'Alpha goal',ownerId:'p1',ownerName:'Zara Example',dueDate:'2026-12-01',status:'on_track',quarterKey:'2026-Q4',milestones:[]},{id:'b',title:'Zulu goal',ownerId:'p2',ownerName:'Alex Example',dueDate:'2026-11-01',status:'off_track',quarterKey:'2026-Q4',milestones:[]}]});
+ mount(<Vision/>);await screen.findByRole('link',{name:'Alpha goal'});const table=within(screen.getByRole('region',{name:'Quarterly Rocks'})).getByRole('table');
+ for(const [name,first] of [['Name','Zulu goal'],['Date','Zulu goal'],['Status','Zulu goal'],['Title','Alpha goal']]){
+  fireEvent.click(within(table).getByRole('button',{name}));expect(within(table).getAllByRole('row')[1].textContent).toContain(first);
+  fireEvent.click(within(table).getByRole('button',{name}));expect(within(table).getAllByRole('row')[1].textContent).not.toContain(first);
+ }
  expect(api.saveModuleRecord).not.toHaveBeenCalled();
 });

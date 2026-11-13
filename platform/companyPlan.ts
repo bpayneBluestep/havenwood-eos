@@ -5,7 +5,7 @@ export interface PlanSection {id:string;title:string;body:string}
 export type PlanTargetUnit='number'|'currency'|'percent'|'text'
 export interface PlanTarget {id:string;label:string;period:string;unit:PlanTargetUnit;value:number|null;currency:string;rawText:string}
 export interface PlanData {
- title:string;year:number;mission:string;purpose:string;values:string[];bhag:string;threeYearVision:string;
+ title:string;year:number;mission:string;purpose:string;values:string[];bhag:string;threeYearVision:string;threeYearTargetDate?:string;
  horizons:PlanSection[];targets:PlanTarget[];extended:PlanSection[];
  swot:{strengths:string[];weaknesses:string[];opportunities:string[];threats:string[]};sourceText:string;
 }
@@ -61,7 +61,7 @@ export function companyPlanId(companyId:string):string {
  return 'plan_'+companyId
 }
 export function emptyCompanyPlan(planYear:number):PlanData {
- return {title:'Company plan',year:year(planYear),mission:'',purpose:'',values:[],bhag:'',threeYearVision:'',horizons:[],targets:[],extended:[],swot:{strengths:[],weaknesses:[],opportunities:[],threats:[]},sourceText:''}
+ return {title:'Company plan',year:year(planYear),mission:'',purpose:'',values:[],bhag:'',threeYearVision:'',threeYearTargetDate:'',horizons:[],targets:[],extended:[],swot:{strengths:[],weaknesses:[],opportunities:[],threats:[]},sourceText:''}
 }
 export function validatePlanTarget(input:unknown):PlanTarget {
  const value=object(input,'target'),unit=value.unit
@@ -84,8 +84,10 @@ function bounded<T>(value:T):T {
 }
 export function validateCompanyPlan(input:unknown):PlanData {
  const value=object(input,'company plan'),swot=object(value.swot===undefined?{}:value.swot,'SWOT')
+ const threeYearTargetDate=text(value.threeYearTargetDate,'three-year target date',10);
+ if(threeYearTargetDate&&!validPlanDate(threeYearTargetDate))throw Error('Use a valid three-year target date.');
  if(value.targets!==undefined&&(!Array.isArray(value.targets)||value.targets.length>100))throw Error('Invalid plan targets.')
- return bounded({title:text(value.title,'plan title',200)||'Company plan',year:year(value.year),mission:text(value.mission,'mission',20000),purpose:text(value.purpose,'purpose',20000),values:texts(value.values,'core values',50),bhag:text(value.bhag,'BHAG',10000),threeYearVision:text(value.threeYearVision,'three-year vision',20000),horizons:sections(value.horizons,'horizon'),targets:unique(((value.targets||[]) as unknown[]).map(validatePlanTarget),'target'),extended:sections(value.extended,'strategy section'),swot:{strengths:texts(swot.strengths,'strengths'),weaknesses:texts(swot.weaknesses,'weaknesses'),opportunities:texts(swot.opportunities,'opportunities'),threats:texts(swot.threats,'threats')},sourceText:text(value.sourceText,'plan source text',100000)})
+ return bounded({title:text(value.title,'plan title',200)||'Company plan',year:year(value.year),mission:text(value.mission,'mission',20000),purpose:text(value.purpose,'purpose',20000),values:texts(value.values,'core values',50),bhag:text(value.bhag,'BHAG',10000),threeYearVision:text(value.threeYearVision,'three-year vision',20000),threeYearTargetDate:threeYearTargetDate,horizons:sections(value.horizons,'horizon'),targets:unique(((value.targets||[]) as unknown[]).map(validatePlanTarget),'target'),extended:sections(value.extended,'strategy section'),swot:{strengths:texts(swot.strengths,'strengths'),weaknesses:texts(swot.weaknesses,'weaknesses'),opportunities:texts(swot.opportunities,'opportunities'),threats:texts(swot.threats,'threats')},sourceText:text(value.sourceText,'plan source text',100000)})
 }
 export function validatePlanPriority(input:unknown,context:PlanValidationContext,priorityId=''):PriorityData {
  const value=object(input,'priority')
