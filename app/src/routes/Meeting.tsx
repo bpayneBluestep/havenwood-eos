@@ -1,6 +1,6 @@
 import LiveMeetings from '../meetings/LiveMeetings'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useLocation } from 'react-router-dom'
 import {
   archiveMeeting, getMeeting, getMeetingOccurrence, markHeadlineRead, saveHeadline, saveIssue,
   saveTodo, setOccurrenceAttendees, setTodoStatus, solveIssue,
@@ -19,10 +19,13 @@ import { MeetingForm, freqLabel } from './Meetings'
  */
 export default function Meeting() {
   const {id=''}=useParams()
+  const query=new URLSearchParams(useLocation().search)
+  const requestedSessionId=query.get('session')||undefined
+  const requestedDate=query.get('date')||''
   const [meeting, setMeeting] = useState<MeetingT | null>(null)
   const [occs, setOccs] = useState<Occurrence[]>([])
   const [roster, setRoster] = useState<Person[]>([])
-  const [date, setDate] = useState<string>('')
+  const [date, setDate] = useState<string>(requestedDate)
   const [occ, setOcc] = useState<MeetingOccurrence | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
@@ -114,7 +117,7 @@ export default function Meeting() {
               ))}
             </div>
           </div>
-          <LiveMeetings key={id+date} companyId={meeting.companyId} fixedMeetingTypeId={meeting.meetingTypeId} meetingId={id} date={date}/>
+          <LiveMeetings key={id+date} companyId={meeting.companyId} fixedMeetingTypeId={meeting.meetingTypeId} meetingId={id} date={date} requestedSessionId={requestedSessionId}/>
           <details className="card"><summary className="card__body">All meeting follow-ups, including earlier dates</summary>
           <TodosCard occ={occ} onChange={loadOcc} onError={setErr} />
           <IssuesCard occ={occ} onChange={loadOcc} onError={setErr} />

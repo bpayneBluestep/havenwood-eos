@@ -1,5 +1,6 @@
 import {compareNames, compareDates, isOverdue} from '../lib/listModel'
 import {useToday} from '../lib/useToday'
+import QuickCreateButtons from '../components/QuickCreateButtons'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getTodos, saveTodo, setTodoStatus } from '../api'
@@ -87,7 +88,7 @@ export default function Todos({embedded=false,companyId}:{embedded?:boolean;comp
           <button className="btn" aria-pressed={showDone} onClick={() => setShowDone(s => !s)}>
             {showDone ? 'Hide done' : 'Show done'}
           </button>
-          <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Action Item</button>
+          <QuickCreateButtons companyId={targetCompanyId} onSaved={load}/>
       </div>
 
       {!rows ? (
@@ -202,9 +203,10 @@ export function TodoRow({
   )
 }
 
-function TodoModal({
-  initial, companyId, team, defaultOwnerId, defaultOwnerName, onClose, onSaved,
+export function TodoModal({
+  initial, companyId, team, defaultOwnerId, defaultOwnerName, onClose, onSaved, teamSelect,
 }: {
+  teamSelect?:React.ReactNode
   initial: Todo | null
   companyId: string
   team: any[]
@@ -251,7 +253,7 @@ function TodoModal({
         </>
       }
     >
-      <ErrorBanner error={err} onDismiss={() => setErr(null)} />
+      <ErrorBanner error={err} onDismiss={() => setErr(null)} />{teamSelect}
       <fieldset className="edit-fields" disabled={readOnly || busy}>
       <div className="field">
         <label htmlFor="t-title">Action Item</label>

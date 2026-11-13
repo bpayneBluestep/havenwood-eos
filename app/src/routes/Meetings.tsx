@@ -1,6 +1,6 @@
 import LiveMeetings from '../meetings/LiveMeetings'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { getMeetings, saveMeeting, getMeetingTypes } from '../api'
 import type { Meeting, MeetingFreq, Person, Recurrence } from '../api'
 import { useApp } from '../state'
@@ -21,6 +21,7 @@ export default function Meetings() {
   const [scheduledOpen,setScheduledOpen]=useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const nav = useNavigate()
+  const requestedSessionId=new URLSearchParams(useLocation().search).get('session')||undefined
 
   const load = useCallback(() => {
     setErr(null)
@@ -49,7 +50,7 @@ export default function Meetings() {
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
-      <LiveMeetings key={company.id} companyId={company.id} onActiveChange={setLiveOpen}/>
+      <LiveMeetings key={company.id} companyId={company.id} onActiveChange={setLiveOpen} requestedSessionId={requestedSessionId}/>
       {scheduledOpen && <Modal title="Scheduled private meetings" onClose={()=>setScheduledOpen(false)}>
       {!rows ? (
         <Loading what="Loading meetings" />

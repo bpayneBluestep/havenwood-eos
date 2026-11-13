@@ -6,10 +6,9 @@ import { getMy90, setTodoStatus, setRockStatus, saveMilestone } from '../api'
 import type { My90 as My90Data } from '../api'
 import { useApp } from '../state'
 import {
-  Avatar, Empty, ErrorBanner, Loading, StatusPill,
+  Avatar, firstLast, Empty, ErrorBanner, Loading, StatusPill,
   cellClass, cellMark, dueClass, fmtDate, fmtGoal, shortPeriod,
 } from '../lib/ui'
-import { TodoRow } from './Todos'
 
 /*
  * My 90 — the personal home page, and the only screen most people open daily.
@@ -83,17 +82,15 @@ export default function My90() {
               {openTodos.length === 0 ? (
                 <Empty title="Nothing on your list">Enjoy it, or go solve an issue.</Empty>
               ) : (
-                <div className="rows">
-                  {openTodos.map(t => (
-                    <TodoRow
-                      key={t.id}
-                      todo={t}
-                      showCompany
-                      onToggle={async () => {
-                        try { await setTodoStatus(t.id, 'done', t.rev); load() } catch (e: any) { setErr(e.message) }
-                      }}
-                    />
-                  ))}
+                <div className="dashboard-action-table" role="table" aria-label="My Action Items">
+                  <div className="dashboard-action-row dashboard-action-row--head" role="row"><span/><span role="columnheader">Owner</span><span role="columnheader">Due date</span><span role="columnheader">Team</span><span role="columnheader">Action Item</span></div>
+                  {openTodos.map(todo=><div role="row" key={todo.id} className={'dashboard-action-row'+(todo.dueDate&&todo.dueDate<today?' action-item-row--overdue':'')}>
+                    <button className="check" aria-label={`Mark "${todo.title}" done`} onClick={async()=>{try{await setTodoStatus(todo.id,'done',todo.rev);load()}catch(error){setErr((error as Error).message)}}}>✓</button>
+                    <span role="cell" className="dashboard-action-owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><span title={todo.ownerName}>{firstLast({name:todo.ownerName})}</span></span>
+                    <span role="cell" className={dueClass(todo.dueDate,false)}>{todo.dueDate?fmtDate(todo.dueDate):'—'}</span>
+                    <span role="cell" className="dashboard-action-team" title={todo.companyName}>{todo.companyName||'—'}</span>
+                    <span role="cell" className="dashboard-action-title" title={todo.title}>{todo.title}</span>
+                  </div>)}
                 </div>
               )}
             </div>

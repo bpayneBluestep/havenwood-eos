@@ -42,3 +42,5 @@ describe('total active time and tangent calls',()=>{
   expect(()=>validateLiveTangent({...session(),status:'ended'},'host',people)).toThrow('ended')
  })
 })
+
+it('lets joined non-hosts end a meeting while keeping timer control host-only',()=>{const people=[{userId:'member',name:'Member',joinedAt:1,rating:null,updatedAt:1}];expect(changeLiveSection(session(),'member','end',6000,undefined,people).status).toBe('ended');expect(()=>changeLiveSection(session(),'member','pause',6000,undefined,people)).toThrow('facilitator');expect(()=>changeLiveSection(session(),'outsider','end',6000,undefined,people)).toThrow('facilitator')})

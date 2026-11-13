@@ -746,3 +746,22 @@ input, select, textarea { font: inherit; color: inherit; }
 .rock-group-toggle::before { content:'+'; }
 .rock-owner-group[open]>summary .rock-group-toggle::before { content:'−'; }
 @media(max-width:700px){.headline-date{flex-basis:48px;font-size:11px}.headline-row{gap:6px}.permanent-headlines>.card__head .sort-control{margin-left:0}}
+
+.dashboard-summaries .card__body { padding:12px 14px; display:grid; grid-template-columns:1fr auto; align-content:start; align-items:center; gap:5px 12px; }
+.dashboard-summaries h2 { font-size:14px; margin:0; }
+.dashboard-summaries .dashboard-summary__value { margin:0; font-size:24px; grid-column:2; grid-row:1 / span 2; }
+.dashboard-summaries p { margin:0; font-size:12px; }
+.dashboard-summaries a { font-size:12px; }
+.dashboard-action-table { overflow:auto; }
+.dashboard-action-row { display:grid; grid-template-columns:20px 150px 110px 150px minmax(250px,1fr); gap:12px; align-items:center; min-width:750px; padding:8px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+.dashboard-action-row--head { color:var(--muted); font-size:11px; }
+.dashboard-action-owner { display:flex; align-items:center; gap:8px; min-width:0; }
+.dashboard-action-owner span:last-child,.dashboard-action-title,.dashboard-action-team { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.quick-create-buttons { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.live-meeting-link { background:none; border:0; display:flex; align-items:center; gap:8px; color:#ff7c8b; font:inherit; padding:9px 14px; cursor:pointer; width:100%; text-align:left; }
+.recording-dot { width:8px; height:8px; background:#ff4058; border-radius:50%; flex-shrink:0; animation:recording 1.5s ease-in-out infinite; }
+.recording-dot--idle { opacity:.4; animation:none; }
+@keyframes recording {50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.recording-dot{animation:none}}
+.meeting-local-view { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; margin-top:5px; }
+.ms__t.rowitem__title-link { text-align:left; font-weight:400; }

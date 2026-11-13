@@ -1,10 +1,11 @@
+import QuickCreateButtons from '../components/QuickCreateButtons'
 import {compareNames, compareDates} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
 import { getHeadlines, saveHeadline, cascadeHeadline } from '../api'
 import type { Headline } from '../api'
 import { useApp } from '../state'
-import { Avatar, Empty, ErrorBanner, Loading, Modal, fmtDate, firstLast } from '../lib/ui'
+import { Avatar, Empty, ErrorBanner, Loading, Modal, OwnerPicker,fmtDate, firstLast } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
 
 /*
@@ -57,7 +58,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
           <button className="btn" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(u => !u)}>
             {unreadOnly ? 'Show all' : `Unread only${unread.length ? ` (${unread.length})` : ''}`}
           </button>
-          <button className="btn btn--primary" onClick={() => {setPermanentNew(false);setAdding(true)}}>+ Headline</button>
+          <QuickCreateButtons companyId={targetCompanyId} onSaved={load}/>
         </div>
       </div>
 
@@ -88,7 +89,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
           <div className="rows">
             {visible.filter(h=>!(h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))).map(h => (
               <div className={'rowitem rowitem--clickable headline-row' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
-                <div className="rowitem__owner"><Avatar name={h.createdByName} id={h.createdByName} sm/><span>{firstLast({name: h.createdByName}) || 'Unassigned'}</span></div>
+                <div className="rowitem__owner"><Avatar name={h.ownerName||h.createdByName} id={h.ownerId||h.createdByName} sm/><span>{firstLast({name: h.ownerName||h.createdByName}) || 'Unassigned'}</span></div>
                 <time className="headline-date muted" dateTime={h.createdAt?.slice(0,10)} title="Publication date">{h.createdAt?fmtDate(h.createdAt.slice(0,10)):'—'}</time>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
@@ -133,6 +134,10 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
 export function HeadlineForm({
   companyId, onDone, onCancel, initial, permanentDefault=false,
 }: { companyId: string; initial?:Headline; permanentDefault?:boolean; onDone: () => void; onCancel?: () => void }) {
+  const {team,teams,me}=useApp()
+  const people=[...new Map(Object.values(teams||{current:team}).flat().map(person=>[person.id,person])).values()]
+  const [ownerId,setOwnerId]=useState(initial?.ownerId||me.id)
+  const [ownerName,setOwnerName]=useState(initial?.ownerName||me.name)
   const [body, setBody] = useState(initial?.body||'')
   const [permanent,setPermanent]=useState(initial?.permanent??permanentDefault)
   const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl||'')
@@ -144,7 +149,7 @@ export function HeadlineForm({
   const submit = async () => {
     if (!body.trim()) { setErr('A headline needs some words.'); return }
     setBusy(true); setErr(null)
-    try { await saveHeadline({ companyId, id:initial?.id,rev:initial?.rev,body: body.trim(), type, permanent,sourceUrl,sourceLabel }); setBody(''); onDone() }
+    try { await saveHeadline({ companyId, id:initial?.id,rev:initial?.rev,body: body.trim(), type, permanent,sourceUrl,sourceLabel,ownerId,ownerName }); setBody(''); onDone() }
     catch (e: any) { setErr(e.message); }
     finally { setBusy(false) }
   }
@@ -168,6 +173,7 @@ export function HeadlineForm({
           <option value="employee">Employee — personnel or personal news</option>
         </select>
       </div>
+      <label className="field">Owner<OwnerPicker team={people} value={ownerId} valueName={ownerName} onChange={(id,name)=>{setOwnerId(id);setOwnerName(name)}}/></label>
       <label className="field"><span><input type="checkbox" checked={permanent} onChange={event=>setPermanent(event.target.checked)}/> Permanent review item</span></label>
       <label className="field">Source URL<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>
       <label className="field">Link button label<input className="input" value={sourceLabel} onChange={event=>setSourceLabel(event.target.value)} maxLength={60}/></label>

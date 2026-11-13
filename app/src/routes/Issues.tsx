@@ -1,3 +1,4 @@
+import QuickCreateButtons from '../components/QuickCreateButtons'
 import IssueTeamPicker from '../components/IssueTeamPicker'
 import {compareNames, compareDates, priorityLabel, priorityLabels} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
@@ -106,7 +107,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
               Archive solved ({solvedCount})
             </button>
           )}
-          <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Issue</button>
+          <QuickCreateButtons companyId={company.id} onSaved={load}/>
         </div>
       </div>
 
@@ -314,9 +315,10 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   </form>
 }
 
-function IssueModal({
-  initial, companyId, team, term, defaultOwnerId, onClose, onSaved,
+export function IssueModal({
+  initial, companyId, team, term, defaultOwnerId, onClose, onSaved, teamSelect,
 }: {
+  teamSelect?:React.ReactNode
   initial: Issue | null
   companyId: string
   team: any[]
@@ -364,7 +366,7 @@ function IssueModal({
         </>
       }
     >
-      <ErrorBanner error={err} onDismiss={() => setErr(null)} />
+      <ErrorBanner error={err} onDismiss={() => setErr(null)} />{teamSelect}
       <div className="field">
         <label htmlFor="i-title">Issue</label>
         <input id="i-title" className="input" value={title} autoFocus onChange={e => setTitle(e.target.value)} />

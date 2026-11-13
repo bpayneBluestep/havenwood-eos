@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState, useId } from 'react'
 import {createPortal} from 'react-dom'
 import type { ReactNode } from 'react'
 import type { CellStatus, Goal, Person } from '../api'
-import { searchStaff } from '../api'
 import { useApp } from '../state'
 
 /* ------------------------------------------------------------------ format */
@@ -279,23 +278,17 @@ export function OwnerPicker({
   valueName?: string
   onChange: (id: string, name: string) => void
 }) {
-  const { company } = useApp()
+  const { teams } = useApp()
+  team=[...new Map([...team,...Object.values(teams||{}).flat()].map(person=>[person.id,person])).values()]
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<Person[] | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (q.trim().length < 2) { setHits(null); return }
-    let live = true
-    setBusy(true)
-    const t = setTimeout(() => {
-      searchStaff(q.trim(), company.id)
-        .then(r => { if (live) setHits(r.rows) })
-        .catch(() => { if (live) setHits([]) })
-        .finally(() => { if (live) setBusy(false) })
-    }, 250)
-    return () => { live = false; clearTimeout(t) }
-  }, [q, company.id])
+    if(q.trim().length<2){setHits(null);return}
+    const words=q.toLowerCase().trim().split(/\s+/)
+    setHits(team.filter(person=>words.every(word=>person.name.toLowerCase().includes(word))).slice(0,50));setBusy(false)
+  },[q,teams])
 
   const inTeam = team.some(p => p.id === value)
 

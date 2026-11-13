@@ -2,7 +2,7 @@ export interface LiveSection {id:string;label:string;minutes:number;spentMs:numb
 export interface LiveSession {teamContent?:boolean;previousSessionId?:string;supersededBy?:string;meetingTypeId?:string;meetingTypeName?:string;id:string;title:string;companyId:string;meetingId:string;date:string;hostId:string;hostName:string;status:'running'|'paused'|'ended';activeIndex:number;activeStartedAt:number|null;startedAt:number;endedAt:number|null;sections:LiveSection[];rev:number}
 export interface LiveParticipant {userId:string;name:string;joinedAt:number;rating:number|null;updatedAt:number}
 export interface LiveTangent {id:string;userId:string;name:string;calledAt:number}
-export interface LiveSessionView extends LiveSession {tangents?:LiveTangent[];participants:LiveParticipant[];joined:boolean;canControl:boolean;serverNow:number}
+export interface LiveSessionView extends LiveSession {tangents?:LiveTangent[];participants:LiveParticipant[];joined:boolean;canControl:boolean;canEnd?:boolean;serverNow:number}
 export const defaultLiveSections=():LiveSection[]=>[
  {id:'segue',label:'Segue',minutes:5,spentMs:0},
  {id:'headlines',label:'Headlines',minutes:5,spentMs:0},
@@ -20,8 +20,8 @@ export function validateLiveTangent(session:LiveSession,actorId:string,participa
  if(!participants.some(person=>person.userId===actorId))throw new Error('Join this meeting before calling a tangent.')
  if(session.status==='ended')throw new Error('This meeting has ended.')
 }
-export function changeLiveSection(session:LiveSession,actorId:string,command:string,now:number,index?:number):LiveSession {
- if(actorId!==session.hostId)throw new Error('Only the facilitator can control the meeting timer.')
+export function changeLiveSection(session:LiveSession,actorId:string,command:string,now:number,index?:number,participants:LiveParticipant[]=[]):LiveSession {
+ if(actorId!==session.hostId&&!(command==='end'&&participants.some(person=>person.userId===actorId)))throw new Error('Only the facilitator can control the meeting timer. Joined participants may end the meeting.')
  if(session.status==='ended')throw new Error('This meeting has ended.')
  const result={...session,sections:session.sections.map(section=>({...section})),rev:session.rev+1}
  function settle(){result.sections[result.activeIndex].spentMs=liveSectionMs(session,session.activeIndex,now);result.activeStartedAt=null}

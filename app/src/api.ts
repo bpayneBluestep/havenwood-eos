@@ -657,3 +657,6 @@ export const liveSessionAction = (fields:Record<string,unknown>):Promise<import(
 export const getMeetingTypes=(companyId:string):Promise<import('../../platform/meetingTypes').MeetingTypeCatalog>=>get('meetingTypes',{companyId})
 export const adminMeetingTypes=(teamId:string):Promise<import('../../platform/meetingTypes').MeetingTypeCatalog>=>get('adminMeetingTypes',{teamId})
 export const adminSaveMeetingTypes=(teamId:string,catalog:import('../../platform/meetingTypes').MeetingTypeCatalog):Promise<import('../../platform/meetingTypes').MeetingTypeCatalog>=>post('adminSaveMeetingTypes',{teamId,...catalog})
+
+export interface LiveMeetingListing {companyId:string;companyName:string;sessionId:string;title:string;meetingId:string;date:string;joined:boolean}
+export const getLiveMeetingDirectory=():Promise<{rows:LiveMeetingListing[]}>=>get('liveMeetingDirectory',{})

@@ -11,6 +11,7 @@ import Headlines from './routes/Headlines'
 import Meetings from './routes/Meetings'
 import Meeting from './routes/Meeting'
 import Admin from './routes/Admin'
+import LiveMeetingLink from './components/LiveMeetingLink'
 import MyNotifications from './routes/MyNotifications'
 import NotFound from './routes/NotFound'
 
@@ -79,6 +80,7 @@ function Shell() {
             </NavLink>
           ))}
 
+          <LiveMeetingLink/>
           <div id="live-meeting-sidebar" />
 
           <NavLink to="/my-notifications"><span className="nav__ico" aria-hidden="true">♧</span>My Notifications</NavLink>

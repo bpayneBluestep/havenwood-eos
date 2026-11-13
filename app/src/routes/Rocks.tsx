@@ -1,3 +1,4 @@
+import MilestoneEditor from '../rocks/MilestoneEditor'
 import MilestoneTasks from '../rocks/MilestoneTasks'
 import {groupRocks, rockStatus} from '../rocks/model'
 import MilestoneDate from '../rocks/MilestoneDate'
@@ -210,6 +211,7 @@ function RockRow({
   const [busy, setBusy] = useState(false)
   const { team, me, milestoneWorkflow } = useApp()
   const [adding, setAdding] = useState(false)
+  const [editingMilestone,setEditingMilestone]=useState<Milestone|null>(null)
 
   const done = rock.milestones.filter(m => m.done).length
   const overdueOpen = rock.milestones.filter(m => !m.done && m.dueDate && m.dueDate < plusDaysIso(0)).length
@@ -339,7 +341,7 @@ function RockRow({
             </div>
           )}
 
-          {milestoneWorkflow && <MilestoneTasks rock={rock} people={team} enabled={milestoneWorkflow} busy={busy} onDueDate={updateDueDate} onStatus={updateMs} onRemove={async m=>{
+          {milestoneWorkflow && <MilestoneTasks rock={rock} people={team} enabled={milestoneWorkflow} busy={busy} onDueDate={updateDueDate} onEdit={setEditingMilestone} onStatus={updateMs} onRemove={async m=>{
             if(!confirm(`Remove milestone "${m.title}"?`))return
             setBusy(true)
             try{await saveMilestone(rock.id,{id:m.id,remove:true},rock.rev);onChanged()}catch(e:any){onError(e.message)}finally{setBusy(false)}
@@ -354,7 +356,7 @@ function RockRow({
               >
                 ✓
               </button>
-              <span className="ms__t">{m.title}</span>
+              <button type="button" className="ms__t rowitem__title-link" disabled={busy||rock.readOnly} onClick={()=>setEditingMilestone(m)} aria-label={`Edit milestone ${m.title}`}>{m.title}</button>
               <MilestoneDate item={m} disabled={busy || rock.readOnly} onSave={dueDate => updateDueDate(m, dueDate)}/>
               {!rock.readOnly && <button
                 className="btn btn--sm btn--ghost btn--danger"
@@ -371,6 +373,7 @@ function RockRow({
           ))}
 
 
+          {editingMilestone&&<MilestoneEditor rock={rock} item={editingMilestone} people={team} onClose={()=>setEditingMilestone(null)} onSaved={()=>{setEditingMilestone(null);onChanged()}}/>}
           {adding ? (
             <MilestoneAdd
               rock={rock}
