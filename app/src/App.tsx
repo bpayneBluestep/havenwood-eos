@@ -11,6 +11,7 @@ import Headlines from './routes/Headlines'
 import Meetings from './routes/Meetings'
 import Meeting from './routes/Meeting'
 import Admin from './routes/Admin'
+import MyNotifications from './routes/MyNotifications'
 import NotFound from './routes/NotFound'
 
 /*
@@ -44,7 +45,7 @@ function Shell() {
 
   const title =
     [...NAV, ...MEETING].find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))?.label ||
-    (loc.pathname.startsWith('/admin') ? 'Admin' : 'Traction')
+    (loc.pathname.startsWith('/my-notifications') ? 'My Notifications' : loc.pathname.startsWith('/admin') ? 'Admin' : 'Traction')
 
   // Company teams first, then the teams admins made on top of them.
   const companyTeams = companies.filter(c => (c.kind || 'company') === 'company')
@@ -80,6 +81,7 @@ function Shell() {
 
           <div id="live-meeting-sidebar" />
 
+          <NavLink to="/my-notifications"><span className="nav__ico" aria-hidden="true">♧</span>My Notifications</NavLink>
           {/* Admin (teams, people, settings, audit) is for the three hard-coded
               EOS admins only (ticket #269). The endpoint refuses everyone else;
               hiding it here just keeps it out of their way. */}
@@ -159,6 +161,7 @@ function Shell() {
           <Route path="/rocks" element={<Rocks />} />
           <Route path="/issues" element={<Issues />} />
           <Route path="/todos" element={<Todos />} />
+          <Route path="/my-notifications" element={<MyNotifications />} />
           <Route path="/headlines" element={<Headlines />} />
           <Route path="/l10" element={<Navigate to="/meetings" replace />} />
           <Route path="/meetings" element={<Meetings />} />

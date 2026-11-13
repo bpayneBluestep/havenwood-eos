@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { adminAudit, adminOverview, adminPeople, adminSaveTeam, adminSetMembership, adminTeam } from '../api'
 import type { AdminMember, AdminPerson, AdminTeam, AuditRow } from '../api'
 import { Avatar, Empty, ErrorBanner, Loading, Modal, firstLast } from '../lib/ui'
+import MyNotifications from './MyNotifications'
 import SettingsForm from './Settings'
 import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
 
@@ -15,7 +16,7 @@ import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
  * themselves to the team. Every change lands in the audit log.
  */
 
-type Tab = 'teams' | 'people' | 'settings' | 'agendas' | 'audit'
+type Tab = 'teams' | 'people' | 'settings' | 'agendas' | 'notifications' | 'audit'
 
 interface Overview { teams: AdminTeam[]; companies: { id: string; name: string }[]; admins: { id: string; name: string }[]; reach: string }
 
@@ -48,9 +49,9 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
         </div>
         <div className="page__actions">
           <div className="seg" role="group" aria-label="Admin section">
-            {(['teams', 'people', 'settings', 'agendas', 'audit'] as Tab[]).map(t => (
+            {(['teams', 'people', 'settings', 'agendas', 'notifications', 'audit'] as Tab[]).map(t => (
               <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
-                {t==='agendas'?'Meeting types':t[0].toUpperCase() + t.slice(1)}
+                {t==='notifications'?'My Notifications':t==='agendas'?'Meeting types':t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
           </div>
@@ -59,7 +60,8 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
-      {!ov ? <Loading what="Loading teams" /> : (
+      {tab==='notifications'&&<MyNotifications embedded/>}
+      {tab==='notifications'?null:!ov ? <Loading what="Loading teams" /> : (
         <>
           {tab === 'teams' && <TeamsTab ov={ov} onChanged={changed} onError={setErr} />}
           {tab === 'people' && <PeopleTab ov={ov} onChanged={changed} onError={setErr} />}
