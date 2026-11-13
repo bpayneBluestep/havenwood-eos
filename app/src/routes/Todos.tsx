@@ -60,7 +60,12 @@ export default function Todos() {
             Seven-day commitments. If it takes longer than that, it wants to be a Rock.
           </div>
         </div>
-        <div className="page__actions">
+
+      </div>
+
+      <ErrorBanner error={err} onDismiss={() => setErr(null)} />
+
+      <div className="list-toolbar action-item-toolbar" aria-label="Action item filters and sorting"><div className="seg" role="group" aria-label="Sort action items">{[{key:'due',reverse:'due-desc',label:'Date'},{key:'owner',reverse:'owner-desc',label:'Name'}].map(option=><button type="button" key={option.key} aria-pressed={sort===option.key||sort===option.reverse} title={option.key==='due'?(sort==='due-desc'?'Latest due date first':'Earliest due date first'):(sort==='owner-desc'?'Owner Z–A':'Owner A–Z')} onClick={()=>setSort(current=>current===option.key?option.reverse:option.key)}>{option.label}{(sort===option.key||sort===option.reverse)&&<span aria-hidden="true"> {sort===option.key?'↑':'↓'}</span>}</button>)}</div>
           <div className="seg" role="group" aria-label="Scope">
             <button aria-pressed={!mine} onClick={() => setMine(false)}>Team</button>
             <button aria-pressed={mine} onClick={() => setMine(true)}>Mine</button>
@@ -70,12 +75,7 @@ export default function Todos() {
             {showDone ? 'Hide done' : 'Show done'}
           </button>
           <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Action Item</button>
-        </div>
       </div>
-
-      <ErrorBanner error={err} onDismiss={() => setErr(null)} />
-
-      <div className="list-toolbar"><div className="seg" role="group" aria-label="Sort action items">{[{key:'due',reverse:'due-desc',label:'Date'},{key:'owner',reverse:'owner-desc',label:'Name'}].map(option=><button type="button" key={option.key} aria-pressed={sort===option.key||sort===option.reverse} title={option.key==='due'?(sort==='due-desc'?'Latest due date first':'Earliest due date first'):(sort==='owner-desc'?'Owner Z–A':'Owner A–Z')} onClick={()=>setSort(current=>current===option.key?option.reverse:option.key)}>{option.label}{(sort===option.key||sort===option.reverse)&&<span aria-hidden="true"> {sort===option.key?'↑':'↓'}</span>}</button>)}</div></div>
 
       {!rows ? (
         <Loading what="Loading action items" />
@@ -143,9 +143,11 @@ export function TodoRow({
   onDrop?: () => void
   showCompany?: boolean
 }) {
+  const today = useToday()
+  const overdue = isOverdue(todo,today)
   const isDone = todo.status === 'done'
   return (
-    <div className={'rowitem action-item-row' + (isDone ? ' rowitem--done' : '')}>
+    <div className={'rowitem action-item-row' + (overdue ? ' action-item-row--overdue' : '') + (isDone ? ' rowitem--done' : '')}>
       <button
         className={'check' + (isDone ? ' check--on' : '')}
         disabled={todo.readOnly} onClick={onToggle}

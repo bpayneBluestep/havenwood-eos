@@ -660,3 +660,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .issue-priority__error { display:block; width:180px; margin-top:5px; color:var(--red); font-size:12px; }
 
 .action-item-row .rowitem__title, .action-item-row .rowitem__title-link {font-weight:400;}
+
+.action-item-row--overdue { background:color-mix(in srgb, var(--red-bg) 65%, var(--panel)); }
+.action-item-row--overdue:hover { background:var(--red-bg); }
+.action-item-toolbar > .btn--primary { margin-left:auto; }
