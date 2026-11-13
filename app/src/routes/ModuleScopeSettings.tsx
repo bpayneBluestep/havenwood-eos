@@ -1,0 +1,14 @@
+import {useEffect,useState} from 'react'
+import {getModuleScopes,saveModuleScope} from '../api'
+import type {ModuleScopeReply} from '../api'
+import type {ModuleVisibility} from '../../../platform/companyModules'
+import {ErrorBanner} from '../lib/ui'
+import './moduleScope.css'
+
+export default function ModuleScopeSettings(){
+ const [reply,setReply]=useState<ModuleScopeReply>(),[companyId,setCompanyId]=useState(''),[visibility,setVisibility]=useState<ModuleVisibility>({vision:[],accountability:[]}),[rev,setRev]=useState(0),[error,setError]=useState(''),[busy,setBusy]=useState(false),[saved,setSaved]=useState(false)
+ useEffect(()=>{let active=true;setBusy(true);setError('');getModuleScopes(companyId||undefined).then(data=>{if(!active)return;setReply(data);setVisibility(data.scope?.data as unknown as ModuleVisibility||{vision:[],accountability:[]});setRev(data.scope?.rev||0);setSaved(false)}).catch(e=>{if(active)setError(String(e.message||e))}).finally(()=>{if(active)setBusy(false)});return()=>{active=false}},[companyId])
+ const toggle=(module:keyof ModuleVisibility,id:string)=>{setSaved(false);setVisibility(current=>({...current,[module]:current[module].includes(id)?current[module].filter(t=>t!==id):[...current[module],id]}))}
+ async function save(){setBusy(true);setError('');try{const result=await saveModuleScope(companyId,visibility,rev);setRev(result.rev);setSaved(true)}catch(e){setError(String((e as Error).message||e))}finally{setBusy(false)}}
+ return <section className="card module-scopes" aria-label="Company module visibility"><div className="card__body"><h3>Company module visibility</h3><p className="muted">Select the teams that can read each company module. This does not change team membership. Administrators need the same scope access to read or edit content.</p><ErrorBanner error={error}/><label>Company<select className="select" value={companyId} disabled={busy} onChange={e=>setCompanyId(e.target.value)}><option value="">Select a company</option>{reply?.companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{companyId&&<><div className="module-scopes__groups">{(['vision','accountability'] as const).map(module=><fieldset key={module} disabled={busy}><legend>{module==='vision'?'Vision & Plan':'Accountability Chart'}</legend>{reply?.teams.filter(t=>t.companyId===companyId).map(team=><label key={team.id}><input type="checkbox" checked={visibility[module].includes(team.id)} onChange={()=>toggle(module,team.id)}/>{team.name}</label>)}{!visibility[module].length&&<p className="muted">No teams selected. Content is restricted.</p>}</fieldset>)}</div><button className="btn btn--primary" disabled={busy} onClick={save}>{busy?'Saving…':'Save visibility'}</button><span role="status">{saved?'Visibility saved.':''}</span></>}<p className="muted">Module pages will be enabled in a later release. This screen returns access settings only.</p></div></section>
+}

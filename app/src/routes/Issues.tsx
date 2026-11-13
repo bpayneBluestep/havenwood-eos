@@ -375,7 +375,7 @@ export function IssueModal({
         <label htmlFor="i-desc">Context <span className="faint">(optional)</span></label>
         <textarea id="i-desc" className="textarea" value={description} onChange={e => setDescription(e.target.value)} />
       </div>
-      <div className="row3">
+      <div className="row3 issue-form-options">
         <div className="field">
           <label htmlFor="i-term">List</label>
           <select id="i-term" className="select" value={issueTerm} onChange={e => setIssueTerm(e.target.value as any)}>

@@ -43,7 +43,7 @@ export default function App() {
 }
 
 function Shell() {
-  const { me, company, companies, multiCompany, setCompanyId, reload } = useApp()
+  const { me, company, companies, multiCompany, setCompanyId, reload, branding } = useApp()
   const loc = useLocation()
 
   const title =
@@ -59,10 +59,10 @@ function Shell() {
     <div className="shell">
       <nav className="nav" aria-label="Tools">
         <div className="nav__brand">
-          <span className="nav__mark" aria-hidden="true">10K</span>
+          <span className="nav__mark" aria-hidden="true">{branding?.logo?<img src={branding.logo} alt=""/>:'10K'}</span>
           <span>
             <div className="nav__name" title={BHAG} tabIndex={0}>TenK</div>
-            <div className="nav__sub">Crisis to Capability</div>
+            <div className="nav__sub">from crisis to capability</div>
           </span>
         </div>
 

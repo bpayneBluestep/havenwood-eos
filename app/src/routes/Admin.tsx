@@ -5,6 +5,8 @@ import { Avatar, Empty, ErrorBanner, Loading, Modal, firstLast } from '../lib/ui
 import {MemberProfileEditor} from './MyProfile'
 import MyNotifications from './MyNotifications'
 import SettingsForm from './Settings'
+import ModuleScopeSettings from './ModuleScopeSettings'
+import BrandingSettings from './BrandingSettings'
 import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
 
 /*
@@ -490,6 +492,7 @@ function SettingsTab({ ov, onChanged }: { ov: Overview; onChanged: () => void })
         </div>
       </div>
       <SettingsForm team={team} onSaved={onChanged} />
+      <BrandingSettings onSaved={onChanged}/><ModuleScopeSettings/>
     </>
   )
 }

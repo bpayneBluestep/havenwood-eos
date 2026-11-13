@@ -2,7 +2,7 @@ import QuickCreateButtons from '../components/QuickCreateButtons'
 import {compareNames, compareDates} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useState } from 'react'
-import { getHeadlines, saveHeadline, cascadeHeadline } from '../api'
+import { getHeadlines, saveHeadline, cascadeHeadline, markHeadlineRead } from '../api'
 import type { Headline } from '../api'
 import { useApp } from '../state'
 import { Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker,fmtDate } from '../lib/ui'
@@ -18,7 +18,7 @@ import { DropToIssueModal } from '../components/DropToIssue'
 export default function Headlines({embedded=false,companyId}:{embedded?:boolean;companyId?:string}) {
   const { company,companies } = useApp()
   const targetCompanyId=companyId||company.id
-  const [unreadOnly, setUnreadOnly] = useState(embedded)
+  const [unreadOnly, setUnreadOnly] = useState(false)
   const [rows, setRows] = useState<Headline[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -26,6 +26,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
   const [cascadeFor,setCascadeFor]=useState<Headline|null>(null)
   const [targetTeam,setTargetTeam]=useState('')
   const [busy,setBusy]=useState(false)
+  const [savingIds,setSavingIds]=useState<Record<string,boolean>>({})
   const [checked,setChecked]=useState<Record<string,boolean>>({})
   const [editing,setEditing]=useState<Headline|null>(null)
   const [detail, setDetail] = useState<Headline | null>(null)
@@ -65,16 +66,16 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
       <section className="card permanent-headlines" aria-label="Permanent headlines">
-        <div className="card__head"><h2>Permanent headlines</h2><label className="sort-control">Sort permanent headlines<select className="select" value={permanentSort} onChange={event=>setPermanentSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label><button className="btn btn--sm" onClick={()=>{setPermanentNew(true);setAdding(true)}}>+ Permanent headline</button></div>
+        <div className="card__head headline-ribbon"><h2>Permanent headlines</h2><label className="sort-control">Sort permanent headlines<select className="select" value={permanentSort} onChange={event=>setPermanentSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label><button className="btn btn--sm" onClick={()=>{setPermanentNew(true);setAdding(true)}}>+ Permanent headline</button></div>
         {permanentRows.map(h=><div className="permanent-headline" key={h.id}>
           <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={event=>setChecked({...checked,[h.id]:event.target.checked})}/>
           <button className="rowitem__title-link" title={h.body} onClick={()=>setDetail(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
-          {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{h.sourceLabel||'Open source'}</a>}
+          {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{(!h.sourceLabel||h.sourceLabel==='Open source')?'Open link':h.sourceLabel}</a>}
           <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button><button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>
         </div>)}
         {rows&&!rows.some(h=>h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))&&<p className="muted">Add recurring review items and source links here.</p>}
       </section>
-      <h2>New headlines</h2>
+      <div className="card__head headline-ribbon headline-new-ribbon"><h2>New headlines</h2></div>
       {!rows ? (
         <Loading what="Loading headlines" />
       ) : rows.length === 0 ? (
@@ -89,15 +90,16 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
           <div className="rows">
             {visible.filter(h=>!(h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))).map(h => (
               <div className={'rowitem rowitem--clickable headline-row' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
+                <input type="checkbox" aria-label={`Complete headline: ${h.body}`} checked={!!h.readDate} disabled={!!savingIds[h.id]||h.readOnly} onClick={event=>event.stopPropagation()} onChange={async event=>{
+                  const complete=event.target.checked;setSavingIds(ids=>({...ids,[h.id]:true}));
+                  try{const result=await markHeadlineRead([h.id],!complete);if(result.marked!==1)throw Error('Headline was not updated. Reload and try again.');setRows(items=>items?.map(item=>item.id===h.id?{...item,readDate:complete?new Date().toISOString().slice(0,10):null}:item)||null)}catch(error:any){setErr(error.message)}finally{setSavingIds(ids=>({...ids,[h.id]:false}))}
+                }}/>
                 <div className="rowitem__owner"><Avatar name={h.ownerName||h.createdByName} id={h.ownerId||h.createdByName} sm/><PersonName name={h.ownerName||h.createdByName} id={h.ownerId}/></div>
                 <time className="headline-date muted" dateTime={h.createdAt?.slice(0,10)} title="Publication date">{h.createdAt?fmtDate(h.createdAt.slice(0,10)):'—'}</time>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
                     <button type="button" className="rowitem__title-link headline-preview" aria-label={`Open headline: ${h.body.slice(0, 120)}`} onClick={event => {event.stopPropagation(); setDetail(h)}}>{h.body.split(/\r?\n/)[0].slice(0, 140)}{h.body.length > 140 || h.body.includes('\n') ? '…' : ''}</button><FollowupContext hideOwner item={h}/>
-                    <span className={'pill ' + (h.type === 'customer' ? 'pill--green' : 'pill--muted')}>
-                      <span className="pill__glyph" aria-hidden="true">{h.type === 'customer' ? '★' : '◆'}</span>
-                      {h.type}
-                    </span>
+
                   </div>
 
                 </div>
@@ -111,7 +113,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         </div>
       )}
 
-      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted"><PersonName name={detail.createdByName}/>{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{detail.sourceLabel||'Open source'}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
+      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted"><PersonName name={detail.createdByName}/>{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{(!detail.sourceLabel||detail.sourceLabel==='Open source')?'Open link':detail.sourceLabel}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
       {editing&&<Modal title="Edit headline" onClose={()=>setEditing(null)}><HeadlineForm companyId={targetCompanyId} initial={editing} onDone={()=>{setEditing(null);load()}} onCancel={()=>setEditing(null)}/></Modal>}
       {cascadeFor&&<Modal title="Cascade headline" onClose={()=>setCascadeFor(null)}><p>Publish a separate copy to another team.</p><label className="field">Team<select className="select" value={targetTeam} onChange={event=>setTargetTeam(event.target.value)}><option value="">Select a team</option>{companies.filter(team=>team.id!==targetCompanyId).map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><button className="btn btn--primary" disabled={!targetTeam||busy} onClick={async()=>{setBusy(true);try{await cascadeHeadline(cascadeFor.id,targetTeam);setCascadeFor(null)}catch(error:any){setErr(error.message)}finally{setBusy(false)}}}>{busy?'Publishing…':'Publish headline'}</button></Modal>}
       {adding && (
@@ -141,8 +143,8 @@ export function HeadlineForm({
   const [body, setBody] = useState(initial?.body||'')
   const [permanent,setPermanent]=useState(initial?.permanent??permanentDefault)
   const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl||'')
-  const [sourceLabel,setSourceLabel]=useState(initial?.sourceLabel||'Open source')
-  const [type, setType] = useState<'customer' | 'employee'>(initial?.type||'customer')
+  const [sourceLabel,setSourceLabel]=useState(!initial?.sourceLabel||initial.sourceLabel==='Open source'?'Open link':initial.sourceLabel)
+  const type = initial?.type||'customer'
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -165,13 +167,6 @@ export function HeadlineForm({
           placeholder="Two families completed the parent workshop and asked to co-lead the next one."
         />
         <div className="field__hint">One or two sentences. If it needs discussion, make it an Issue.</div>
-      </div>
-      <div className="field">
-        <label htmlFor="h-type">Kind</label>
-        <select id="h-type" className="select" value={type} onChange={e => setType(e.target.value as any)}>
-          <option value="customer">Customer — a win, a loss, feedback</option>
-          <option value="employee">Employee — personnel or personal news</option>
-        </select>
       </div>
       <label className="field">Owner<OwnerPicker team={people} value={ownerId} valueName={ownerName} onChange={(id,name)=>{setOwnerId(id);setOwnerName(name)}}/></label>
       <label className="field"><span><input type="checkbox" checked={permanent} onChange={event=>setPermanent(event.target.checked)}/> Permanent review item</span></label>

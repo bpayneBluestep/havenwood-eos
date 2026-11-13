@@ -147,8 +147,9 @@ export interface CompanyBrief {
 export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
 
 export interface Bootstrap {
+  branding?:{logo:string;rev:number}
   memberProfiles?:Record<string,import('../../platform/memberProfile').MemberProfile>
-  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number;liveMeetings?:number;memberProfiles?:number}
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number;liveMeetings?:number;memberProfiles?:number;companyModules?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -665,3 +666,16 @@ export const getLiveMeetingDirectory=():Promise<{rows:LiveMeetingListing[]}>=>ge
 export interface MemberProfileReply {personId:string;fullName:string;profile:import('../../platform/memberProfile').MemberProfile}
 export const getMemberProfile=(personId?:string):Promise<MemberProfileReply>=>get(personId?'adminMemberProfile':'myProfile',personId?{personId}:{})
 export const saveMemberProfile=(profile:{preferredName:string;photo:string;rev:number},personId?:string):Promise<MemberProfileReply>=>post(personId?'adminSaveMemberProfile':'saveMyProfile',{...profile,...(personId?{personId}:{})})
+
+
+// Additive foundation. Domain pages remain gated until their own task is complete.
+export interface ModuleScopeReply {companies:{id:string;name:string}[];teams:{id:string;name:string;companyId:string}[];scope:import('../../platform/companyModules').ModuleEntity|null}
+export const getModuleScopes=(scopeCompanyId?:string):Promise<ModuleScopeReply>=>get('moduleScopes',scopeCompanyId?{scopeCompanyId}:{})
+export const saveModuleScope=(scopeCompanyId:string,visibility:import('../../platform/companyModules').ModuleVisibility,rev:number):Promise<import('../../platform/companyModules').ModuleEntity>=>post('saveModuleScope',{scopeCompanyId,visibility,rev})
+export const listModuleRecords=(scopeCompanyId:string,kind:import('../../platform/companyModules').ModuleKind):Promise<{records:import('../../platform/companyModules').ModuleEntity[]}>=>get('moduleList',{scopeCompanyId,kind})
+export const getModuleHistory=(scopeCompanyId:string,kind:import('../../platform/companyModules').ModuleKind,id:string):Promise<{records:import('../../platform/companyModules').ModuleEntity[]}>=>get('moduleHistory',{scopeCompanyId,kind,id})
+export const saveModuleRecord=(record:{scopeCompanyId:string;kind:import('../../platform/companyModules').ModuleKind;id:string;data:Record<string,unknown>;rev:number;archived?:boolean}):Promise<import('../../platform/companyModules').ModuleEntity>=>post('saveModuleRecord',record)
+export const restoreModuleRecord=(record:{scopeCompanyId:string;kind:import('../../platform/companyModules').ModuleKind;id:string;historyId:string;rev:number}):Promise<import('../../platform/companyModules').ModuleEntity>=>post('restoreModuleRecord',record)
+
+export const getToolBranding=():Promise<{logo:string;rev:number}>=>post('toolBranding',{})
+export const saveToolBranding=(logo:string,rev:number):Promise<{logo:string;rev:number}>=>post('saveToolBranding',{logo,rev})

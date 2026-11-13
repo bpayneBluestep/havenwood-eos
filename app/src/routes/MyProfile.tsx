@@ -6,7 +6,7 @@ import {useApp} from '../state'
 import {ErrorBanner,Loading} from '../lib/ui'
 import {validateProfilePhoto} from '../../../platform/memberProfile'
 
-async function thumbnail(file:File):Promise<string>{
+export async function thumbnail(file:File):Promise<string>{
  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Choose a JPEG, PNG, or WebP photo.')
  if(file.size>5*1024*1024)throw new Error('Choose a photo smaller than 5 MB.')
  const url=URL.createObjectURL(file)

@@ -780,3 +780,16 @@ input, select, textarea { font: inherit; color: inherit; }
 .dashboard-scorecard .cell__in { min-height:20px; padding:0; font-size:13px; }
 .dashboard-scorecard-team { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dashboard-scorecard-goal { white-space:nowrap; }
+
+.headline-row .rowitem__title,.headline-row .headline-preview { font-size:13px; font-weight:400; }
+.headline-row.rowitem--done .rowitem__main,.headline-row.rowitem--done .headline-date { color:var(--muted); opacity:.65; }
+.headline-ribbon { background:var(--accent); color:#fff; }
+.headline-ribbon .sort-control { color:#fff; }
+.headline-new-ribbon { margin-top:16px; border-radius:var(--radius) var(--radius) 0 0; }
+.headline-new-ribbon + .card { margin-top:0; }
+.issue-form-options > .field > label { display:flex; align-items:flex-end; min-height:34px; }
+.issue-form-options > .field { margin-top:0; }
+
+.nav__mark img { width:100%;height:100%;object-fit:contain;border-radius:5px; }
+.nav__sub { text-transform:none;letter-spacing:.04em;font-size:9px; }
+.tool-logo-preview { margin:10px 0; }.tool-logo-preview img { width:64px;height:64px;object-fit:contain; }

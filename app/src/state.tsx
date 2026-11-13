@@ -17,6 +17,7 @@ import {MemberProfilesContext} from './lib/memberProfiles'
  */
 
 interface Ctx {
+  branding?:{logo:string;rev:number}
   liveMeetings: boolean
   issueTeamMapping: boolean
   scorecardEditing: boolean
@@ -150,6 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const value: Ctx = {
+    branding:data.branding,
     liveMeetings: data.capabilities?.liveMeetings === 1,
     issueTeamMapping: data.capabilities?.issueTeamMapping === 1,
     scorecardEditing: data.capabilities?.scorecardEditing === 1,
