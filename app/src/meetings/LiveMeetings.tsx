@@ -10,10 +10,10 @@ import type {LiveSessionView} from '../../../platform/liveSessionModel'
 import {defaultMeetingTypes} from '../../../platform/meetingTypes'
 import type {MeetingType} from '../../../platform/meetingTypes'
 import './live.css'
-export default function LiveMeetings({companyId,meetingId,date,onActiveChange}:{companyId:string;meetingId?:string;date?:string;onActiveChange?:(active:boolean)=>void}) {
+export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fixedMeetingTypeId}:{fixedMeetingTypeId?:string;companyId:string;meetingId?:string;date?:string;onActiveChange?:(active:boolean)=>void}) {
  const {me,liveMeetings}=useApp()
  const [sessions,setSessions]=useState<LiveSessionView[]>([]),[selected,setSelected]=useState<string|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[clock,setClock]=useState(Date.now())
- const [meetingTypes,setMeetingTypes]=useState<MeetingType[]>(defaultMeetingTypes),[meetingTypeId,setMeetingTypeId]=useState(meetingId?'one-on-one':'l10'),[teamBusy,setTeamBusy]=useState(false),[showRecaps,setShowRecaps]=useState(false)
+ const [meetingTypes,setMeetingTypes]=useState<MeetingType[]>(defaultMeetingTypes),[meetingTypeId,setMeetingTypeId]=useState(fixedMeetingTypeId || (meetingId?'one-on-one':'l10')),[teamBusy,setTeamBusy]=useState(false),[showRecaps,setShowRecaps]=useState(false)
  useEffect(()=>{let active=true;void getMeetingTypes(companyId).then(catalog=>{if(active)setMeetingTypes(catalog.types)}).catch(()=>{});return()=>{active=false}},[companyId])
  const [tangentAlert,setTangentAlert]=useState<{id:string;name:string}|null>(null)
  const tangentSeen=useRef<{sessionId:string;ids:Set<string>}>({sessionId:'',ids:new Set()})
@@ -45,7 +45,7 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange}:{
  const currentKind=session?.status==='ended'?'conclude':active?.kind || (legacyOrder.includes(active?.id || '')?active!.id:'segue')
  const currentLabel=session?.status==='ended'?'Conclusion':agenda.find(section=>section.index===session?.activeIndex)?.label || active?.label || 'Segue'
  const next=agenda[agenda.findIndex(section=>section.index===session?.activeIndex)+1]
- const types=meetingTypes.filter(type=>type.scope===(meetingId?'private':'team'))
+ const types=meetingTypes.filter(type=>fixedMeetingTypeId?type.id===fixedMeetingTypeId:type.scope===(meetingId?'private':'team'))
  const listed=sessions.filter(session=>showRecaps||session.status!=='ended')
  const sidebar=document.getElementById('live-meeting-sidebar')
  const agendaView=session && <aside className="live-meeting__sidebar" aria-label="Meeting agenda"><h3>Agenda and time spent</h3><ol className="live-meeting__agenda">{agenda.map(section=><li key={section.id} className={section.index===session.activeIndex?'is-active':''}><button aria-current={section.index===session.activeIndex?'step':undefined} disabled={!session.canControl||busy||session.status==='ended'} onClick={()=>void act('select',session,{index:section.index})}>{section.label}<span>{clockText(liveSectionMs(session,section.index,now))} / {session.sections[section.index].minutes} min</span></button></li>)}</ol></aside>
@@ -60,8 +60,8 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange}:{
  {session.supersededBy&&<p className="muted">This earlier session was superseded. Its recorded history is retained.</p>}
  {active?.prompt&&currentKind!=='notes'&&<p className="live-meeting__prompt">{active.prompt}</p>}
  {currentKind==='notes'&&<div className="card card__body"><h2>{currentLabel}</h2><p className="muted">{active?.prompt || 'Use this time for the discussion.'}</p></div>}
- {(!meetingId || currentKind==='rocks') && currentKind!=='notes' && (currentKind==='ids' ? <Issues key={companyId} embedded headingLabel={currentLabel}/> : <L10 key={companyId} companyId={companyId} embedded section={currentKind} sectionLabel={currentLabel} sectionNumber={session.activeIndex+1}/>)}
- {meetingId && currentKind!=='rocks' && <p className="muted">Review this meeting's {currentLabel.toLowerCase()} using the private follow-ups below.</p>}
+ {(!meetingId || session.teamContent || currentKind==='rocks') && currentKind!=='notes' && (currentKind==='ids' ? <Issues key={companyId} embedded headingLabel={currentLabel}/> : <L10 key={companyId} companyId={companyId} embedded section={currentKind} sectionLabel={currentLabel} sectionNumber={session.activeIndex+1}/>)}
+ {meetingId && !session.teamContent && currentKind!=='rocks' && <p className="muted">Review this meeting's {currentLabel.toLowerCase()} using the private follow-ups below.</p>}
  {(currentKind==='conclude'||session.status==='ended')&&<section><h3>Participants</h3>{session.participants.map(person=><p key={person.userId}>{person.name} {person.rating===null?'· Not rated':`· ${person.rating}/10`}</p>)}</section>}
  </div>
  {(session.status==='ended'||currentKind==='conclude')&&session.joined&&<section className="live-meeting__ratings"><h3>Rate this meeting: 1–10</h3><p className="muted">Each joined participant submits their own rating. You can update yours here.</p><div className="seg" role="group" aria-label="Your meeting rating">{Array.from({length:10},(_,i)=>i+1).map(rating=><button key={rating} disabled={busy} aria-pressed={session.participants.find(person=>person.userId===me.id)?.rating===rating} onClick={()=>void act('rate',session,{rating})}>{rating}</button>)}</div></section>}

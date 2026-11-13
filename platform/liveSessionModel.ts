@@ -1,5 +1,5 @@
 export interface LiveSection {id:string;label:string;minutes:number;spentMs:number;kind?:string;prompt?:string}
-export interface LiveSession {previousSessionId?:string;supersededBy?:string;meetingTypeId?:string;meetingTypeName?:string;id:string;title:string;companyId:string;meetingId:string;date:string;hostId:string;hostName:string;status:'running'|'paused'|'ended';activeIndex:number;activeStartedAt:number|null;startedAt:number;endedAt:number|null;sections:LiveSection[];rev:number}
+export interface LiveSession {teamContent?:boolean;previousSessionId?:string;supersededBy?:string;meetingTypeId?:string;meetingTypeName?:string;id:string;title:string;companyId:string;meetingId:string;date:string;hostId:string;hostName:string;status:'running'|'paused'|'ended';activeIndex:number;activeStartedAt:number|null;startedAt:number;endedAt:number|null;sections:LiveSection[];rev:number}
 export interface LiveParticipant {userId:string;name:string;joinedAt:number;rating:number|null;updatedAt:number}
 export interface LiveTangent {id:string;userId:string;name:string;calledAt:number}
 export interface LiveSessionView extends LiveSession {tangents?:LiveTangent[];participants:LiveParticipant[];joined:boolean;canControl:boolean;serverNow:number}

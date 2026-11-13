@@ -35,12 +35,9 @@ export default function My90() {
   const openTodos = data ? data.todos.filter(t => t.status === 'open') : []
   const overdue = openTodos.filter(t => t.dueDate && t.dueDate < today)
   const offTrack = data ? rocks.filter(r => r.status === 'off_track') : []
-  const redMeasurables = data
-    ? data.measurables.filter(m => {
-        const last = [...m.cells].reverse().find(c => c.status === 'green' || c.status === 'red')
-        return last?.status === 'red'
-      })
-    : []
+  const allRockMilestones=rocks.flatMap(rock=>rock.milestones)
+  const completeMilestones=allRockMilestones.filter(milestone=>milestone.done).length
+  const lateMilestones=allRockMilestones.filter(milestone=>!milestone.done&&milestone.dueDate&&milestone.dueDate<today).length
 
   if (!data && !err) return <div className="page"><Loading what="Loading your dashboard" /></div>
 
@@ -71,31 +68,10 @@ export default function My90() {
 
       {data && (
         <>
-          <div className="kpis" style={{ marginBottom: 14 }}>
-            <div className="kpi">
-              <div className="kpi__v">{openTodos.length}</div>
-              <div className="kpi__l">Open action items</div>
-            </div>
-            <div className="kpi">
-              <div className="kpi__v" style={{ color: overdue.length ? 'var(--red)' : undefined }}>{overdue.length}</div>
-              <div className="kpi__l">Overdue</div>
-            </div>
-            <div className="kpi">
-              <div className="kpi__v">{data.rocks.length}</div>
-              <div className="kpi__l">My rocks</div>
-            </div>
-            <div className="kpi">
-              <div className="kpi__v" style={{ color: offTrack.length ? 'var(--red)' : undefined }}>{offTrack.length}</div>
-              <div className="kpi__l">Off track</div>
-            </div>
-            <div className="kpi">
-              <div className="kpi__v">{data.measurables.length}</div>
-              <div className="kpi__l">My numbers</div>
-            </div>
-            <div className="kpi">
-              <div className="kpi__v" style={{ color: redMeasurables.length ? 'var(--red)' : undefined }}>{redMeasurables.length}</div>
-              <div className="kpi__l">Latest red</div>
-            </div>
+          <div className="dashboard-summaries">
+            <section className="card card__body" aria-label="Action item summary"><h2>My Action Items</h2><div className="dashboard-summary__value">{openTodos.length} <span>open</span></div><p className="muted">{overdue.length} of these are overdue</p><Link to="/todos">View action items →</Link></section>
+            <section className="card card__body" aria-label="Rock summary"><h2>My Rocks</h2><div className="dashboard-summary__value">{rocks.length} <span>Rocks</span></div><p className="muted">{offTrack.length} off track · {rocks.filter(rock=>rock.status==='done').length} complete</p><p>{completeMilestones} of {allRockMilestones.length} milestones complete · <span title="Incomplete milestones with a due date before today">{lateMilestones} overdue</span></p><Link to="/rocks">View Rocks →</Link></section>
+            <section className="card card__body" aria-label="Scorecard summary"><h2>My Scorecard Numbers</h2><div className="dashboard-summary__value">{data.measurables.length} <span>numbers</span></div><p className="muted">Measurables you own</p><Link to="/scorecard">View scorecard →</Link></section>
           </div>
 
           <div className="card">
@@ -144,7 +120,7 @@ export default function My90() {
                         <div className="rowitem__meta">
                           {r.dueDate && <span className={dueClass(r.dueDate, r.status === 'done')}>due {fmtDate(r.dueDate)}</span>}
                           {r.milestones.length > 0 && (
-                            <span className="mono">{r.milestones.filter(m => m.done).length}/{r.milestones.length} milestones</span>
+                            <span className="mono">{r.milestones.filter(m => m.done).length}/{r.milestones.length} milestones complete · {r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue</span>
                           )}
                           {r.companyName && <span className="faint">{r.companyName}</span>}
                         </div>
@@ -208,7 +184,7 @@ export default function My90() {
 
           <div className="card">
             <div className="card__head">
-              <h2>Numbers I own</h2>
+              <h2>My Scorecard Numbers</h2>
               <span className="card__end"><Link to="/scorecard" className="btn btn--sm">Scorecard</Link></span>
             </div>
             <div className="card__body--flush">

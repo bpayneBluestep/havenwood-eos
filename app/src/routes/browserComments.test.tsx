@@ -3,7 +3,7 @@ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest'
 import {act,cleanup,render,screen,within,waitFor,fireEvent} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type {Issue,Rock,Measurable} from '../api'
-const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),getRocksBoard:vi.fn(),saveScorecardSections:vi.fn(),getScorecard:vi.fn(),saveMeasurable:vi.fn(),setScore:vi.fn(),getLiveSessions:vi.fn(),liveSessionAction:vi.fn(),getTodos:vi.fn(),getL10:vi.fn(),getMeetings:vi.fn(),getMeetingTypes:vi.fn(),adminMeetingTypes:vi.fn(),adminSaveMeetingTypes:vi.fn()}))
+const api=vi.hoisted(()=>({getIssues:vi.fn(),saveIssue:vi.fn(),getRocks:vi.fn(),getRocksBoard:vi.fn(),saveScorecardSections:vi.fn(),getScorecard:vi.fn(),saveMeasurable:vi.fn(),setScore:vi.fn(),getLiveSessions:vi.fn(),liveSessionAction:vi.fn(),getTodos:vi.fn(),getMy90:vi.fn(),saveMeeting:vi.fn(),getL10:vi.fn(),getMeetings:vi.fn(),getMeetingTypes:vi.fn(),adminMeetingTypes:vi.fn(),adminSaveMeetingTypes:vi.fn()}))
 const state=vi.hoisted(()=>({current:{} as any}))
 vi.mock('../api',async()=>({...await vi.importActual('../api'),...api}))
 vi.mock('../state',()=>({useApp:()=>state.current}))
@@ -12,7 +12,8 @@ import LiveMeetings from '../meetings/LiveMeetings'
 import Todos from './Todos'
 import L10 from './L10'
 import {MemoryRouter} from 'react-router-dom'
-import Meetings from './Meetings'
+import Meetings,{MeetingForm} from './Meetings'
+import My90 from './My90'
 import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
 import {defaultMeetingTypes} from '../../../platform/meetingTypes'
 import {defaultLiveSections} from '../../../platform/liveSessionModel'
@@ -26,7 +27,7 @@ const rock:Rock={quarterKey:'2026-Q4',companyRock:false,dueDate:null,archivedAt:
 const measurable:Measurable={active:true,archivedAt:null,displayOrder:999,escalate:false,id:'measure',title:'Example measurable',ownerId:'a',ownerName:'Owner A',rev:2,group:'Admissions',cadence:'weekly',goal:{op:'gte',target:1,target2:null},valueType:'number',cells:[],sourceTeamId:'source',assignedTeamIds:['source'],sourceUrl:'https://example.com/report'}
 beforeEach(()=>{
  vi.clearAllMocks()
- api.getMeetings.mockResolvedValue({rows:[]});api.getMeetingTypes.mockResolvedValue({rev:0,types:defaultMeetingTypes()});api.adminMeetingTypes.mockResolvedValue({rev:0,types:defaultMeetingTypes()});api.adminSaveMeetingTypes.mockImplementation(async(_team,catalog)=>({...catalog,rev:catalog.rev+1}))
+ api.saveMeeting.mockResolvedValue({id:'created'});api.getMy90.mockResolvedValue({todos:[],rocks:[],milestones:[],measurables:[]});api.getMeetings.mockResolvedValue({rows:[]});api.getMeetingTypes.mockResolvedValue({rev:0,types:defaultMeetingTypes()});api.adminMeetingTypes.mockResolvedValue({rev:0,types:defaultMeetingTypes()});api.adminSaveMeetingTypes.mockImplementation(async(_team,catalog)=>({...catalog,rev:catalog.rev+1}))
  state.current={company,team:people,me:{id:'a',name:'Owner A'},nameOf:(id:string)=>people.find(person=>person.id===id)?.name || '',companies:[company,{id:'second',name:'Second team'}],scorecardEditing:true,milestoneWorkflow:false,meetingWorkflow:false}
  api.getIssues.mockResolvedValue({rows:[baseIssue,{...baseIssue,id:'two',title:'Alpha issue',ownerId:'a',createdDate:'2026-11-10'}]})
  api.getRocks.mockResolvedValue({rows:[rock],counts:{companies:1}})
@@ -283,5 +284,24 @@ describe('agenda autosave structure',()=>{
  })
  it('automatically saves section order while preventing Conclusion from leaving the end',async()=>{
   render(<MeetingTypesAdmin teams={[{id:'source',name:'Source team'}]}/>);const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'Move section 1 down'}));await waitFor(()=>expect(api.adminSaveMeetingTypes).toHaveBeenCalled());expect(api.adminSaveMeetingTypes.mock.calls[api.adminSaveMeetingTypes.mock.calls.length-1][1].types[0].sections[0].kind).toBe('headlines');expect((screen.getByRole('button',{name:'Move section 6 up'}) as HTMLButtonElement).disabled).toBe(true);expect((screen.getByRole('button',{name:'Move section 5 down'}) as HTMLButtonElement).disabled).toBe(true)
+ })
+})
+
+describe('track record and typed meeting scheduling',()=>{
+ it('keeps all-time rates visible when changing list filters',async()=>{
+  api.getTodos.mockResolvedValue({rows:[],trackRecord:{asOf:'2026-11-12',rows:[{id:'a',name:'Owner A',onTime:3,scored:4,unscored:1,rate:.75},{id:'b',name:'Owner B',onTime:0,scored:0,unscored:2,rate:null}]}});render(<Todos/>);await screen.findByText('75%');const strip=screen.getByLabelText('All-time action item on-time rates');expect(strip.textContent).toContain('—');await userEvent.setup().click(screen.getByRole('button',{name:'Mine'}));await waitFor(()=>expect(api.getTodos).toHaveBeenCalledWith('source',true,'open'));expect(within(strip).getByText('75%')).toBeTruthy()
+ })
+ it('populates the team roster and derives the title from the selected type',async()=>{
+  state.current.teams={source:people,second:[{id:'c',name:'Member C'}]};render(<MeetingForm onDone={()=>{}}/>);await waitFor(()=>expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('L10'));expect((screen.getByLabelText('Title') as HTMLInputElement).readOnly).toBe(true);expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('L10');expect(screen.getAllByRole('checkbox').every(input=>(input as HTMLInputElement).checked)).toBe(true)
+  const user=userEvent.setup();await user.selectOptions(screen.getByLabelText('Scheduled meeting type'),'one-on-one');expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('One-on-one');await user.click(screen.getByRole('button',{name:'Create meeting'}));await waitFor(()=>expect(api.saveMeeting).toHaveBeenCalledWith(expect.objectContaining({companyId:'source',meetingTypeId:'one-on-one',title:'One-on-one',attendeeIds:['a','b']})))
+ })
+ it('clears the previous team attendees when a different team is selected',async()=>{
+  state.current.teams={source:people,second:[{id:'c',name:'Member C'}]};api.getMeetingTypes.mockImplementation(async(teamId)=>({rev:0,types:defaultMeetingTypes().map(type=>({...type,name:type.id==='l10'&&teamId==='second'?'Second team review':type.name}))}));render(<MeetingForm onDone={()=>{}}/>);await waitFor(()=>expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('L10'));const user=userEvent.setup();await user.selectOptions(screen.getByLabelText('Meeting team'),'second');await waitFor(()=>expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('Second team review'));expect(screen.queryByText('Owner A')).toBeNull();expect(screen.getAllByRole('checkbox')).toHaveLength(1);expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true);await user.click(screen.getByRole('button',{name:'Create meeting'}));await waitFor(()=>expect(api.saveMeeting).toHaveBeenCalledWith(expect.objectContaining({companyId:'second',title:'Second team review',attendeeIds:['c']})))
+ })
+ it('groups dashboard counts and shows milestone progress with clear labels',async()=>{
+  api.getMy90.mockResolvedValue({todos:[{id:'old',status:'open',dueDate:'1900-01-01',title:'Old',ownerId:'a',ownerName:'Owner A'},{id:'future',status:'open',dueDate:'2099-01-01',title:'Future',ownerId:'a',ownerName:'Owner A'}],rocks:[{...rock,milestones:[{id:'late',done:false,dueDate:'1900-01-01'},{id:'done',done:true,dueDate:'1900-01-01'}]}],milestones:[],measurables:[measurable]});render(<MemoryRouter><My90/></MemoryRouter>);const actions=await screen.findByRole('region',{name:'Action item summary'});expect(actions.textContent).toContain('2 open');expect(actions.textContent).toContain('1 of these are overdue');const rocks=screen.getByRole('region',{name:'Rock summary'});expect(rocks.textContent).toContain('1 of 2 milestones complete');expect(rocks.textContent).toContain('1 overdue');expect(screen.getAllByRole('heading',{name:'My Scorecard Numbers'})).toHaveLength(2);expect(screen.queryByText('Latest red')).toBeNull()
+ })
+ it('uses initials before each measurable title without a visible full name',async()=>{
+  const view=render(<Scorecard/>);const title=await screen.findByRole('button',{name:'Example measurable'});const row=title.closest('th')!;expect(row.querySelector('.meas__title')?.firstElementChild?.classList.contains('avatar')).toBe(true);expect(view.container.querySelector('.owner__name')).toBeNull();expect(row.querySelector('[aria-label="Owner A"]')).toBeTruthy()
  })
 })

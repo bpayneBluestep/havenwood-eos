@@ -114,7 +114,7 @@ export default function Meeting() {
               ))}
             </div>
           </div>
-          <LiveMeetings key={id+date} companyId={meeting.companyId} meetingId={id} date={date}/>
+          <LiveMeetings key={id+date} companyId={meeting.companyId} fixedMeetingTypeId={meeting.meetingTypeId} meetingId={id} date={date}/>
           <details className="card"><summary className="card__body">All meeting follow-ups, including earlier dates</summary>
           <TodosCard occ={occ} onChange={loadOcc} onError={setErr} />
           <IssuesCard occ={occ} onChange={loadOcc} onError={setErr} />

@@ -25,6 +25,7 @@ export default function Todos() {
   const [sort, setSort] = useState('due')
   const today = useToday()
   const [showDone, setShowDone] = useState(false)
+  const [trackRecord,setTrackRecord]=useState<import('../../../platform/todoTrackRecord').TrackRecordRow[]|null>(null)
   const [rows, setRows] = useState<Todo[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Todo | 'new' | null>(null)
@@ -33,11 +34,11 @@ export default function Todos() {
   const load = useCallback(() => {
     setErr(null)
     getTodos(company.id, mine, showDone ? undefined : 'open')
-      .then(r => setRows(r.rows))
+      .then(r => {setRows(r.rows);setTrackRecord(r.trackRecord?.rows || null)})
       .catch(e => setErr(e.message))
   }, [company.id, mine, showDone])
 
-  useEffect(() => { setRows(null); load() }, [load])
+  useEffect(() => { setRows(null); setTrackRecord(null); load() }, [load])
 
   const toggle = async (t: Todo) => {
     const next = t.status === 'done' ? 'open' : 'done'
@@ -62,6 +63,8 @@ export default function Todos() {
         </div>
 
       </div>
+
+      <div className="action-track-record" aria-label="All-time action item on-time rates"><span className="muted">All-time on time</span>{(trackRecord || team.map(member=>({id:member.id,name:member.name,onTime:0,scored:0,unscored:0,rate:null}))).map(member=><span className="action-track-record__member" key={member.id} title={`${member.name}: ${member.onTime} on time / ${member.scored} scored action items. ${member.unscored} unscored. Includes overdue open items and archived completions; excludes future open, personal and private meeting items.`}><Avatar name={member.name} id={member.id} sm/><span className="mono">{member.rate===null?'—':`${Math.round(member.rate*100)}%`}</span></span>)}</div>
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 

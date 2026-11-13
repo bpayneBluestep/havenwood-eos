@@ -425,7 +425,7 @@ export const archiveIssues = (ids: string[]): Promise<{ archived: number }> => p
 export const dropToIssue = (fields: { companyId: string; title: string; origin?: Origin; description?: string; term?: string; priority?: number }): Promise<Issue> =>
   post('dropToIssue', fields)
 
-export const getTodos = (companyId: string, mine = false, status?: string): Promise<{ rows: Todo[] }> =>
+export const getTodos = (companyId: string, mine = false, status?: string): Promise<{ rows: Todo[]; trackRecord?:{asOf:string;rows:import('../../platform/todoTrackRecord').TrackRecordRow[]} }> =>
   get('todos', { companyId, mine, status })
 
 export const saveTodo = (fields: Record<string, unknown>): Promise<Todo> => post('saveTodo', fields)
@@ -518,6 +518,8 @@ export interface Recurrence { freq: MeetingFreq; start: string; until: string }
 export interface PersonRef { id: string; name: string }
 
 export interface Meeting {
+  meetingTypeId?:string
+  meetingTypeName?:string
   id: string
   companyId: string
   companyName: string
@@ -554,7 +556,7 @@ export const getMeetingOccurrence = (id: string, date: string): Promise<MeetingO
   get('meetingOccurrence', { id, date })
 
 export const saveMeeting = (fields: {
-  id?: string; companyId?: string; title: string; attendeeIds: string[]; recurrence: Recurrence; rev?: number
+  id?: string; companyId?: string; meetingTypeId?:string; title: string; attendeeIds: string[]; recurrence: Recurrence; rev?: number
 }): Promise<Meeting> => post('saveMeeting', fields)
 
 export const setOccurrenceAttendees = (fields: {

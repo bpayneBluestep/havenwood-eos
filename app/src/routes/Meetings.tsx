@@ -1,7 +1,7 @@
 import LiveMeetings from '../meetings/LiveMeetings'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getMeetings, saveMeeting } from '../api'
+import { getMeetings, saveMeeting, getMeetingTypes } from '../api'
 import type { Meeting, MeetingFreq, Person, Recurrence } from '../api'
 import { useApp } from '../state'
 import { Avatar, Empty, ErrorBanner, Loading, Modal, fmtDate, firstLast, todayIso } from '../lib/ui'
@@ -117,14 +117,19 @@ export function MeetingForm({
   onDone: (m: Meeting) => void
   onCancel?: () => void
 }) {
-  const { company, team, me } = useApp()
-  const people = roster || team
-  const [title, setTitle] = useState(meeting?.title || '')
+  const { company, team, companies, teams } = useApp()
+  const [selectedTeamId,setSelectedTeamId]=useState(meeting?.companyId || company.id)
+  const people=meeting ? (roster || teams?.[selectedTeamId] || team) : (teams?.[selectedTeamId] || (selectedTeamId===company.id?team:[]))
+  const [types,setTypes]=useState<import('../../../platform/meetingTypes').MeetingType[]|null>(null)
+  const [meetingTypeId,setMeetingTypeId]=useState(meeting?.meetingTypeId || '')
+  const selectedType=types?.find(type=>type.id===meetingTypeId)
+  const title=selectedType?.name || (meeting && !meetingTypeId ? meeting.title : '')
+  useEffect(()=>{let active=true;setTypes(null);getMeetingTypes(selectedTeamId).then(catalog=>{if(active){setTypes(catalog.types);setMeetingTypeId(current=>catalog.types.some(type=>type.id===current)?current:(meeting&&!meeting.meetingTypeId?'':catalog.types.find(type=>type.id==='l10')?.id || catalog.types[0]?.id || ''))}}).catch(error=>{if(active)setErr(error.message)});return()=>{active=false}},[selectedTeamId,meeting])
   const [freq, setFreq] = useState<MeetingFreq>(meeting?.recurrence.freq || 'weekly')
   const [start, setStart] = useState(meeting?.recurrence.start || todayIso())
   const [until, setUntil] = useState(meeting?.recurrence.until || '')
   const [ids, setIds] = useState<string[]>(
-    meeting ? meeting.attendees.map(a => a.id) : (me.id ? [me.id] : []),
+    meeting ? meeting.attendees.map(a => a.id) : people.map(person=>person.id),
   )
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -138,7 +143,8 @@ export function MeetingForm({
     try {
       const m = await saveMeeting({
         id: meeting?.id,
-        companyId: meeting ? undefined : company.id,
+        companyId: meeting ? undefined : selectedTeamId,
+        meetingTypeId:meetingTypeId || undefined,
         title: title.trim(),
         attendeeIds: ids,
         recurrence: { freq, start, until },
@@ -152,11 +158,8 @@ export function MeetingForm({
   return (
     <>
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
-      <div className="field">
-        <label htmlFor="m-title">Title</label>
-        <input id="m-title" className="input" autoFocus value={title} onChange={e => setTitle(e.target.value)}
-          placeholder="Jake / Jessi 1:1" />
-      </div>
+      <div className="row2"><div className="field"><label htmlFor="schedule-team">Team</label><select id="schedule-team" aria-label="Meeting team" className="select" value={selectedTeamId} disabled={!!meeting||busy} onChange={event=>{const id=event.target.value;setSelectedTeamId(id);setIds((teams?.[id] || (id===company.id?team:[])).map(person=>person.id));setMeetingTypeId('');setErr(null)}}>{companies.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}</select></div><div className="field"><label htmlFor="schedule-type">Meeting type</label><select id="schedule-type" aria-label="Scheduled meeting type" className="select" value={meetingTypeId} disabled={!types||busy} onChange={event=>setMeetingTypeId(event.target.value)}>{meeting&&!meeting.meetingTypeId&&<option value="">Existing custom meeting</option>}{!types&&<option value="">Loading meeting types…</option>}{types?.map(type=><option key={type.id} value={type.id}>{type.name}</option>)}</select></div></div>
+      <div className="field"><label htmlFor="m-title">Title</label><input id="m-title" className="input" value={title} readOnly/><div className="field__hint">The title comes from the selected meeting type.</div></div>
       <div className="field">
         <label htmlFor="m-freq">Repeats</label>
         <select id="m-freq" className="select" value={freq} onChange={e => setFreq(e.target.value as MeetingFreq)}>
@@ -181,7 +184,7 @@ export function MeetingForm({
       <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
         <legend style={{ fontWeight: 600, marginBottom: 6 }}>Attendees</legend>
         <div className="field__hint" style={{ marginBottom: 6 }}>
-          Only the people checked here can see this meeting and anything raised in it.
+          The selected team’s members are selected automatically for a new meeting. Adjust the attendees as needed. Only checked people can see this scheduled meeting and its private follow-ups.
         </div>
         <div style={{ maxHeight: 220, overflowY: 'auto' }}>
           {people.map(p => (
@@ -195,7 +198,7 @@ export function MeetingForm({
       </fieldset>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         {onCancel && <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>}
-        <button className="btn btn--primary" onClick={submit} disabled={busy || !title.trim()}>
+        <button className="btn btn--primary" onClick={submit} disabled={busy || !types || !title.trim()}>
           {busy ? 'Saving…' : meeting ? 'Save meeting' : 'Create meeting'}
         </button>
       </div>

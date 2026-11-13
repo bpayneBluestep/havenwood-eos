@@ -6,7 +6,7 @@ import type { Measurable, Scorecard as SC, Cell } from '../api'
 import { useApp } from '../state'
 import {
   Avatar, Empty, ErrorBanner, Loading, Modal, OwnerPicker, RowMenu,
-  cellClass, cellMark, fmtGoal, fmtValue, shortPeriod, firstLast,
+  cellClass, cellMark, fmtGoal, fmtValue, shortPeriod,
 } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
 
@@ -195,6 +195,7 @@ function Row({
     <tr>
       <th className="c-meas" scope="row">
         <div className="meas__title">
+          <Avatar name={row.ownerName} id={row.ownerId} sm/>
           <button type="button" className="meas__title-link" title={row.title} onClick={onEdit} disabled={row.readOnly}>{row.title}</button>
           {row.sourceUrl && <a className="meas__source" href={row.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`Source material for ${row.title}`} title="Open source material">Source ↗</a>}
           {row.escalate && (
@@ -202,12 +203,7 @@ function Row({
               <span aria-hidden="true">▲</span> 3 weeks red
             </span>
           )}
-        </div>
-        <div className="meas__sub">
-          <span className="owner">
-            <Avatar name={row.ownerName} id={row.ownerId} sm />
-            <span className="owner__name">{firstLast({ name: row.ownerName }) || 'Unassigned'}</span>
-          </span>
+
           <span className="meas__goal">{fmtGoal(row.goal, row.valueType)}</span>
           <span style={{ marginLeft: 'auto' }}>
             {row.readOnly ? <span className="pill pill--muted" title={`Definition managed by ${row.sourceTeamName || 'the source team'}`}>Shared</span> : <RowMenu>
