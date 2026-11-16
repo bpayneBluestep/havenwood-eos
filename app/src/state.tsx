@@ -114,7 +114,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   if (!company) {
     // An admin who isn't on any team (ticket #269): they configure Traction but
     // see no team data, so the only thing to show them is Admin itself.
-    if (data.me.isAdmin) {
+    if (data.me.isAdmin || data.me.isTeamAdmin) {
       return (
         <div className="main">
           <div className="banner banner--warn" style={{ margin: '16px 16px 0' }}>

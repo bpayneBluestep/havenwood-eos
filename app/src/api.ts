@@ -144,7 +144,7 @@ export interface CompanyBrief {
   periods: { week: string; month: string; quarter: string; year: string }
 }
 
-export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean }
+export interface Me { id: string; userId: string; name: string; email: string; unitId: string; isSuper: boolean; fullAccess?: boolean; isAdmin?: boolean; isTeamAdmin?: boolean }
 
 export interface Bootstrap {
   branding?:{logo:string;rev:number}
@@ -462,6 +462,7 @@ export const saveSettings = (fields: Record<string, unknown>): Promise<Settings>
 // Every admin action answers NOT_FOUND unless the caller is an EOS admin.
 
 export interface AdminTeam {
+  adminIds?: string[]
   id: string
   kind: 'company' | 'custom'
   name: string
@@ -504,7 +505,8 @@ export const adminSaveTeam = (fields: Record<string, unknown>): Promise<{ team: 
 export const adminSetMembership = (teamId: string, personId: string, member: boolean, rev: number): Promise<{ team: AdminTeam }> =>
   post('adminSetMembership', { companyId: teamId, personId, member, rev })
 
-export const adminPeople = (q = ''): Promise<{ rows: AdminPerson[] }> => get('adminPeople', { q })
+export const adminPeople = (q = '', teamId?:string): Promise<{ rows: AdminPerson[] }> => get('adminPeople', { q,companyId:teamId })
+export const adminSetTeamAdmin=(teamId:string,personId:string,enabled:boolean,rev:number):Promise<{team:AdminTeam}>=>post('adminSetTeamAdmin',{companyId:teamId,personId,enabled,rev})
 
 export const adminAudit = (filters: { teamId?: string; personId?: string } = {}): Promise<{ rows: AuditRow[]; more: boolean }> =>
   get('adminAudit', { companyId: filters.teamId, personId: filters.personId })

@@ -99,7 +99,7 @@ function Shell() {
           {/* Admin (teams, people, settings, audit) is for the three hard-coded
               EOS admins only (ticket #269). The endpoint refuses everyone else;
               hiding it here just keeps it out of their way. */}
-          {me.isAdmin && (
+          {(me.isAdmin || me.isTeamAdmin) && (
             <>
               <div className="nav__section">Admin</div>
               <NavLink to="/admin">
@@ -182,7 +182,7 @@ function Shell() {
           <Route path="/l10" element={<Navigate to="/meetings" replace />} />
           <Route path="/meetings" element={<Meetings />} />
           <Route path="/meetings/:id" element={<Meeting />} />
-          {me.isAdmin && <Route path="/admin" element={<Admin onChanged={reload} />} />}
+          {(me.isAdmin || me.isTeamAdmin) && <Route path="/admin" element={<Admin onChanged={reload} />} />}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>

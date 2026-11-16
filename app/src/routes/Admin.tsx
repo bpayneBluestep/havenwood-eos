@@ -1,5 +1,6 @@
+import {useApp} from '../state'
 import { useCallback, useEffect, useState } from 'react'
-import { adminAudit, adminOverview, adminPeople, adminSaveTeam, adminSetMembership, adminTeam } from '../api'
+import { adminSetTeamAdmin, adminAudit, adminOverview, adminPeople, adminSaveTeam, adminSetMembership, adminTeam } from '../api'
 import type { AdminMember, AdminPerson, AdminTeam, AuditRow } from '../api'
 import { Avatar, Empty, ErrorBanner, Loading, Modal, firstLast } from '../lib/ui'
 import {MemberProfileEditor} from './MyProfile'
@@ -27,6 +28,8 @@ type Tab = 'teams' | 'people' | 'settings' | 'agendas' | 'notifications' | 'audi
 interface Overview { teams: AdminTeam[]; companies: { id: string; name: string }[]; admins: { id: string; name: string }[]; reach: string }
 
 export default function Admin({ onChanged }: { onChanged?: () => void }) {
+  const {me}=useApp()
+  const systemAdmin=!!me.isAdmin
   const [tab, setTab] = useState<Tab>('teams')
   const [ov, setOv] = useState<Overview | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -55,7 +58,7 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
         </div>
         <div className="page__actions">
           <div className="seg" role="group" aria-label="Admin section">
-            {(['teams', 'people', 'settings', 'agendas', 'notifications', 'audit'] as Tab[]).map(t => (
+            {((systemAdmin?['teams', 'people', 'settings', 'agendas', 'notifications', 'audit']:['teams']) as Tab[]).map(t => (
               <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
                 {t==='notifications'?'My Notifications':t==='agendas'?'Meeting templates':t[0].toUpperCase() + t.slice(1)}
               </button>
@@ -70,10 +73,10 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
       {tab==='notifications'?null:!ov ? <Loading what="Loading teams" /> : (
         <>
           {tab === 'teams' && <TeamsTab ov={ov} onChanged={changed} onError={setErr} />}
-          {tab === 'people' && <PeopleTab ov={ov} onChanged={changed} onError={setErr} />}
-          {tab === 'settings' && <SettingsTab ov={ov} onChanged={() => { load(); onChanged?.() }} />}
-          {tab === 'agendas' && <MeetingTypesAdmin teams={ov.teams}/>}
-          {tab === 'audit' && <AuditTab ov={ov} onError={setErr} />}
+          {systemAdmin && tab === 'people' && <PeopleTab ov={ov} onChanged={changed} onError={setErr} />}
+          {systemAdmin && tab === 'settings' && <SettingsTab ov={ov} onChanged={() => { load(); onChanged?.() }} />}
+          {systemAdmin && tab === 'agendas' && <MeetingTypesAdmin teams={ov.teams}/>}
+          {systemAdmin && tab === 'audit' && <AuditTab ov={ov} onError={setErr} />}
         </>
       )}
     </div>
@@ -99,6 +102,7 @@ function plural(n: number, one: string) {
 // the right (stacked on a phone). A team is always selected, so the right side
 // is never an empty void.
 function TeamsTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: AdminTeam) => void; onError: (m: string) => void }) {
+  const {me}=useApp()
   const [showArchived, setShowArchived] = useState(false)
   const [openId, setOpenId] = useState<string | null>(() => ov.teams.find(t => !t.archivedAt)?.id ?? null)
   const [creating, setCreating] = useState(false)
@@ -119,7 +123,7 @@ function TeamsTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: Ad
             <h2>Teams</h2>
             <span className="faint" style={{ fontSize: 12 }}>{rows.length}</span>
             <span className="card__end">
-              <button className="btn btn--sm btn--primary" onClick={() => setCreating(true)}>+ New team</button>
+              {me.isAdmin&&<button className="btn btn--sm btn--primary" onClick={() => setCreating(true)}>+ New team</button>}
             </span>
           </div>
           <div className="card__body--flush">
@@ -186,6 +190,8 @@ function TeamsTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: Ad
 }
 
 function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: (t?: AdminTeam) => void; onError: (m: string) => void }) {
+  const {me}=useApp()
+  const systemAdmin=!!me.isAdmin
   const [members, setMembers] = useState<AdminMember[] | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -229,7 +235,7 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
             {!team.archivedAt && !team.eosActive && <span className="pill pill--amber">inactive</span>}
           </div>
         </div>
-        {team.kind === 'custom' && (
+        {systemAdmin && team.kind === 'custom' && (
           <button className={'btn btn--sm' + (team.archivedAt ? '' : ' btn--ghost')} onClick={() => archive(!team.archivedAt)} disabled={busy}>
             {team.archivedAt ? 'Restore team' : 'Archive team'}
           </button>
@@ -240,6 +246,7 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
           <div className="banner banner--warn"><div>This team is archived. Restore it to change who is on it.</div></div>
         ) : (
           <PersonSearch
+            teamId={team.id}
             excludeIds={(members || []).map(m => m.id)}
             actionLabel="Add"
             disabled={busy}
@@ -247,6 +254,7 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
           />
         )}
       </div>
+      <div className="card__body"><p className="muted">Team admins can add current staff to this team. Only system admins can assign team admins or remove members.</p></div>
       <div className="card__body--flush">
         {!members ? <Loading what="Loading members" /> : members.length === 0 ? (
           <Empty title="Nobody is on this team yet">
@@ -264,8 +272,9 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
                   </div>
                   <div className="rowitem__meta">{m.email && <span>{m.email}</span>}</div>
                 </div>
-                {!team.archivedAt && (
+                {!team.archivedAt && systemAdmin && (
                   <div className="rowitem__end">
+                    <label><input type="checkbox" aria-label={`Team admin: ${firstLast(m)}`} checked={!!team.adminIds?.includes(m.id)} disabled={busy||m.former} onChange={async event=>{const enabled=event.target.checked;setBusy(true);try{const result=await adminSetTeamAdmin(team.id,m.id,enabled,team.rev);onChanged(result.team)}catch(error:any){if(error.current)onChanged(error.current);onError(error.message)}finally{setBusy(false)}}}/> Team admin</label>
                     <button
                       className="btn btn--sm btn--ghost btn--danger"
                       disabled={busy}
@@ -424,7 +433,8 @@ function PeopleTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: A
 }
 
 // A staff search box used to add someone to a team.
-function PersonSearch({ excludeIds, actionLabel, disabled, onPick }: {
+function PersonSearch({ excludeIds, actionLabel, disabled, onPick, teamId }: {
+  teamId?:string
   excludeIds: string[]
   actionLabel: string
   disabled?: boolean
@@ -437,10 +447,10 @@ function PersonSearch({ excludeIds, actionLabel, disabled, onPick }: {
     const term = q.trim()
     if (term.length < 2) { setRows([]); return }
     const h = window.setTimeout(() => {
-      adminPeople(term).then(r => setRows(r.rows.filter(p => !p.former))).catch(() => setRows([]))
+      adminPeople(term,teamId).then(r => setRows(r.rows.filter(p => !p.former))).catch(() => setRows([]))
     }, 250)
     return () => window.clearTimeout(h)
-  }, [q])
+  }, [q,teamId])
 
   const shown = rows.filter(p => !excludeIds.includes(p.id))
 
