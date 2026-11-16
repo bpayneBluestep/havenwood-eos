@@ -10,7 +10,7 @@ vi.mock('../state',()=>({useApp:()=>state.current}))
 import {fmtValue} from '../lib/ui'
 import LiveMeetings from '../meetings/LiveMeetings'
 import Todos from './Todos'
-import Headlines from './Headlines'
+import Headlines,{HeadlineForm} from './Headlines'
 import L10 from './L10'
 import {MemoryRouter} from 'react-router-dom'
 import Meetings,{MeetingForm} from './Meetings'
@@ -384,5 +384,14 @@ describe('permanent issue sections',()=>{
  })
  it('provides sorting and creation in the new headline ribbon',async()=>{
  render(<Headlines/>);expect(screen.getByLabelText('Sort new headlines')).toBeTruthy();await userEvent.setup().click(screen.getByRole('button',{name:'Add new headline'}));expect((screen.getByLabelText('Permanent review item') as HTMLInputElement).checked).toBe(false)
+ })
+})
+
+describe('headline detail body',()=>{
+ it.each([false,true])('keeps detail text hidden until opened, permanent=%s',async(permanent)=>{
+ api.getHeadlines.mockResolvedValue({rows:[{id:'detail-head',body:'Brief headline',details:'Private review detail\nSecond line',permanent,createdByName:'Owner A',ownerId:'a',readDate:null}]});render(<Headlines embedded/>);await screen.findByText('Brief headline');expect(screen.queryByText(/Private review detail/)).toBeNull();await userEvent.setup().click(screen.getByRole('button',{name:'Show details'}));expect(within(screen.getByRole('dialog')).getByText(/Private review detail/)).toBeTruthy()
+ })
+ it('saves and clears separate details while retaining the headline and revision',async()=>{
+ const initial={id:'head',body:'Brief headline',details:'Old detail',rev:6,ownerId:'a',ownerName:'Owner A',type:'customer'} as any;api.saveHeadline.mockResolvedValue({});render(<HeadlineForm companyId="source" initial={initial} onDone={()=>{}}/>);const user=userEvent.setup();const field=screen.getByLabelText('Details (optional)');await user.clear(field);await user.type(field,'New detail');await user.click(screen.getByRole('button',{name:'Save headline'}));await waitFor(()=>expect(api.saveHeadline).toHaveBeenCalledWith(expect.objectContaining({id:'head',rev:6,body:'Brief headline',details:'New detail'})));cleanup();render(<HeadlineForm companyId="source" initial={initial} onDone={()=>{}}/>);await user.clear(screen.getByLabelText('Details (optional)'));await user.click(screen.getByRole('button',{name:'Save headline'}));await waitFor(()=>expect(api.saveHeadline).toHaveBeenLastCalledWith(expect.objectContaining({details:''})))
  })
 })

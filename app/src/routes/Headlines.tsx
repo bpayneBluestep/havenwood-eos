@@ -70,6 +70,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         {permanentRows.map(h=><div className="permanent-headline" key={h.id}>
           <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={event=>setChecked({...checked,[h.id]:event.target.checked})}/>
           <button className="rowitem__title-link" title={h.body} onClick={()=>setDetail(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
+          {h.details&&<button className="btn btn--sm" onClick={()=>setDetail(h)}>Show details</button>}
           {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{(!h.sourceLabel||h.sourceLabel==='Open source')?'Open link':h.sourceLabel}</a>}
           <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button><button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>
         </div>)}
@@ -104,6 +105,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
 
                 </div>
                 {!h.readOnly&&<div className="rowitem__end" onClick={event => event.stopPropagation()}>
+                  {h.details&&<button className="btn btn--sm" onClick={()=>setDetail(h)}>Show details</button>}
                   <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button>
                   <button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>
                 </div>}
@@ -113,7 +115,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         </div>
       )}
 
-      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted"><PersonName name={detail.createdByName}/>{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{(!detail.sourceLabel||detail.sourceLabel==='Open source')?'Open link':detail.sourceLabel}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
+      {detail && <Modal title="Headline details" onClose={() => setDetail(null)}><p className="muted"><PersonName name={detail.createdByName}/>{detail.createdAt ? ` · ${fmtDate(detail.createdAt.slice(0, 10))}` : ''}</p><div className="detail-body">{detail.body}</div>{detail.details&&<section aria-label="Headline detail body"><h3>Details</h3><div className="detail-body" style={{whiteSpace:'pre-wrap'}}>{detail.details}</div></section>}{detail.sourceUrl&&/^https?:\/\//i.test(detail.sourceUrl)&&<a className="btn" href={detail.sourceUrl} target="_blank" rel="noopener noreferrer">{(!detail.sourceLabel||detail.sourceLabel==='Open source')?'Open link':detail.sourceLabel}</a>}{!detail.readOnly&&<button className="btn" onClick={()=>{setEditing(detail);setDetail(null)}}>Edit headline</button>}</Modal>}
       {editing&&<Modal title="Edit headline" onClose={()=>setEditing(null)}><HeadlineForm companyId={targetCompanyId} initial={editing} onDone={()=>{setEditing(null);load()}} onCancel={()=>setEditing(null)}/></Modal>}
       {cascadeFor&&<Modal title="Cascade headline" onClose={()=>setCascadeFor(null)}><p>Publish a separate copy to another team.</p><label className="field">Team<select className="select" value={targetTeam} onChange={event=>setTargetTeam(event.target.value)}><option value="">Select a team</option>{companies.filter(team=>team.id!==targetCompanyId).map(team=><option key={team.id} value={team.id}>{team.name}</option>)}</select></label><button className="btn btn--primary" disabled={!targetTeam||busy} onClick={async()=>{setBusy(true);try{await cascadeHeadline(cascadeFor.id,targetTeam);setCascadeFor(null)}catch(error:any){setErr(error.message)}finally{setBusy(false)}}}>{busy?'Publishing…':'Publish headline'}</button></Modal>}
       {adding && (
@@ -141,6 +143,7 @@ export function HeadlineForm({
   const [ownerId,setOwnerId]=useState(initial?.ownerId||me.id)
   const [ownerName,setOwnerName]=useState(initial?.ownerName||me.name)
   const [body, setBody] = useState(initial?.body||'')
+  const [details,setDetails]=useState(initial?.details||'')
   const [permanent,setPermanent]=useState(initial?.permanent??permanentDefault)
   const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl||'')
   const [sourceLabel,setSourceLabel]=useState(!initial?.sourceLabel||initial.sourceLabel==='Open source'?'Open link':initial.sourceLabel)
@@ -151,7 +154,7 @@ export function HeadlineForm({
   const submit = async () => {
     if (!body.trim()) { setErr('A headline needs some words.'); return }
     setBusy(true); setErr(null)
-    try { await saveHeadline({ companyId, id:initial?.id,rev:initial?.rev,body: body.trim(), type, permanent,sourceUrl,sourceLabel,ownerId,ownerName }); setBody(''); onDone() }
+    try { await saveHeadline({ companyId, id:initial?.id,rev:initial?.rev,body: body.trim(), details, type, permanent,sourceUrl,sourceLabel,ownerId,ownerName }); setBody(''); onDone() }
     catch (e: any) { setErr(e.message); }
     finally { setBusy(false) }
   }
@@ -168,6 +171,7 @@ export function HeadlineForm({
         />
         <div className="field__hint">One or two sentences. If it needs discussion, make it an Issue.</div>
       </div>
+      <div className="field"><label htmlFor="h-details">Details (optional)</label><textarea id="h-details" aria-describedby="h-details-hint" className="textarea" value={details} onChange={event=>setDetails(event.target.value)} placeholder="Add background, notes, or other details."/><span id="h-details-hint" className="field__hint">Hidden from the list. Open the headline to review these details.</span></div>
       <label className="field">Owner<OwnerPicker team={people} value={ownerId} valueName={ownerName} onChange={(id,name)=>{setOwnerId(id);setOwnerName(name)}}/></label>
       <label className="field"><span><input type="checkbox" checked={permanent} onChange={event=>setPermanent(event.target.checked)}/> Permanent review item</span></label>
       <label className="field">Source URL<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>

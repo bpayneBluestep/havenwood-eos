@@ -310,6 +310,7 @@ export interface Todo {
 }
 
 export interface Headline {
+  details?: string
   permanent?: boolean
   sourceUrl?: string
   sourceLabel?: string
