@@ -701,3 +701,5 @@ export const getPeopleImportPreview=(scopeCompanyId:string,fields:import('../../
 export const applyPeopleImportPreview=(fields:import('../../platform/peopleImport').PeopleImportRequest&{scopeCompanyId:string}):Promise<{noOp:boolean;appliedCount:number;rev:number;unresolvedIds:string[]}>=>post('applyPeopleImport',{...fields})
 
 export const getWorkDetail=(kind:string,id:string,teamId:string):Promise<{kind:string;teamId:string;teamName:string;item:Rock|Issue|Todo|Measurable}>=>get('workDetail',{kind,id,teamId})
+
+export const sendMeetingPresence=(scope:{companyId:string;meetingId?:string;date?:string;sessionId:string}):Promise<unknown>=>post('liveSessionAction',{...scope,command:'presence'})

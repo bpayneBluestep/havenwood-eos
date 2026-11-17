@@ -1,6 +1,6 @@
 export interface LiveSection {id:string;label:string;minutes:number;spentMs:number;kind?:string;prompt?:string}
 export interface LiveSession {teamContent?:boolean;previousSessionId?:string;supersededBy?:string;meetingTypeId?:string;meetingTypeName?:string;id:string;title:string;companyId:string;meetingId:string;date:string;hostId:string;hostName:string;status:'running'|'paused'|'ended';activeIndex:number;activeStartedAt:number|null;startedAt:number;endedAt:number|null;sections:LiveSection[];rev:number}
-export interface LiveParticipant {userId:string;name:string;joinedAt:number;rating:number|null;updatedAt:number}
+export interface LiveParticipant {lastSeenAt?:number;userId:string;name:string;joinedAt:number;rating:number|null;updatedAt:number}
 export interface LiveTangent {id:string;userId:string;name:string;calledAt:number}
 export interface LiveSessionView extends LiveSession {tangents?:LiveTangent[];participants:LiveParticipant[];joined:boolean;canControl:boolean;canEnd?:boolean;serverNow:number}
 export const defaultLiveSections=():LiveSection[]=>[
@@ -61,4 +61,8 @@ export function resolveTeamSessions<T extends LiveSession>(sessions:T[]):T[] {
  const active=result.filter(session=>session.status!=='ended').sort((a,b)=>b.startedAt-a.startedAt || (a.id<b.id?-1:1))
  if(active.length>1)result=result.map(session=>session.status!=='ended'&&session.id!==active[0].id?supersede(session,active[0]):session)
  return result
+}
+
+export function validateLivePresence(session:LiveSession,actorId:string,participants:LiveParticipant[]):void {
+ if(session.status==='ended'||!participants.some(person=>person.userId===actorId))throw Error('Join an active meeting before sending a connection check.')
 }

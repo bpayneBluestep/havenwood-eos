@@ -65,3 +65,14 @@
 .btn.live-meeting__end { background:#b52335; border-color:#d23d4f; color:#fff; }
 .btn.live-meeting__end:hover:not(:disabled) { background:#cf3045; border-color:#ed7080; }
 .btn.live-meeting__end:focus-visible { outline:2px solid #ff94a2; outline-offset:3px; }
+
+.meeting-attendees { margin:12px 8px; border-top:1px solid var(--border); padding-top:12px; }
+.meeting-attendees summary { cursor:pointer; font-size:12px; font-weight:600; }
+.meeting-attendees summary>span { float:right; color:var(--muted); font-weight:400; }
+.meeting-attendees ul { list-style:none; padding:0; margin:8px 0; }
+.meeting-attendees li { display:flex; gap:7px; align-items:center; padding:6px 0; font-size:12px; }
+.meeting-attendees__person { min-width:0; flex:1; }
+.meeting-attendees__person small { display:block; font-size:10px; color:var(--muted); }
+.meeting-attendees__dot { width:7px; height:7px; border-radius:50%; background:var(--muted); opacity:.4; flex-shrink:0; }
+.meeting-attendees__dot.is-connected { background:var(--green); opacity:1; }
+.meeting-attendees__hint { color:var(--muted); font-size:10px; margin:6px 0; }
