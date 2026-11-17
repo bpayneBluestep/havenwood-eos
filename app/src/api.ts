@@ -285,6 +285,7 @@ export interface Issue {
 }
 
 export interface Todo {
+  companyId?: string
   meetingSource?: MeetingSource
   sharedFrom?: MeetingDisclosure
   sharedTeamIds?: string[]

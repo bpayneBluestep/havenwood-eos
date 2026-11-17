@@ -1,3 +1,4 @@
+import {rowEditor} from '../lib/rowEditor'
 import {validateSourceUrl} from '../../../platform/scorecardModel'
 import QuickCreateButtons from '../components/QuickCreateButtons'
 import IssueTeamPicker from '../components/IssueTeamPicker'
@@ -153,6 +154,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
             {visible.map(issue => (
               <div
                 key={issue.id}
+                {...rowEditor(()=>setEditing(issue),!!issue.readOnly||inlineId===issue.id)}
                 className={'rowitem issue-row' + (overId === issue.id ? ' rowitem--dragover' : '') + (issue.status === 'solved' ? ' rowitem--done' : '')}
                 draggable={!issue.readOnly && sort === 'manual' && inlineId !== issue.id}
                 onDragStart={() => { dragId.current = issue.id }}
@@ -168,7 +170,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
                 <div className="rowitem__main">
                   {inlineId === issue.id && !issue.readOnly ? <IssueInlineEditor issue={issue} companyId={company.id} team={team} onCancel={() => setInlineId(null)} onSaved={() => {setInlineId(null); load()}}/> : <>
                   <div className="rowitem__title">
-                    {issue.readOnly ? issue.title : <button type="button" className="rowitem__title-link" aria-label={`Edit issue ${issue.title}`} onClick={() => setInlineId(issue.id)}>{issue.title}</button>}<FollowupContext hideOwner item={issue}/>
+                    {issue.readOnly ? issue.title : <button type="button" className="rowitem__title-link" aria-label={`Edit issue ${issue.title}`} onClick={() => setEditing(issue)}>{issue.title}</button>}<FollowupContext hideOwner item={issue}/>
                     {issue.origin && issue.origin.kind !== 'manual' && (
                       <span className="pill pill--muted" title={issue.origin.label}>
                         from {issue.origin.kind}
@@ -206,6 +208,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
                     {close => (
                       <>
                         <button onClick={() => { close(); setEditing(issue) }}>Edit issue</button>
+                        <button onClick={() => {close();setInlineId(issue.id)}}>Edit inline</button>
                         <button onClick={() => { close(); setLinkFor(issue) }}>Create linked To-Do</button>
                         <button
                           onClick={async () => {

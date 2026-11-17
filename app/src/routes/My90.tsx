@@ -1,3 +1,7 @@
+import {rowEditor} from '../lib/rowEditor'
+import {TodoModal} from './Todos'
+import {RockModal} from './Rocks'
+import type {Todo,Rock} from '../api'
 import {useTableColumns} from '../components/TableColumns'
 import {useNameForSort} from '../lib/memberProfiles'
 import {rockStatus} from '../rocks/model'
@@ -18,7 +22,9 @@ import {
  * milestones, and the measurables I own.
  */
 export default function My90() {
-  const { me, multiCompany, teams } = useApp()
+  const { me, multiCompany, teams,team } = useApp()
+  const [editTodo,setEditTodo]=useState<Todo|null>(null)
+  const [editRock,setEditRock]=useState<Rock|null>(null)
   const sortName=useNameForSort()
   const [data, setData] = useState<My90Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -112,7 +118,7 @@ export default function My90() {
               ) : (
                 <div className="dashboard-action-table" role="table" aria-label="My Action Items">
                   <div className="dashboard-action-row dashboard-action-row--head" role="row"><span/>{['owner','due','team','title'].map(key=><span key={key} role="columnheader" aria-sort={todoTable.ariaSort(key)}>{todoTable.header(key)}</span>)}</div>
-                  {todoTable.rows.map(todo=><div role="row" key={todo.id} className={'dashboard-action-row'+(todo.dueDate&&todo.dueDate<today?' action-item-row--overdue':'')}>
+                  {todoTable.rows.map(todo=><div role="row" key={todo.id} {...rowEditor(()=>setEditTodo(todo),!!todo.readOnly||!todo.companyId)} className={'dashboard-action-row'+(todo.dueDate&&todo.dueDate<today?' action-item-row--overdue':'')}>
                     <button className="check" aria-label={`Mark "${todo.title}" done`} onClick={async()=>{try{await setTodoStatus(todo.id,'done',todo.rev);load()}catch(error){setErr((error as Error).message)}}}>✓</button>
                     <span role="cell" className="dashboard-action-owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><PersonName name={todo.ownerName} id={todo.ownerId}/></span>
                     <span role="cell" className={dueClass(todo.dueDate,false)}>{todo.dueDate?fmtDate(todo.dueDate):'—'}</span>
@@ -137,7 +143,7 @@ export default function My90() {
                 <div className="dashboard-action-table" role="table" aria-label="My Rocks">
                   <div className="dashboard-action-row dashboard-rock-row dashboard-action-row--head" role="row">{['owner','due','team','title','milestones','status'].map(key=><span key={key} role="columnheader" aria-sort={rockTable.ariaSort(key)}>{rockTable.header(key)}</span>)}</div>
                   {rockTable.rows.map(r => (
-                    <div className="dashboard-action-row dashboard-rock-row" role="row" key={r.id}>
+                    <div className="dashboard-action-row dashboard-rock-row" role="row" key={r.id} {...rowEditor(()=>setEditRock(r),!!r.readOnly||!r.companyId)}>
                       <span role="cell" className="dashboard-action-owner"><Avatar name={r.ownerName} id={r.ownerId} sm/><PersonName name={r.ownerName} id={r.ownerId}/></span>
                       <span role="cell" className={dueClass(r.dueDate,r.status==='done')}>{r.dueDate?fmtDate(r.dueDate):'—'}</span>
                       <span role="cell" className="dashboard-action-team" title={r.companyName}>{r.companyName||'—'}</span>
@@ -242,6 +248,8 @@ export default function My90() {
           </div>
         </>
       )}
+      {editTodo&&editTodo.companyId&&<TodoModal initial={editTodo} companyId={editTodo.companyId} team={teams?.[editTodo.companyId]||team} defaultOwnerId={me.id} defaultOwnerName={me.name} onClose={()=>setEditTodo(null)} onSaved={()=>{setEditTodo(null);load()}}/>}
+      {editRock&&editRock.companyId&&<RockModal initial={editRock} companyId={editRock.companyId} team={teams?.[editRock.companyId]||team} defaultOwnerId={me.id} defaultOwnerName={me.name} onClose={()=>setEditRock(null)} onSaved={()=>{setEditRock(null);load()}}/>}
     </div>
   )
 }

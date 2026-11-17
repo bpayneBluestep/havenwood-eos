@@ -1,3 +1,4 @@
+import {rowEditor} from '../lib/rowEditor'
 import QuickCreateButtons from '../components/QuickCreateButtons'
 import {compareNames, compareDates} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
@@ -67,9 +68,9 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
 
       <section className="card permanent-headlines" aria-label="Permanent headlines">
         <div className="card__head headline-ribbon"><h2>Permanent headlines</h2><label className="sort-control">Sort permanent headlines<select className="select" value={permanentSort} onChange={event=>setPermanentSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label><button className="btn btn--sm" onClick={()=>{setPermanentNew(true);setAdding(true)}}>+ Permanent headline</button></div>
-        {permanentRows.map(h=><div className="permanent-headline" key={h.id}>
+        {permanentRows.map(h=><div className="permanent-headline rowitem--clickable" key={h.id} {...rowEditor(()=>setEditing(h),!!h.readOnly)}>
           <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={event=>setChecked({...checked,[h.id]:event.target.checked})}/>
-          <button className="rowitem__title-link" title={h.body} onClick={()=>setDetail(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
+          <button className="rowitem__title-link" title={h.body} onClick={()=>h.readOnly?setDetail(h):setEditing(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
           {h.details&&<button className="btn btn--sm" onClick={()=>setDetail(h)}>Show details</button>}
           {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{(!h.sourceLabel||h.sourceLabel==='Open source')?'Open link':h.sourceLabel}</a>}
           <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button><button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>
@@ -90,7 +91,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
         <div className="card card__body--flush">
           <div className="rows">
             {visible.filter(h=>!(h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))).map(h => (
-              <div className={'rowitem rowitem--clickable headline-row' + (h.readDate ? ' rowitem--done' : '')} key={h.id} onClick={() => setDetail(h)}>
+              <div className={'rowitem rowitem--clickable headline-row' + (h.readDate ? ' rowitem--done' : '')} key={h.id} {...rowEditor(()=>h.readOnly?setDetail(h):setEditing(h))}>
                 <input type="checkbox" aria-label={`Complete headline: ${h.body}`} checked={!!h.readDate} disabled={!!savingIds[h.id]||h.readOnly} onClick={event=>event.stopPropagation()} onChange={async event=>{
                   const complete=event.target.checked;setSavingIds(ids=>({...ids,[h.id]:true}));
                   try{const result=await markHeadlineRead([h.id],!complete);if(result.marked!==1)throw Error('Headline was not updated. Reload and try again.');setRows(items=>items?.map(item=>item.id===h.id?{...item,readDate:complete?new Date().toISOString().slice(0,10):null}:item)||null)}catch(error:any){setErr(error.message)}finally{setSavingIds(ids=>({...ids,[h.id]:false}))}
@@ -99,7 +100,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
                 <time className="headline-date muted" dateTime={h.createdAt?.slice(0,10)} title="Publication date">{h.createdAt?fmtDate(h.createdAt.slice(0,10)):'—'}</time>
                 <div className="rowitem__main">
                   <div className="rowitem__title">
-                    <button type="button" className="rowitem__title-link headline-preview" aria-label={`Open headline: ${h.body.slice(0, 120)}`} onClick={event => {event.stopPropagation(); setDetail(h)}}>{h.body.split(/\r?\n/)[0].slice(0, 140)}{h.body.length > 140 || h.body.includes('\n') ? '…' : ''}</button><FollowupContext hideOwner item={h}/>
+                    <button type="button" className="rowitem__title-link headline-preview" aria-label={`Open headline: ${h.body.slice(0, 120)}`} onClick={event => {event.stopPropagation(); h.readOnly?setDetail(h):setEditing(h)}}>{h.body.split(/\r?\n/)[0].slice(0, 140)}{h.body.length > 140 || h.body.includes('\n') ? '…' : ''}</button><FollowupContext hideOwner item={h}/>
 
                   </div>
 

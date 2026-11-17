@@ -1,3 +1,4 @@
+import {rowEditor} from '../lib/rowEditor'
 import {compareNames, compareDates, isOverdue} from '../lib/listModel'
 import {useToday} from '../lib/useToday'
 import QuickCreateButtons from '../components/QuickCreateButtons'
@@ -161,7 +162,7 @@ export function TodoRow({
   const overdue = isOverdue(todo,today)
   const isDone = todo.status === 'done'
   return (
-    <div className={'rowitem action-item-row' + (overdue ? ' action-item-row--overdue' : '') + (isDone ? ' rowitem--done' : '')}>
+    <div {...rowEditor(()=>onEdit?.(),!onEdit||!!todo.readOnly)} className={'rowitem rowitem--clickable action-item-row' + (overdue ? ' action-item-row--overdue' : '') + (isDone ? ' rowitem--done' : '')}>
       <button
         className={'check' + (isDone ? ' check--on' : '')}
         disabled={todo.readOnly} onClick={onToggle}

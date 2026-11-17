@@ -1,3 +1,4 @@
+import {rowEditor} from '../lib/rowEditor'
 import MilestoneEditor from '../rocks/MilestoneEditor'
 import MilestoneTasks from '../rocks/MilestoneTasks'
 import {groupRocks, rockStatus} from '../rocks/model'
@@ -144,7 +145,7 @@ export default function Rocks({embedded=false,companyId}:{embedded?:boolean;comp
               <div className="card__body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {col.rows.length === 0 && <span className="faint" style={{ fontSize: 12.5 }}>Empty</span>}
                 {col.rows.map(r => (
-                  <div key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px' }}>
+                  <div key={r.id} {...rowEditor(()=>setEditing(r),!!r.readOnly)} style={{ cursor:r.readOnly?undefined:'pointer', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px' }}>
                     <div style={{ fontWeight: 560, marginBottom: 4 }}>{r.title}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                       <Avatar name={r.ownerName} id={r.ownerId} sm />
@@ -261,7 +262,7 @@ function RockRow({
 
   return (
     <>
-      <div className="rowitem rock-row">
+      <div className="rowitem rowitem--clickable rock-row" {...rowEditor(onEdit,!!rock.readOnly)}>
         <button
           className="btn btn--sm btn--ghost"
           onClick={() => setOpen(o => !o)}
@@ -445,7 +446,7 @@ function MilestoneAdd({
   )
 }
 
-function RockModal({
+export function RockModal({
   initial, companyId, team, defaultOwnerId, defaultOwnerName, onClose, onSaved,
 }: {
   initial: Rock | null

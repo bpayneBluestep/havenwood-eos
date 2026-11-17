@@ -1,3 +1,8 @@
+import {rowEditor} from '../lib/rowEditor'
+import {TodoModal} from './Todos'
+import {IssueModal} from './Issues'
+import {HeadlineForm} from './Headlines'
+import type {Todo,Issue,Headline} from '../api'
 import LiveMeetings from '../meetings/LiveMeetings'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
@@ -222,6 +227,7 @@ function QuickAdd({ placeholder, onAdd }: { placeholder: string; onAdd: (text: s
 }
 
 function TodosCard({ occ, onChange, onError }: CardProps) {
+  const [editingItem,setEditingItem]=useState<Todo|null>(null)
   const [owner, setOwner] = useState('')
   const add = async (title: string) => {
     const p = occ.attendees.find(a => a.id === owner)
@@ -237,7 +243,7 @@ function TodosCard({ occ, onChange, onError }: CardProps) {
       <div className="rows">
         {occ.todos.length === 0 && <Empty title="No to-dos">Anything decided here that someone has to do.</Empty>}
         {occ.todos.map(t => (
-          <div className={'rowitem' + (t.status === 'done' ? ' rowitem--done' : '')} key={t.id}>
+          <div className={'rowitem' + (t.status === 'done' ? ' rowitem--done' : '')} key={t.id} {...rowEditor(()=>setEditingItem(t),!!t.readOnly)}>
             <button className={'check' + (t.status === 'done' ? ' check--on' : '')} onClick={() => toggle(t.id, t.status, t.rev)}
               aria-label={t.status === 'done' ? 'Mark open' : 'Mark done'}>✓</button>
             <div className="rowitem__main">
@@ -258,11 +264,13 @@ function TodosCard({ occ, onChange, onError }: CardProps) {
         </select>
       </div>
       <QuickAdd placeholder="New to-do for this meeting" onAdd={add} />
+      {editingItem&&<TodoModal initial={editingItem} companyId={occ.meeting.companyId} team={occ.attendees} defaultOwnerId="" defaultOwnerName="" onClose={()=>setEditingItem(null)} onSaved={()=>{setEditingItem(null);onChange()}}/>}
     </div>
   )
 }
 
 function IssuesCard({ occ, onChange, onError }: CardProps) {
+  const [editingItem,setEditingItem]=useState<Issue|null>(null)
   const add = async (title: string) => {
     try { await saveIssue({ ...where(occ), title }); onChange() } catch (e: any) { onError(e.message) }
   }
@@ -275,7 +283,7 @@ function IssuesCard({ occ, onChange, onError }: CardProps) {
       <div className="rows">
         {occ.issues.length === 0 && <Empty title="No issues">Something to identify, discuss and solve between the people here.</Empty>}
         {occ.issues.map(i => (
-          <div className={'rowitem' + (i.status === 'solved' ? ' rowitem--done' : '')} key={i.id}>
+          <div className={'rowitem' + (i.status === 'solved' ? ' rowitem--done' : '')} key={i.id} {...rowEditor(()=>setEditingItem(i),!!i.readOnly)}>
             <div className="rowitem__main">
               <div className="rowitem__title">{i.title}</div>
               <div className="rowitem__meta">
@@ -290,11 +298,13 @@ function IssuesCard({ occ, onChange, onError }: CardProps) {
         ))}
       </div>
       <QuickAdd placeholder="New issue for this meeting" onAdd={add} />
+      {editingItem&&<IssueModal initial={editingItem} companyId={occ.meeting.companyId} team={occ.attendees} term={editingItem.term} defaultOwnerId="" onClose={()=>setEditingItem(null)} onSaved={()=>{setEditingItem(null);onChange()}}/>}
     </div>
   )
 }
 
 function HeadlinesCard({ occ, onChange, onError }: CardProps) {
+  const [editingItem,setEditingItem]=useState<Headline|null>(null)
   const add = async (body: string) => {
     try { await saveHeadline({ ...where(occ), body, type: 'employee' }); onChange() } catch (e: any) { onError(e.message) }
   }
@@ -307,7 +317,7 @@ function HeadlinesCard({ occ, onChange, onError }: CardProps) {
       <div className="rows">
         {occ.headlines.length === 0 && <Empty title="No headlines">News for the people in this meeting.</Empty>}
         {occ.headlines.map(h => (
-          <div className={'rowitem' + (h.readDate ? ' rowitem--done' : '')} key={h.id}>
+          <div className={'rowitem' + (h.readDate ? ' rowitem--done' : '')} key={h.id} {...rowEditor(()=>setEditingItem(h),!!h.readOnly)}>
             <button className={'check' + (h.readDate ? ' check--on' : '')} onClick={() => mark(h.id, !!h.readDate)}
               aria-label={h.readDate ? 'Mark unread' : 'Mark read'}>✓</button>
             <div className="rowitem__main">
@@ -318,6 +328,7 @@ function HeadlinesCard({ occ, onChange, onError }: CardProps) {
         ))}
       </div>
       <QuickAdd placeholder="New headline for this meeting" onAdd={add} />
+      {editingItem&&<Modal title="Edit headline" onClose={()=>setEditingItem(null)}><HeadlineForm initial={editingItem} companyId={occ.meeting.companyId} onCancel={()=>setEditingItem(null)} onDone={()=>{setEditingItem(null);onChange()}}/></Modal>}
     </div>
   )
 }
