@@ -121,7 +121,7 @@
 .meeting-lobby__intro { display:flex; align-items:center; gap:14px; }
 .meeting-lobby__symbol { display:grid; place-items:center; width:46px; height:46px; flex-shrink:0; border-radius:14px; background:#edf4ff; color:#2468c7; }
 .meeting-lobby__intro h2 { margin:0; font-size:18px; font-weight:600; letter-spacing:-.3px; }
-.meeting-lobby__setup { display:flex; align-items:flex-end; flex-wrap:wrap; width:fit-content; max-width:100%; box-sizing:border-box; gap:14px; padding:16px; border:1px solid #e6ebf2; border-radius:12px; background:#f8fafc; }
+.meeting-lobby__setup { display:flex; align-items:flex-end; flex-wrap:wrap; width:800px; max-width:100%; box-sizing:border-box; gap:14px; padding:16px; border:1px solid #e6ebf2; border-radius:12px; background:#f8fafc; }
 .meeting-lobby__setup label { display:flex; flex-direction:column; gap:8px; flex:0 1 210px; min-width:160px; font-size:12px; font-weight:500; color:#53667f; }
 .meeting-lobby__setup .select { width:100% !important; max-width:none !important; min-height:40px; background-color:#fff; border-radius:8px; color:#17263c; font-size:14px; }
 .meeting-lobby__setup>.btn { min-height:40px; padding:0 22px; border-radius:8px; white-space:nowrap; }
