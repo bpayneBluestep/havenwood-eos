@@ -7,9 +7,9 @@ import {useTableColumns} from '../components/TableColumns'
 import {useNameForSort} from '../lib/memberProfiles'
 import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getMy90, setTodoStatus, setRockStatus, saveMilestone } from '../api'
+import { getMy90, setTodoStatus, setRockStatus } from '../api'
 import type { My90 as My90Data } from '../api'
 import { useApp } from '../state'
 import {
@@ -26,6 +26,7 @@ export default function My90() {
   const { me, multiCompany, teams,team } = useApp()
   const [editTodo,setEditTodo]=useState<Todo|null>(null)
   const [editRock,setEditRock]=useState<Rock|null>(null)
+  const [expandedRocks,setExpandedRocks]=useState<Set<string>>(()=>new Set())
   const sortName=useNameForSort()
   const [data, setData] = useState<My90Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -48,8 +49,6 @@ export default function My90() {
   const completeMilestones=allRockMilestones.filter(milestone=>milestone.done).length
   const lateMilestones=allRockMilestones.filter(milestone=>!milestone.done&&milestone.dueDate&&milestone.dueDate<today).length
 
-  const people=[...Object.values(teams||{}).flat(),me]
-  const milestoneOwner=(m:My90Data['milestones'][number])=>people.find(person=>person.id===(m.milestone.ownerId||me.id))?.name||'Unassigned'
   const todoTable=useTableColumns(openTodos,[
     {key:'owner',label:'Owner',kind:'select',value:t=>sortName(t.ownerId,t.ownerName)},
     {key:'due',label:'Due date',kind:'date',value:t=>t.dueDate},
@@ -64,13 +63,6 @@ export default function My90() {
     {key:'milestones',label:'Milestones',kind:'select',value:r=>r.milestones.length?r.milestones.filter(m=>m.done).length/r.milestones.length:null,options:[{value:'overdue',label:'Has overdue milestones'},{value:'incomplete',label:'Has incomplete milestones'},{value:'complete',label:'All milestones complete'},{value:'none',label:'No milestones'}],matches:(r,filter)=>filter==='none'?r.milestones.length===0:filter==='complete'?r.milestones.length>0&&r.milestones.every(m=>m.done):filter==='overdue'?r.milestones.some(m=>!m.done&&!!m.dueDate&&m.dueDate<today):r.milestones.some(m=>!m.done)},
     {key:'status',label:'Status',kind:'select',value:r=>({off_track:0,on_track:1,done:2}[r.status]??3),filterValue:r=>r.status,options:[{value:'off_track',label:'Off Track'},{value:'on_track',label:'On Track'},{value:'done',label:'Done'}]},
   ],'My Rocks')
-  const milestoneTable=useTableColumns(data?.milestones||[],[
-    {key:'owner',label:'Owner',kind:'select',value:m=>sortName(m.milestone.ownerId||me.id,milestoneOwner(m))},
-    {key:'due',label:'Due date',kind:'date',value:m=>m.milestone.dueDate},
-    {key:'team',label:'Team',kind:'select',value:m=>m.companyName||'Unassigned'},
-    {key:'title',label:'Milestone',value:m=>m.milestone.title},
-    {key:'rock',label:'Rock',value:m=>m.rockTitle},
-  ],'My open milestones')
 
   if (!data && !err) return <div className="page"><Loading what="Loading your dashboard" /></div>
 
@@ -144,11 +136,11 @@ export default function My90() {
                 <div className="dashboard-action-table" role="table" aria-label="My Rocks">
                   <div className="dashboard-action-row dashboard-rock-row dashboard-action-row--head" role="row">{['owner','due','team','title','milestones','status'].map(key=><span key={key} role="columnheader" aria-sort={rockTable.ariaSort(key)}>{rockTable.header(key)}</span>)}</div>
                   {rockTable.rows.map(r => (
-                    <div className="dashboard-action-row dashboard-rock-row" role="row" key={r.id} {...rowEditor(()=>setEditRock(r),!!r.readOnly||!r.companyId)}>
+                    <Fragment key={r.id}><div className="dashboard-action-row dashboard-rock-row" role="row" key={r.id} {...rowEditor(()=>setEditRock(r),!!r.readOnly||!r.companyId)}>
                       <span role="cell" className="dashboard-action-owner"><Avatar name={r.ownerName} id={r.ownerId} sm/><PersonName name={r.ownerName} id={r.ownerId}/></span>
                       <span role="cell" className={dueClass(r.dueDate,r.status==='done')}>{r.dueDate?fmtDate(r.dueDate):'—'}</span>
                       <span role="cell" className="dashboard-action-team" title={r.companyName}>{r.companyName||'—'}</span>
-                      <span role="cell" className="dashboard-action-title" title={r.title}>{r.title}</span>
+                      <span role="cell" className="dashboard-action-title dashboard-rock-title" title={r.title}><button className="dashboard-rock-expand" aria-label={`${expandedRocks.has(r.id)?'Hide':'Show'} milestones for ${r.title}`} aria-expanded={expandedRocks.has(r.id)} aria-controls={`dashboard-milestones-${r.id}`} onClick={()=>setExpandedRocks(current=>{const next=new Set(current);next.has(r.id)?next.delete(r.id):next.add(r.id);return next})}>{expandedRocks.has(r.id)?'−':'+'}</button><span>{r.title}</span></span>
                       <span role="cell" title={`${r.milestones.filter(m=>m.done).length} of ${r.milestones.length} complete; ${r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue`}>{r.milestones.filter(m=>m.done).length}/{r.milestones.length} complete · {r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue</span>
                       <div role="cell" className="rowitem__end">
                         {r.milestones.length > 0 ? <StatusPill status={r.status}/> : <div className="seg" role="group" aria-label={`Status for ${r.title}`}>
@@ -163,46 +155,12 @@ export default function My90() {
                           }}>Done</button>
                         </div>}
                       </div>
-                    </div>
+                    </div>{expandedRocks.has(r.id)&&<div role="row" className="dashboard-rock-details" id={`dashboard-milestones-${r.id}`}><div role="cell" aria-colspan={6}><table className="dashboard-rock-milestones" aria-label={`Milestones for ${r.title}`}><thead><tr><th>Milestone</th><th>Due date</th><th>Status</th></tr></thead><tbody>{r.milestones.map(m=><tr key={m.id}><td>{m.title}</td><td className={dueClass(m.dueDate,m.done)}>{m.dueDate?fmtDate(m.dueDate):'—'}</td><td>{m.done?'Complete':'Open'}</td></tr>)}</tbody></table>{r.milestones.length===0&&<p className="muted">No milestones added.</p>}</div></div>}</Fragment>
                   ))}
                 </div>
               )}
             </div>
           </div>
-
-          {data.milestones.length > 0 && (
-            <div className="card">
-              <div className="card__head"><h2>My open milestones</h2></div>
-              <div className="card__body--flush">
-                {milestoneTable.summary}<div className="dashboard-action-table" role="table" aria-label="My open milestones">
-                  <div className="dashboard-action-row dashboard-milestone-row dashboard-action-row--head" role="row"><span/>{['owner','due','team','title','rock'].map(key=><span key={key} role="columnheader" aria-sort={milestoneTable.ariaSort(key)}>{milestoneTable.header(key)}</span>)}</div>
-                  {milestoneTable.rows.map(m => (
-                    <div className="dashboard-action-row dashboard-milestone-row" role="row" key={m.milestone.id}>
-                      <button
-                        className="check"
-                        aria-label={`Mark "${m.milestone.title}" done`}
-                        onClick={async () => {
-                          try {
-                            // rev is unknown here, so the write is sent without one
-                            // and the server takes it as an opt-out of the check.
-                            await saveMilestone(m.rockId, { id: m.milestone.id, done: true }, undefined as any)
-                            load()
-                          } catch (e: any) { setErr(e.message) }
-                        }}
-                      >
-                        ✓
-                      </button>
-                      <span role="cell" className="dashboard-action-owner"><Avatar name={milestoneOwner(m)} id={m.milestone.ownerId||me.id} sm/><PersonName name={milestoneOwner(m)} id={m.milestone.ownerId||me.id}/></span>
-                      <span role="cell" className={dueClass(m.milestone.dueDate,m.milestone.done)}>{m.milestone.dueDate?fmtDate(m.milestone.dueDate):'—'}</span>
-                      <span role="cell" className="dashboard-action-team" title={m.companyName}>{m.companyName||'—'}</span>
-                      <span role="cell" className="dashboard-action-title" title={m.milestone.title}>{m.milestone.title}</span>
-                      <span role="cell" className="dashboard-action-title muted" title={m.rockTitle}>{m.rockTitle}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="card">
             <div className="card__head">
