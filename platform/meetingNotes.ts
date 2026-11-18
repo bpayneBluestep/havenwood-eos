@@ -1,6 +1,6 @@
 export interface NoteRevision {id:string;sectionId:string;parents:string[];text:string;authorId:string;authorName:string;at:number}
 export interface SectionNotes {sectionId:string;versions:NoteRevision[]}
-export interface MeetingNotesView {sections:SectionNotes[];canEdit:boolean}
+export interface MeetingNotesView {sections:SectionNotes[];canEdit:boolean;activities?:import('./meetingActivity').MeetingActivity[];emailHistory?:import('./meetingActivity').MeetingEmailHistory[]}
 export function noteHeads(rows:NoteRevision[],sectionId:string):NoteRevision[] {
  const section=rows.filter(row=>row.sectionId===sectionId),parents=new Set<string>()
  for(const row of section)for(const parent of row.parents)parents.add(parent)

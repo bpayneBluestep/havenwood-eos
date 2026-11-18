@@ -3,7 +3,7 @@ import QuickCreateButtons from '../components/QuickCreateButtons'
 import {compareNames, compareDates} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
 import { Fragment, useCallback, useEffect, useState, useId } from 'react'
-import { getHeadlines, saveHeadline, getHeadlineCascadeTeams, cascadeHeadline, markHeadlineRead } from '../api'
+import { getHeadlines, saveHeadline, getHeadlineCascadeTeams, cascadeHeadline, markHeadlineRead, reviewMeetingHeadline } from '../api'
 import type { Headline } from '../api'
 import { useApp } from '../state'
 import { Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker,fmtDate } from '../lib/ui'
@@ -81,7 +81,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
       <section className="card permanent-headlines" aria-label="Permanent headlines">
         <div className="card__head headline-ribbon"><h2>Permanent headlines</h2><label className="sort-control">Sort permanent headlines<select className="select" value={permanentSort} onChange={event=>setPermanentSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="author">Author A–Z</option><option value="author-desc">Author Z–A</option></select></label><button className="btn btn--sm" onClick={()=>{setPermanentNew(true);setAdding(true)}}>+ Permanent headline</button></div>
         {permanentRows.map(h=><Fragment key={h.id}><div className="permanent-headline rowitem--clickable" {...rowEditor(()=>setEditing(h),!!h.readOnly)}>
-          <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={event=>setChecked({...checked,[h.id]:event.target.checked})}/>
+          <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={async event=>{const complete=event.target.checked;try{await reviewMeetingHeadline(h.id,complete);setChecked(current=>({...current,[h.id]:complete}))}catch(error:any){setErr(error.message)}}}/>
           <button className="rowitem__title-link" title={h.body} onClick={()=>h.readOnly?setDetail(h):setEditing(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
           {detailToggle(h)}
           {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{(!h.sourceLabel||h.sourceLabel==='Open source')?'Open link':h.sourceLabel}</a>}

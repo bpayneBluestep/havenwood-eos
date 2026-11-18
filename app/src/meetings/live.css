@@ -101,3 +101,16 @@
 .meeting-notes__editor p { margin:4px 0; }
 .meeting-notes__editor ul,.meeting-notes__editor ol { padding-left:22px; margin:6px 0; }
 .meeting-notes__editor:focus { outline:2px solid var(--blue); outline-offset:1px; }
+.meeting-notes__activity { font-size:12px; border-bottom:1px solid var(--border); padding-bottom:10px; }
+.meeting-notes__activity h4,.meeting-notes__email h3,.meeting-notes__email h4 { margin:8px 0; font-size:13px; }
+.meeting-notes__activity ol { padding-left:18px; }
+.meeting-notes__activity li { margin-bottom:12px; }
+.meeting-notes__activity p { margin:3px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.meeting-notes__activity small,.meeting-notes__email small { display:block; color:var(--muted); }
+.meeting-notes__email { border-top:1px solid var(--border); padding-top:12px; font-size:12px; }
+.meeting-notes__email form { display:flex; align-items:flex-end; gap:6px; }
+.meeting-notes__email label { min-width:0; flex:1; }
+.meeting-notes__email input { margin-top:4px; width:100%; }
+.meeting-notes__email ul { list-style:none; padding:0; }
+.meeting-notes__email li { border-top:1px solid var(--border); padding:8px 0; overflow-wrap:anywhere; }
+.meeting-notes__email li span { display:block; }

@@ -1,3 +1,4 @@
+import {meetingActivityEnvelope,currentMeetingActivityScope} from './lib/meetingActivityScope'
 /*
  * The single seam between this SPA and the platform. Everything that reads or
  * writes data goes through the Traction Maestro endpoint as one action envelope:
@@ -103,7 +104,7 @@ export async function post(action: string, payload: Record<string, unknown> = {}
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ action, ...payload }),
+      body: JSON.stringify({ action, ...meetingActivityEnvelope(action), ...payload }),
     })
   } catch {
     throw new ApiError('Could not reach TenK. Check your connection.', { code: 'NETWORK' })
@@ -707,3 +708,6 @@ export const sendMeetingPresence=(scope:{companyId:string;meetingId?:string;date
 
 export const getMeetingNotes=(scope:{companyId:string;sessionId:string}):Promise<import('../../platform/meetingNotes').MeetingNotesView>=>get('meetingNotes',scope)
 export const saveMeetingNotes=(fields:{companyId:string;sessionId:string;sectionId:string;text:string;parents:string[]}):Promise<import('../../platform/meetingNotes').MeetingNotesView>=>post('saveMeetingNotes',fields)
+
+export const emailMeetingNotes=(fields:{companyId:string;sessionId:string;recipient:string;requestId:string}):Promise<import('../../platform/meetingNotes').MeetingNotesView>=>post('emailMeetingNotes',fields)
+export const reviewMeetingHeadline=(id:string,complete:boolean):Promise<unknown>=>currentMeetingActivityScope()?post('reviewMeetingHeadline',{id,complete}):Promise.resolve(null)

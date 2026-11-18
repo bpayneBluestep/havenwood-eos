@@ -1,0 +1,5 @@
+import {afterEach,it,expect} from 'vitest'
+import {setMeetingActivityScope,meetingActivityEnvelope} from './meetingActivityScope'
+afterEach(()=>setMeetingActivityScope(null))
+it('attaches active meeting context only to tracked item writes',()=>{expect(meetingActivityEnvelope('saveTodo')).toEqual({});const clear=setMeetingActivityScope({companyId:'team',sessionId:'live'});expect(meetingActivityEnvelope('saveTodo')).toEqual({liveCompanyId:'team',liveSessionId:'live'});expect(meetingActivityEnvelope('saveMeetingNotes')).toEqual({});expect(meetingActivityEnvelope('saveSettings')).toEqual({});clear();expect(meetingActivityEnvelope('saveTodo')).toEqual({})})
+it('does not let cleanup of an earlier meeting clear a newer scope',()=>{const old=setMeetingActivityScope({companyId:'a',sessionId:'old'});const latest=setMeetingActivityScope({companyId:'b',sessionId:'new'});old();expect(meetingActivityEnvelope('solveIssue').liveSessionId).toBe('new');latest();expect(meetingActivityEnvelope('solveIssue')).toEqual({})})

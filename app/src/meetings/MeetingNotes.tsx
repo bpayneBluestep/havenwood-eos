@@ -1,3 +1,5 @@
+import MeetingNotesEmail from './MeetingNotesEmail'
+import {activityLines} from '../../../platform/meetingActivity'
 import RichNotesEditor from './RichNotesEditor'
 import {NotesPreview} from './NotesText'
 export {NotesPreview} from './NotesText'
@@ -7,10 +9,11 @@ import type {LiveSessionView} from '../../../platform/liveSessionModel'
 import type {MeetingNotesView,NoteRevision} from '../../../platform/meetingNotes'
 
 const headKey=(versions:NoteRevision[])=>versions.map(version=>version.id).sort().join('|')
-function SectionEditor({label,versions,canEdit,onSave}:{label:string;versions:NoteRevision[];canEdit:boolean;onSave:(text:string,parents:string[])=>Promise<NoteRevision[]>}) {
+function SectionEditor({label,versions,canEdit,onSave,onPendingChange}:{label:string;versions:NoteRevision[];canEdit:boolean;onSave:(text:string,parents:string[])=>Promise<NoteRevision[]>;onPendingChange?:(pending:boolean)=>void}) {
  const initial=versions.length===1?versions[0].text:'', [text,setText]=useState(initial),[dirty,setDirty]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState('')
  const base=useRef(headKey(versions)),parents=useRef(versions.map(version=>version.id)),writing=useRef(false),latestText=useRef(text),alive=useRef(true)
  latestText.current=text
+ useEffect(()=>{onPendingChange?.(dirty||saving)},[dirty,saving])
  const remoteKey=headKey(versions),conflict=versions.length>1||(dirty&&remoteKey!==base.current)
  useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[])
  useEffect(()=>{if(!dirty&&!writing.current){base.current=remoteKey;parents.current=versions.map(version=>version.id);setText(versions.length===1?versions[0].text:'')}},[remoteKey,dirty])
@@ -27,10 +30,12 @@ function SectionEditor({label,versions,canEdit,onSave}:{label:string;versions:No
  </section>
 }
 export default function MeetingNotes({companyId,session}:{companyId:string;session:LiveSessionView}) {
- const [open,setOpen]=useState(false),[data,setData]=useState<MeetingNotesView|null>(null),[error,setError]=useState('')
+ const [open,setOpen]=useState(false),[data,setData]=useState<MeetingNotesView|null>(null),[error,setError]=useState(''),[pending,setPending]=useState<Record<string,boolean>>({})
  const generation=useRef(0),writes=useRef(0),mounted=useRef(true)
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[])
  useEffect(()=>{if(!open)return;let active=true,pending=false;const read=async()=>{if(pending||writes.current)return;pending=true;const ticket=generation.current;try{const result=await getMeetingNotes({companyId,sessionId:session.id});if(active&&ticket===generation.current&&!writes.current){setData(result);setError('')}}catch(error){if(active)setError((error as Error).message)}finally{pending=false}};void read();const timer=window.setInterval(()=>void read(),2000);return()=>{active=false;window.clearInterval(timer)}},[open,companyId,session.id])
  async function save(sectionId:string,text:string,parents:string[]) {++writes.current;++generation.current;try{const result=await saveMeetingNotes({companyId,sessionId:session.id,sectionId,text,parents});if(mounted.current)setData(current=>current?{...result,sections:current.sections.map(section=>section.sectionId===sectionId?(result.sections.find(value=>value.sectionId===sectionId)||section):section)}:result);return result.sections.find(section=>section.sectionId===sectionId)?.versions||[]}finally{--writes.current;++generation.current}}
- return <aside className={'meeting-notes'+(open?' meeting-notes--open':'')} aria-label="Meeting notes"><button className="btn meeting-notes__toggle" type="button" aria-expanded={open} aria-controls="meeting-notes-panel" onClick={()=>setOpen(value=>!value)}>{open?'Close notes':'Notes'}</button><div id="meeting-notes-panel" hidden={!open}><h2>Meeting notes</h2><p className="muted">Shared with meeting participants. Edits save automatically. Use the buttons to format your notes.</p>{session.status==='ended'&&<p className="muted">Meeting ended. Notes are read-only.</p>}{error&&<p role="alert">{error}</p>}{!data&&!error&&<p role="status">Loading notes…</p>}{data&&session.sections.map((section,index)=><SectionEditor key={section.id} label={`${index+1}. ${section.label}`} versions={data.sections.find(notes=>notes.sectionId===section.id)?.versions||[]} canEdit={data.canEdit&&session.status!=='ended'} onSave={(text,parents)=>save(section.id,text,parents)}/>)}</div></aside>
+ return <aside className={'meeting-notes'+(open?' meeting-notes--open':'')} aria-label="Meeting notes"><button className="btn meeting-notes__toggle" type="button" aria-expanded={open} aria-controls="meeting-notes-panel" onClick={()=>setOpen(value=>!value)}>{open?'Close notes':'Notes'}</button><div id="meeting-notes-panel" hidden={!open}><h2>Meeting notes</h2><p className="muted">Shared with meeting participants. Edits save automatically. Use the buttons to format your notes. Item actions in this meeting appear below their section. Earlier actions are not reconstructed.</p>{session.status==='ended'&&<p className="muted">Meeting ended. Notes are read-only.</p>}{error&&<p role="alert">{error}</p>}{!data&&!error&&<p role="status">Loading notes…</p>}{data&&<MeetingNotesEmail companyId={companyId} sessionId={session.id} history={data.emailHistory||[]} pending={Object.values(pending).some(Boolean)} onSent={view=>setData(current=>current?{...current,emailHistory:view.emailHistory}:view)}/>}{data&&session.sections.map((section,index)=><div key={section.id}><SectionEditor label={`${index+1}. ${section.label}`} versions={data.sections.find(notes=>notes.sectionId===section.id)?.versions||[]} canEdit={data.canEdit&&session.status!=='ended'} onPendingChange={value=>setPending(current=>current[section.id]===value?current:{...current,[section.id]:value})} onSave={(text,parents)=>save(section.id,text,parents)}/><MeetingActivityList events={(data.activities||[]).filter(event=>event.sectionIds.includes(section.id))}/></div>)}{data&&<><MeetingActivityList events={(data.activities||[]).filter(event=>!event.sectionIds.length)} label="Additional meeting activity"/></>}</div></aside>
 }
+
+function MeetingActivityList({events,label='Recorded activity'}:{events:import('../../../platform/meetingActivity').MeetingActivity[];label?:string}){return events.length?<section className="meeting-notes__activity" aria-label={label}><h4>{label}</h4><ol>{events.map(event=><li key={event.id}><strong>{activityLines(event)[0]}</strong><small>{new Date(event.at).toLocaleString()}</small>{activityLines(event).slice(1).map((line,index)=><p key={index}>{line}</p>)}</li>)}</ol></section>:null}

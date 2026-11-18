@@ -1,3 +1,4 @@
+import {setMeetingActivityScope} from '../lib/meetingActivityScope'
 import MeetingNotes from './MeetingNotes'
 import MeetingAttendees from './MeetingAttendees'
 import {createPortal} from 'react-dom'
@@ -57,6 +58,7 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fi
   if(target.joined||target.status==='ended')setSelected(target.id);else void act('join',target)
  },[requestedSessionId,sessions,companyId])
  const session=sessions.find(row=>row.id===selected)
+ useEffect(()=>setMeetingActivityScope(session?.joined&&session.status!=='ended'?{companyId,sessionId:session.id}:null),[companyId,session?.id,session?.joined,session?.status])
  const [presenceUnavailable,setPresenceUnavailable]=useState(false)
  useEffect(()=>{
   if(!liveMeetings||!session?.joined||session.status==='ended')return
