@@ -17,7 +17,7 @@ npm run typecheck
 ## Deploy
 
 Commit the build output and push to `main`. The BlueStep GitSite
-(`hope-eos.bluestep.net`) redeploys on push via webhook.
+(`tenk.bluestep.net`) redeploys on push via webhook.
 
 ## Interface behavior
 

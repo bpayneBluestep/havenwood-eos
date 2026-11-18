@@ -23,7 +23,7 @@ import './styles.css'
  * via the `Sec-Fetch-Mode: navigate` header. A plain curl of /rocks returns 404 and
  * looks like proof that root routing is unsupported. It is not — that false negative
  * is what put the /spa/ prefix here in the first place. Probe with:
- *   curl -H 'Sec-Fetch-Mode: navigate' https://hope-eos.bluestep.net/rocks
+ *   curl -H 'Sec-Fetch-Mode: navigate' https://tenk.bluestep.net/rocks
  */
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
