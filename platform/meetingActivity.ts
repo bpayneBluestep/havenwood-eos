@@ -1,5 +1,5 @@
 export interface MeetingActivity {id:string;at:number;actorId:string;actorName:string;sectionIds:string[];action:string;itemId:string;title:string;ownerName:string;dueDate:string;target:string;description:string;status:string;source:string}
-export interface MeetingEmailHistory {id:string;requestId:string;recipient:string;byId:string;byName:string;at:number;status:'preparing'|'queued'|'uncertain';detail?:string}
+export interface MeetingEmailHistory {id:string;requestId:string;recipient:string;byId:string;byName:string;at:number;status:'preparing'|'queued'|'uncertain'|'submitted'|'sent'|'failed';detail?:string}
 export function activitySectionIds(sections:{id:string;kind?:string}[],kinds:string[]):string[]{return sections.filter(section=>kinds.includes(section.kind||section.id)).map(section=>section.id)}
 export function activityAllowed(session:{companyId:string;meetingId?:string;date:string},companyId:string,item:{personal?:boolean;meetingId?:string;occurrenceDate?:string;assignedTeamIds?:string[]}):boolean {
  if(item.personal)return false
