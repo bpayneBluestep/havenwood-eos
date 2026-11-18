@@ -1,3 +1,4 @@
+import {weekSundayLabel} from '../lib/periodLabels'
 import {validateSourceUrl, assignedTeams, compareMeasurables, orderMeasurables} from '../../../platform/scorecardModel'
 import {newestPeriods} from '../lib/listModel'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -104,7 +105,7 @@ export default function Scorecard({embedded=false,ownedOnly=false,companyId}:{em
                   <th className="c-meas">Measurable</th>
                   {periods.map(p => (
                     <th key={p} scope="col" title={p}>
-                      {shortPeriod(p)}
+                      {shortPeriod(p)}{weekSundayLabel(p)&&<div className="week-date">{weekSundayLabel(p)}</div>}
                       {p === sc.currentPeriod && <div className="faint" style={{ fontSize: 9, fontWeight: 700 }}>NOW</div>}
                     </th>
                   ))}

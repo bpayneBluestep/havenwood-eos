@@ -1,3 +1,4 @@
+import {weekSundayLabel} from '../lib/periodLabels'
 import {rowEditor} from '../lib/rowEditor'
 import {TodoModal} from './Todos'
 import {RockModal} from './Rocks'
@@ -218,7 +219,7 @@ export default function My90() {
                       <tr>
                         <th className="c-meas">Measurable</th><th>Team</th><th>Goal</th>
                         {data.measurables[0].cells.slice(-6).map(c => (
-                          <th key={c.periodKey} title={c.periodKey}>{shortPeriod(c.periodKey)}</th>
+                          <th key={c.periodKey} title={c.periodKey}>{shortPeriod(c.periodKey)}{weekSundayLabel(c.periodKey)&&<div className="week-date">{weekSundayLabel(c.periodKey)}</div>}</th>
                         ))}
                         <th className="c-fill" aria-hidden="true" />
                       </tr>

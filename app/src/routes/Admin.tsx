@@ -2,7 +2,7 @@ import {useApp} from '../state'
 import { useCallback, useEffect, useState } from 'react'
 import { adminSetTeamAdmin, adminAudit, adminOverview, adminPeople, adminSaveTeam, adminSetMembership, adminTeam } from '../api'
 import type { AdminMember, AdminPerson, AdminTeam, AuditRow } from '../api'
-import { Avatar, Empty, ErrorBanner, Loading, Modal, firstLast } from '../lib/ui'
+import { Avatar, Empty, ErrorBanner, Loading, Modal, RowMenu, firstLast } from '../lib/ui'
 import {MemberProfileEditor} from './MyProfile'
 import MyNotifications from './MyNotifications'
 import SettingsForm from './Settings'
@@ -106,6 +106,14 @@ function TeamsTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: Ad
   const [showArchived, setShowArchived] = useState(false)
   const [openId, setOpenId] = useState<string | null>(() => ov.teams.find(t => !t.archivedAt)?.id ?? null)
   const [creating, setCreating] = useState(false)
+  const [savingTeam,setSavingTeam]=useState<string|null>(null)
+  const removeTeam=async(team:AdminTeam)=>{
+    const restore=!!team.archivedAt
+    if(!restore&&!confirm(`Delete "${team.name}"? This removes it from active team lists. Its data stays intact. You can restore it from Show archived.`))return
+    setSavingTeam(team.id)
+    try {const result=await adminSaveTeam({companyId:team.id,archived:!restore,rev:team.rev});onChanged(result.team);if(!restore&&openId===team.id)setOpenId(null)}
+    catch(error:any){onError(error.message)}finally{setSavingTeam(null)}
+  }
 
   const rows = ov.teams.filter(t => showArchived || !t.archivedAt)
   const groups: { label: string; teams: AdminTeam[] }[] = [
@@ -137,8 +145,8 @@ function TeamsTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: Ad
                       : 'None.'}
                   </div>
                 ) : g.teams.map(t => (
+                  <div className="teamrow-actions" key={t.id}>
                   <button
-                    key={t.id}
                     className="teamrow"
                     aria-current={t.id === openId}
                     onClick={() => setOpenId(t.id)}
@@ -154,6 +162,8 @@ function TeamsTab({ ov, onChanged, onError }: { ov: Overview; onChanged: (t?: Ad
                     </span>
                     {t.kind === 'custom' && <span className="teamrow__count" title={plural(t.memberCount, 'member')}>{t.memberCount}</span>}
                   </button>
+                  {me.isAdmin&&<RowMenu label={`Actions for ${t.name}`}>{close=><button role="menuitem" disabled={savingTeam!==null} className={t.archivedAt?'':'danger'} onClick={()=>{close();void removeTeam(t)}}>{t.archivedAt?'Restore team':'Delete team'}</button>}</RowMenu>}
+                  </div>
                 ))}
               </div>
             ))}
@@ -213,7 +223,7 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
   }
 
   const archive = async (archived: boolean) => {
-    if (archived && !confirm(`Archive "${team.name}"? Its members lose it from their team list. Nothing is deleted, and you can restore it.`)) return
+    if (archived && !confirm(`Delete "${team.name}"? This removes it from active team lists. Its data stays intact. You can restore it from Show archived.`)) return
     setBusy(true)
     try {
       const r = await adminSaveTeam({ companyId: team.id, archived, rev: team.rev })
@@ -235,9 +245,9 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
             {!team.archivedAt && !team.eosActive && <span className="pill pill--amber">inactive</span>}
           </div>
         </div>
-        {systemAdmin && team.kind === 'custom' && (
+        {systemAdmin && (
           <button className={'btn btn--sm' + (team.archivedAt ? '' : ' btn--ghost')} onClick={() => archive(!team.archivedAt)} disabled={busy}>
-            {team.archivedAt ? 'Restore team' : 'Archive team'}
+            {team.archivedAt ? 'Restore team' : 'Delete team'}
           </button>
         )}
       </div>

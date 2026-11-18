@@ -290,7 +290,7 @@ export function IssuePriority({issue, companyId, disabled, onSaved}: {issue: Iss
       setError(error instanceof Error ? error.message : 'Could not save the ranking.')
     } finally {setBusy(false)}
   }
-  return <div className="issue-priority" onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} onDragStart={event => {event.preventDefault(); event.stopPropagation()}}>
+  return <div className="issue-priority" data-priority={value} onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} onDragStart={event => {event.preventDefault(); event.stopPropagation()}}>
     <select className={'rank rank-select' + (Number(value) >= 4 ? ' rank--top' : '')} aria-label={`Ranking for ${issue.title}`} aria-describedby={error ? errorId : undefined} aria-busy={busy} title={`Importance: ${priorityLabel(value ? Number(value) : null)} (1 lowest, 5 highest)`} value={value} disabled={busy || disabled || issue.readOnly} onChange={event => {void save(event.target.value)}}>
       {value === '' && <option value="" disabled>–</option>}
       {[1,2,3,4,5].map(rank => <option value={rank} key={rank}>{priorityLabels[rank]}</option>)}

@@ -196,7 +196,7 @@ export function Modal({
  * Ninety leans on right-click hard. An overflow button is the accessible
  * equivalent, and it is where "drop to Issue" lives on every row.
  */
-export function RowMenu({ children }: { children: (close: () => void) => ReactNode }) {
+export function RowMenu({ children, label='Row actions' }: { children: (close: () => void) => ReactNode; label?:string }) {
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLButtonElement>(null)
   const popup = useRef<HTMLDivElement>(null)
@@ -246,8 +246,8 @@ export function RowMenu({ children }: { children: (close: () => void) => ReactNo
   }, [open])
 
   return <div className="menu" onClick={event => event.stopPropagation()}>
-    <button ref={button} type="button" className="menu__btn" onClick={event => {event.stopPropagation(); setOpen(value => !value)}} aria-label="Row actions" aria-expanded={open} aria-controls={open ? id : undefined}>⋯</button>
-    {open && createPortal(<div id={id} ref={popup} className="menu__pop menu__pop--portal" role="group" aria-label="Row actions" style={position} onClick={event => event.stopPropagation()}>{children(close)}</div>, document.body)}
+    <button ref={button} type="button" className="menu__btn" onClick={event => {event.stopPropagation(); setOpen(value => !value)}} aria-label={label} aria-expanded={open} aria-controls={open ? id : undefined}>⋯</button>
+    {open && createPortal(<div id={id} ref={popup} className="menu__pop menu__pop--portal" role="group" aria-label={label} style={position} onClick={event => event.stopPropagation()}>{children(close)}</div>, document.body)}
   </div>
 }
 

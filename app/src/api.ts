@@ -448,6 +448,7 @@ export const createLinkedTodo = (fields: { issueId: string; companyId?: string; 
 export const getHeadlines = (companyId: string, unreadOnly = false): Promise<{ rows: Headline[] }> =>
   get('headlines', { companyId, unreadOnly })
 
+export const getHeadlineCascadeTeams=():Promise<{rows:{id:string;name:string}[]} >=>get('headlineCascadeTeams')
 export const cascadeHeadline=(id:string,targetTeamId:string):Promise<Headline>=>post('cascadeHeadline',{id,targetTeamId})
 
 export const saveHeadline = (fields: Record<string, unknown>): Promise<Headline> => post('saveHeadline', fields)
