@@ -772,7 +772,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .profile-photo-preview .avatar { width:96px; height:96px; font-size:32px; }
 .member-profile .field input[type=file] { max-width:100%; }
 
-.dashboard-rock-row { grid-template-columns:150px 110px 150px minmax(250px,1fr) 175px 130px; min-width:1100px; }
+.dashboard-rock-row { grid-template-columns:22px 150px 110px 150px minmax(250px,1fr) 175px 130px; min-width:1100px; }
 .dashboard-milestone-row { grid-template-columns:20px 150px 110px 150px minmax(250px,1fr) minmax(180px,.7fr); min-width:1000px; }
 .dashboard-scorecard .c-meas { width:360px; min-width:360px; max-width:360px; }
 .dashboard-scorecard th,.dashboard-scorecard td { font-size:13px; padding:8px 12px; height:auto; font-weight:400; }
@@ -813,12 +813,13 @@ input, select, textarea { font: inherit; color: inherit; }
 .issue-priority[data-priority] .rank-select{background:var(--rank-bg,var(--panel));border-color:var(--rank-fg,var(--border))}
 .issue-priority[data-priority] .rank-closed-value{color:var(--rank-fg,var(--fg))}
 
-.dashboard-rock-title { display:flex; align-items:center; gap:8px; }
-.dashboard-rock-title>span { overflow:hidden; text-overflow:ellipsis; }
-.dashboard-rock-expand { flex:none; width:22px; height:22px; border:1px solid #d6e0ed; border-radius:5px; background:transparent; color:#2468c7; cursor:pointer; font-size:16px; line-height:1; }
+/* Dashboard Rock children follow the same left-hand hierarchy as Rocks. */
+.dashboard-rock-expand { width:22px; height:22px; border:0; border-radius:4px; background:transparent; color:var(--muted); cursor:pointer; font-size:16px; line-height:1; }
+.dashboard-rock-expand:hover { background:var(--bg); color:var(--text); }
 .dashboard-rock-expand:focus-visible { outline:2px solid #2468c7; outline-offset:2px; }
-.dashboard-rock-details { padding:10px 18px 14px 32px; background:#f8fafc; border-bottom:1px solid #e4eaf2; }
-.dashboard-rock-milestones { width:100%; border-collapse:collapse; font-size:12px; text-align:left; }
-.dashboard-rock-milestones th { color:#718096; font-weight:500; }
-.dashboard-rock-milestones td,.dashboard-rock-milestones th { padding:7px 10px; border-bottom:1px solid #e4eaf2; }
-.dashboard-rock-milestones th:first-child { width:65%; }
+.dashboard-rock-details { margin-left:34px; padding:4px 18px 8px 26px; border-left:2px solid var(--border-2); background:#f8fafc; border-bottom:1px solid var(--border); }
+.dashboard-rock-child { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:9px 0; border-bottom:1px dashed var(--border); font-size:12px; }
+.dashboard-rock-child:last-child { border-bottom:0; }
+.dashboard-rock-child__title { display:flex; align-items:center; gap:9px; min-width:0; }
+.dashboard-rock-child__title .check { flex-shrink:0; pointer-events:none; }
+.dashboard-rock-child>span:last-child { flex-shrink:0; }

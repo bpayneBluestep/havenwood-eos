@@ -134,13 +134,14 @@ export default function My90() {
                 <Empty title="You don't own a rock this quarter" />
               ) : (
                 <div className="dashboard-action-table" role="table" aria-label="My Rocks">
-                  <div className="dashboard-action-row dashboard-rock-row dashboard-action-row--head" role="row">{['owner','due','team','title','milestones','status'].map(key=><span key={key} role="columnheader" aria-sort={rockTable.ariaSort(key)}>{rockTable.header(key)}</span>)}</div>
+                  <div className="dashboard-action-row dashboard-rock-row dashboard-action-row--head" role="row"><span role="columnheader" aria-label="Expand milestones"/>{['owner','due','team','title','milestones','status'].map(key=><span key={key} role="columnheader" aria-sort={rockTable.ariaSort(key)}>{rockTable.header(key)}</span>)}</div>
                   {rockTable.rows.map(r => (
                     <Fragment key={r.id}><div className="dashboard-action-row dashboard-rock-row" role="row" key={r.id} {...rowEditor(()=>setEditRock(r),!!r.readOnly||!r.companyId)}>
+                      <span role="cell"><button className="dashboard-rock-expand" aria-label={`${expandedRocks.has(r.id)?'Hide':'Show'} milestones for ${r.title}`} aria-expanded={expandedRocks.has(r.id)} aria-controls={`dashboard-milestones-${r.id}`} onClick={()=>setExpandedRocks(current=>{const next=new Set(current);next.has(r.id)?next.delete(r.id):next.add(r.id);return next})}>{expandedRocks.has(r.id)?'−':'+'}</button></span>
                       <span role="cell" className="dashboard-action-owner"><Avatar name={r.ownerName} id={r.ownerId} sm/><PersonName name={r.ownerName} id={r.ownerId}/></span>
                       <span role="cell" className={dueClass(r.dueDate,r.status==='done')}>{r.dueDate?fmtDate(r.dueDate):'—'}</span>
                       <span role="cell" className="dashboard-action-team" title={r.companyName}>{r.companyName||'—'}</span>
-                      <span role="cell" className="dashboard-action-title dashboard-rock-title" title={r.title}><button className="dashboard-rock-expand" aria-label={`${expandedRocks.has(r.id)?'Hide':'Show'} milestones for ${r.title}`} aria-expanded={expandedRocks.has(r.id)} aria-controls={`dashboard-milestones-${r.id}`} onClick={()=>setExpandedRocks(current=>{const next=new Set(current);next.has(r.id)?next.delete(r.id):next.add(r.id);return next})}>{expandedRocks.has(r.id)?'−':'+'}</button><span>{r.title}</span></span>
+                      <span role="cell" className="dashboard-action-title" title={r.title}>{r.title}</span>
                       <span role="cell" title={`${r.milestones.filter(m=>m.done).length} of ${r.milestones.length} complete; ${r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue`}>{r.milestones.filter(m=>m.done).length}/{r.milestones.length} complete · {r.milestones.filter(m=>!m.done&&m.dueDate&&m.dueDate<today).length} overdue</span>
                       <div role="cell" className="rowitem__end">
                         {r.milestones.length > 0 ? <StatusPill status={r.status}/> : <div className="seg" role="group" aria-label={`Status for ${r.title}`}>
@@ -155,7 +156,10 @@ export default function My90() {
                           }}>Done</button>
                         </div>}
                       </div>
-                    </div>{expandedRocks.has(r.id)&&<div role="row" className="dashboard-rock-details" id={`dashboard-milestones-${r.id}`}><div role="cell" aria-colspan={6}><table className="dashboard-rock-milestones" aria-label={`Milestones for ${r.title}`}><thead><tr><th>Milestone</th><th>Due date</th><th>Status</th></tr></thead><tbody>{r.milestones.map(m=><tr key={m.id}><td>{m.title}</td><td className={dueClass(m.dueDate,m.done)}>{m.dueDate?fmtDate(m.dueDate):'—'}</td><td>{m.done?'Complete':'Open'}</td></tr>)}</tbody></table>{r.milestones.length===0&&<p className="muted">No milestones added.</p>}</div></div>}</Fragment>
+                    </div>{expandedRocks.has(r.id)&&<div role="rowgroup" className="dashboard-rock-details" id={`dashboard-milestones-${r.id}`} aria-label={`Milestones for ${r.title}`}>
+                      {r.milestones.map(m=><div role="row" className="dashboard-rock-child" key={m.id}><span role="cell" className={'dashboard-rock-child__title'+(m.done?' muted':'')}><span aria-label={m.done?'Complete':'Open'} className={'check'+(m.done?' check--done':'')}>{m.done?'✓':''}</span>{m.title}</span><span role="cell" className={dueClass(m.dueDate,m.done)}>{m.dueDate?fmtDate(m.dueDate):'No due date'}</span></div>)}
+                      {r.milestones.length===0&&<div role="row"><span role="cell" className="muted">No milestones added.</span></div>}
+                    </div>}</Fragment>
                   ))}
                 </div>
               )}

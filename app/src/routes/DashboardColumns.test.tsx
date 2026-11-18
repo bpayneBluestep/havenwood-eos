@@ -16,10 +16,10 @@ it('sorts and filters each dashboard table independently',async()=>{
  let filter=openFilter(actions,'Team','My Action Items');fireEvent.change(filter.getByLabelText('Value'),{target:{value:'Team B'}});fireEvent.click(filter.getByRole('button',{name:'Close'}));expect(within(actions).queryByText('Zulu action')).toBeNull();expect(within(actions).getByText('Alpha action')).toBeTruthy();
  const rocks=screen.getByRole('table',{name:'My Rocks'});expect(within(rocks).getAllByRole('row')).toHaveLength(3);filter=openFilter(rocks,'Status','My Rocks');fireEvent.change(filter.getByLabelText('Value'),{target:{value:'off_track'}});fireEvent.click(filter.getByRole('button',{name:'Close'}));expect(within(rocks).getByText('Zulu rock')).toBeTruthy();expect(within(rocks).queryByText('Alpha rock')).toBeNull();
  expect(screen.queryByRole('table',{name:'My open milestones'})).toBeNull();
- expect(screen.queryByRole('table',{name:'Milestones for Zulu rock'})).toBeNull();
+ expect(screen.queryByRole('rowgroup',{name:'Milestones for Zulu rock'})).toBeNull();
  fireEvent.click(within(rocks).getByRole('button',{name:'Show milestones for Zulu rock'}));
- const details=screen.getByRole('table',{name:'Milestones for Zulu rock'});expect(within(details).getByText('Late milestone')).toBeTruthy();expect(within(details).getByText('Jan 1, 2020')).toBeTruthy();
- fireEvent.click(within(rocks).getByRole('button',{name:'Hide milestones for Zulu rock'}));expect(screen.queryByRole('table',{name:'Milestones for Zulu rock'})).toBeNull();
+ const details=screen.getByRole('rowgroup',{name:'Milestones for Zulu rock'});expect(within(details).getByText('Late milestone')).toBeTruthy();expect(within(details).getByText('Jan 1, 2020')).toBeTruthy();
+ fireEvent.click(within(rocks).getByRole('button',{name:'Hide milestones for Zulu rock'}));expect(screen.queryByRole('rowgroup',{name:'Milestones for Zulu rock'})).toBeNull();
  expect(api.setTodoStatus).not.toHaveBeenCalled();expect(api.saveMilestone).not.toHaveBeenCalled();
 });
 it('filters dates by inclusive ranges and milestone completion state',async()=>{
