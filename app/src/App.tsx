@@ -1,3 +1,4 @@
+import TeamSelector from './lib/TeamSelector'
 import {useEffect} from 'react'
 import {BHAG} from './lib/brand'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
@@ -51,18 +52,13 @@ export default function App() {
 }
 
 function Shell() {
-  const { me, company, companies, multiCompany, setCompanyId, reload, branding } = useApp()
+  const { me, company, companies, setCompanyId, reload, branding } = useApp()
   const loc = useLocation()
   useEffect(()=>{const id=new URLSearchParams(loc.search).get('team');if(id&&companies.some(c=>c.id===id)&&id!==company.id)setCompanyId(id)},[loc.search,companies,company.id,setCompanyId])
 
   const title =
     [...NAV, ...MEETING].find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))?.label ||
     (loc.pathname.startsWith('/my-profile') ? 'My Profile' : loc.pathname.startsWith('/my-notifications') ? 'My Notifications' : loc.pathname.startsWith('/admin') ? 'Admin' : 'TenK')
-
-  // Company teams first, then the teams admins made on top of them.
-  const companyTeams = companies.filter(c => (c.kind || 'company') === 'company')
-  const customTeams = companies.filter(c => c.kind === 'custom')
-  const label = (c: typeof company) => (c.kind === 'custom' ? c.name : c.settings.displayName || c.name)
 
   return (
     <div className="shell">
@@ -111,7 +107,7 @@ function Shell() {
         </div>
 
         <div className="nav__foot">
-          {label(company)}
+          {company.kind === 'custom' ? company.name : company.settings.displayName || company.name}
         </div>
       </nav>
 
@@ -119,43 +115,8 @@ function Shell() {
         <header className="topbar">
           <span className="topbar__title">{title}</span>
 
-          {/* Built so the single-team case renders NOTHING — not a disabled
-              dropdown with one option. Most people are on exactly one team and
-              should never learn the concept exists. */}
-          {multiCompany && (
-            <>
-              <select
-                className="select"
-                style={{ width: 'auto', maxWidth: 240 }}
-                value={company.id}
-                onChange={e => setCompanyId(e.target.value)}
-                aria-label="Team"
-              >
-                {customTeams.length === 0 ? companyTeams.map(c => (
-                  <option key={c.id} value={c.id}>{label(c)}{c.settings.eosActive ? '' : ' (inactive)'}</option>
-                )) : (
-                  <>
-                    {companyTeams.length > 0 && (
-                      <optgroup label="Company teams">
-                        {companyTeams.map(c => (
-                          <option key={c.id} value={c.id}>{label(c)}{c.settings.eosActive ? '' : ' (inactive)'}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                    <optgroup label="Teams">
-                      {customTeams.map(c => (
-                        <option key={c.id} value={c.id}>{label(c)}{c.settings.eosActive ? '' : ' (inactive)'}</option>
-                      ))}
-                    </optgroup>
-                  </>
-                )}
-              </select>
-              <span className="topbar__meta nowrap">{company.periods.week} · {company.periods.quarter}</span>
-            </>
-          )}
-          {!multiCompany && (
-            <span className="topbar__meta nowrap">{company.periods.week} · {company.periods.quarter}</span>
-          )}
+          {!loc.pathname.startsWith('/meetings') && <TeamSelector />}
+          <span className="topbar__meta nowrap">{company.periods.week} · {company.periods.quarter}</span>
 
           <div className="topbar__end">
             {me.isSuper && (
