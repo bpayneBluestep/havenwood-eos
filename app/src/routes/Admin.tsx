@@ -258,7 +258,7 @@ function TeamEditor({ team, onChanged, onError }: { team: AdminTeam; onChanged: 
       <div className="card__body--flush">
         {!members ? <Loading what="Loading members" /> : members.length === 0 ? (
           <Empty title="Nobody is on this team yet">
-            Add people above. They see this team's scorecard, rocks, issues, to-dos and Level 10 from their next page load.
+            Add people above. They see this team's scorecard, rocks, issues, to-dos and Tactical from their next page load.
           </Empty>
         ) : (
           <div className="rows">

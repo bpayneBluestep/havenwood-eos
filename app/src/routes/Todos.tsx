@@ -18,7 +18,7 @@ import { DropToIssueModal } from '../components/DropToIssue'
  * doctrine rather than a preference — anything longer should be a Rock or a
  * milestone, and the default is where that discipline gets enforced.
  *
- * Personal action items are private to their owner and never appear in the L10.
+ * Personal action items are private to their owner and never appear in the Tactical meeting.
  */
 export default function Todos({embedded=false,companyId}:{embedded?:boolean;companyId?:string}) {
   const { company, team:currentTeam,teams, me } = useApp()
@@ -97,7 +97,7 @@ export default function Todos({embedded=false,companyId}:{embedded?:boolean;comp
       ) : rows.length === 0 ? (
         <div className="card">
           <Empty title={mine ? 'Nothing on your list' : 'No open action items'}>
-            Most action items are created by solving an issue in the L10 — that's the point of the list.
+            Most action items are created by solving an issue in the Tactical meeting — that's the point of the list.
           </Empty>
         </div>
       ) : (
@@ -278,7 +278,7 @@ export function TodoModal({
       <div className="field">
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 520 }}>
           <input type="checkbox" checked={personal} onChange={e => setPersonal(e.target.checked)} />
-          Personal — only you can see it, and it stays out of the L10
+          Personal — only you can see it, and it stays out of the Tactical meeting
         </label>
       </div>
       </fieldset>

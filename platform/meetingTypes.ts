@@ -4,11 +4,11 @@ export interface MeetingType {id:string;name:string;scope:'team'|'private';share
 export interface MeetingTypeCatalog {rev:number;l10Rev?:number;templateRev?:number;types:MeetingType[]}
 export const sectionKinds=['segue','headlines','todos','scorecard','rocks','vision','ids','conclude','notes']
 export function defaultMeetingTypes():MeetingType[] {return [
- {id:'l10',name:'L10',scope:'team',sections:defaultLiveSections().map(section=>({...section,kind:section.id,prompt:''}))},
+ {id:'l10',name:'Tactical',scope:'team',sections:defaultLiveSections().map(section=>({...section,kind:section.id,prompt:''}))},
  {id:'one-on-one',name:'One-on-one',scope:'private',sections:[{id:'check-in',kind:'segue',label:'Check-in',minutes:5,spentMs:0,prompt:'Share a personal and professional update.'},{id:'actions',kind:'todos',label:'Action Items',minutes:10,spentMs:0,prompt:''},{id:'discussion',kind:'notes',label:'Discussion',minutes:25,spentMs:0,prompt:'Discuss progress, concerns, and support needed.'},{id:'conclusion',kind:'conclude',label:'Conclusion',minutes:5,spentMs:0,prompt:'Confirm next steps and rate the meeting.'}]}
 ]}
 export function validateMeetingTypes(input:unknown):MeetingType[] {
- if(!Array.isArray(input)||input.length<2||input.length>20)throw new Error('Keep 2 to 20 meeting types, including L10 and One-on-one.')
+ if(!Array.isArray(input)||input.length<2||input.length>20)throw new Error('Keep 2 to 20 meeting types, including Tactical and One-on-one.')
  const ids:string[]=[],names:string[]=[]
  const types=input.map(value=>{
   if(!value||typeof value.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(value.id)||ids.includes(value.id))throw new Error('Each meeting type needs a unique ID.')
@@ -33,16 +33,16 @@ export function validateMeetingTypes(input:unknown):MeetingType[] {
   if(value.shared&&(value.id==='l10'||value.id==='one-on-one'))throw new Error('Use a copy to share a built-in template.')
   return {id:value.id,name:value.name.trim(),scope:value.scope as 'team'|'private',...(value.shared?{shared:true}:{}),sections}
  })
- if(!types.some(type=>type.id==='l10'&&type.scope==='team')||!types.some(type=>type.id==='one-on-one'&&type.scope==='private'))throw new Error('Keep L10 as a team type and One-on-one as a private type.')
+ if(!types.some(type=>type.id==='l10'&&type.scope==='team')||!types.some(type=>type.id==='one-on-one'&&type.scope==='private'))throw new Error('Keep Tactical as a team type and One-on-one as a private type.')
  return types
 }
 
 export interface SharedL10 {rev:number;type:MeetingType}
 export function withSharedL10(catalog:MeetingTypeCatalog,shared?:SharedL10|null):MeetingTypeCatalog {
- return {...catalog,l10Rev:shared?.rev||0,types:catalog.types.map(type=>type.id==='l10'&&shared?shared.type:type)}
+ return {...catalog,l10Rev:shared?.rev||0,types:catalog.types.map(type=>{const current=type.id==='l10'&&shared?shared.type:type;return current.id==='l10'&&/^(L10|Level 10)$/.test(current.name)?{...current,name:'Tactical'}:current})}
 }
 export function changedSharedL10(current:MeetingTypeCatalog,input:MeetingTypeCatalog):MeetingType|null {
- if((input.l10Rev||0)!==(current.l10Rev||0))throw new Error('The shared L10 format changed. Reload before saving.')
+ if((input.l10Rev||0)!==(current.l10Rev||0))throw new Error('The shared Tactical format changed. Reload before saving.')
  const next=validateMeetingTypes(input.types).find(type=>type.id==='l10')!
  const before=validateMeetingTypes(current.types).find(type=>type.id==='l10')!
  return JSON.stringify(next)===JSON.stringify(before)?null:next

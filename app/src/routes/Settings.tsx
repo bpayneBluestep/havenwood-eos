@@ -98,7 +98,7 @@ export default function SettingsForm({ team, onSaved }: { team: AdminTeam; onSav
 
         <div className="row2">
           <div className="field">
-            <label htmlFor="s-md">Level 10 day</label>
+            <label htmlFor="s-md">Tactical day</label>
             <select id="s-md" className="select" value={meetingDay} onChange={e => setMeetingDay(Number(e.target.value))}>
               {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
             </select>

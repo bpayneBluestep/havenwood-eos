@@ -44,7 +44,7 @@ export default function L10({embedded=false,section,sectionLabel,sectionNumber,c
     <div className={embedded ? 'meeting-review-lists' : 'page'}>
       {!embedded && <div className="page__head">
         <div>
-          <h1>Level 10 — {data?.company.settings.displayName || company.name}</h1>
+          <h1>Tactical — {data?.company.settings.displayName || company.name}</h1>
           <div className="page__sub">
             Week of {data?.weekLabel} · {data?.quarterKey} · everything here is live and editable
           </div>

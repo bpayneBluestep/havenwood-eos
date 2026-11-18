@@ -76,7 +76,7 @@ export function DropToIssueModal({
         <div className="field">
           <label htmlFor="dti-term">List</label>
           <select id="dti-term" className="select" value={term} onChange={e => setTerm(e.target.value as any)}>
-            <option value="short">Short-term (this quarter's L10)</option>
+            <option value="short">Short-term (this quarter's Tactical meeting)</option>
             <option value="long">Long-term (the parking lot)</option>
           </select>
         </div>
