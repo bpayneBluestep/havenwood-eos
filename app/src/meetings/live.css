@@ -97,3 +97,7 @@
 .meeting-notes__conflict { border:1px solid var(--amber); padding:8px; margin-bottom:8px; font-size:12px; }
 .meeting-notes__conflict summary { cursor:pointer; }
 @media(max-width:900px) { .live-meeting-layout { flex-wrap:wrap; } .meeting-notes { position:static; } .meeting-notes--open { flex-basis:100%; } .meeting-notes:not(.meeting-notes--open) .meeting-notes__toggle { writing-mode:horizontal-tb; min-height:0; } .meeting-notes:not(.meeting-notes--open) { flex-basis:100%; } }
+.meeting-notes__editor { min-height:110px; max-height:50vh; overflow:auto; resize:vertical; font-size:13px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
+.meeting-notes__editor p { margin:4px 0; }
+.meeting-notes__editor ul,.meeting-notes__editor ol { padding-left:22px; margin:6px 0; }
+.meeting-notes__editor:focus { outline:2px solid var(--blue); outline-offset:1px; }
