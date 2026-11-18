@@ -704,3 +704,6 @@ export const applyPeopleImportPreview=(fields:import('../../platform/peopleImpor
 export const getWorkDetail=(kind:string,id:string,teamId:string):Promise<{kind:string;teamId:string;teamName:string;item:Rock|Issue|Todo|Measurable}>=>get('workDetail',{kind,id,teamId})
 
 export const sendMeetingPresence=(scope:{companyId:string;meetingId?:string;date?:string;sessionId:string}):Promise<unknown>=>post('liveSessionAction',{...scope,command:'presence'})
+
+export const getMeetingNotes=(scope:{companyId:string;sessionId:string}):Promise<import('../../platform/meetingNotes').MeetingNotesView>=>get('meetingNotes',scope)
+export const saveMeetingNotes=(fields:{companyId:string;sessionId:string;sectionId:string;text:string;parents:string[]}):Promise<import('../../platform/meetingNotes').MeetingNotesView>=>post('saveMeetingNotes',fields)

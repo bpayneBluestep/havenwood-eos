@@ -76,3 +76,24 @@
 .meeting-attendees__dot { width:7px; height:7px; border-radius:50%; background:var(--muted); opacity:.4; flex-shrink:0; }
 .meeting-attendees__dot.is-connected { background:var(--green); opacity:1; }
 .meeting-attendees__hint { color:var(--muted); font-size:10px; margin:6px 0; }
+
+.live-meeting-layout { display:flex; align-items:flex-start; gap:12px; min-width:0; }
+.live-meeting-layout>.card { flex:1; min-width:0; }
+.meeting-notes { flex:0 0 36px; position:sticky; top:66px; max-height:calc(100vh - 82px); overflow:auto; }
+.meeting-notes__toggle { width:100%; padding:10px 6px; }
+.meeting-notes:not(.meeting-notes--open) .meeting-notes__toggle { writing-mode:vertical-rl; min-height:85px; }
+.meeting-notes--open { flex-basis:340px; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px; }
+.meeting-notes h2 { font-size:15px; margin:12px 0 6px; }
+.meeting-notes>.btn { font-size:12px; }
+.meeting-notes .muted { font-size:11px; }
+.meeting-notes__section { padding:12px 0; border-top:1px solid var(--border); }
+.meeting-notes__section h3 { font-size:13px; margin:0 0 8px; }
+.meeting-notes__tools { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
+.meeting-notes textarea { width:100%; resize:vertical; font-size:13px; line-height:1.5; }
+.meeting-notes__status { color:var(--muted); font-size:11px; margin:5px 0; }
+.meeting-notes__preview { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.5; }
+.meeting-notes__preview p { margin:4px 0; }
+.meeting-notes__preview ul,.meeting-notes__preview ol { padding-left:22px; margin:6px 0; }
+.meeting-notes__conflict { border:1px solid var(--amber); padding:8px; margin-bottom:8px; font-size:12px; }
+.meeting-notes__conflict summary { cursor:pointer; }
+@media(max-width:900px) { .live-meeting-layout { flex-wrap:wrap; } .meeting-notes { position:static; } .meeting-notes--open { flex-basis:100%; } .meeting-notes:not(.meeting-notes--open) .meeting-notes__toggle { writing-mode:horizontal-tb; min-height:0; } .meeting-notes:not(.meeting-notes--open) { flex-basis:100%; } }
