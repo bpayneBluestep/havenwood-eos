@@ -602,6 +602,13 @@ input, select, textarea { font: inherit; color: inherit; }
 .headline-preview { overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .detail-body { white-space:pre-wrap; overflow-wrap:anywhere; }
 .edit-fields { padding:0; margin:0; border:0; min-width:0; }
+.cadence-builder { margin:12px 0 0; padding:12px; border:1px solid var(--border); border-radius:8px; min-width:0; }
+.cadence-builder__legend { padding:0 4px; font-size:13px; font-weight:600; }
+.cadence-builder__toggle { margin:0 0 8px; }
+.cadence-builder__weekdays { display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:6px; }
+.cadence-builder__day { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:500; }
+.cadence-builder__weekdays-label { display:block; font-size:13px; font-weight:520; margin-bottom:2px; }
+.cadence-builder__summary { margin:8px 0 0; }
 .rock-owner-group .rock-milestones { margin-left:40px; padding-left:52px; border-left:2px solid var(--border-2); }
 .date-editor { display:inline-flex; flex-wrap:wrap; gap:5px; align-items:center; }
 .date-editor .input { width:150px; }

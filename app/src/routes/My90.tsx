@@ -10,7 +10,7 @@ import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getMy90, setTodoStatus, setRockStatus } from '../api'
+import { getMy90, toggleTodoCompletion, setRockStatus } from '../api'
 import type { My90 as My90Data } from '../api'
 import { useApp } from '../state'
 import {
@@ -113,7 +113,7 @@ export default function My90() {
                 <div className="dashboard-action-table" role="table" aria-label="My Action Items">
                   <div className="dashboard-action-row dashboard-action-row--head" role="row"><span/>{['owner','due','team','title'].map(key=><span key={key} role="columnheader" aria-sort={todoTable.ariaSort(key)}>{todoTable.header(key)}</span>)}</div>
                   {todoTable.rows.map(todo=><div role="row" key={todo.id} {...rowEditor(()=>setEditTodo(todo),!!todo.readOnly||!todo.companyId)} className={'dashboard-action-row'+(todo.dueDate&&todo.dueDate<today?' action-item-row--overdue':'')}>
-                    <button className="check" aria-label={`Mark "${todo.title}" done`} onClick={async()=>{try{await setTodoStatus(todo.id,'done',todo.rev);load()}catch(error){setErr((error as Error).message)}}}>✓</button>
+                    <button className="check" aria-label={`Mark "${todo.title}" done`} onClick={async()=>{try{await toggleTodoCompletion(todo,todo.companyId||'');load()}catch(error){setErr((error as Error).message)}}}>✓</button>
                     <span role="cell" className="dashboard-action-owner"><Avatar name={todo.ownerName} id={todo.ownerId} sm/><PersonName name={todo.ownerName} id={todo.ownerId}/></span>
                     <span role="cell" className={dueClass(todo.dueDate,false)}>{todo.dueDate?fmtDate(todo.dueDate):'—'}</span>
                     <span role="cell" className="dashboard-action-team" title={todo.companyName}>{todo.companyName||'—'}</span>

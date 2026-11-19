@@ -1,4 +1,6 @@
 import {meetingActivityEnvelope,currentMeetingActivityScope} from './lib/meetingActivityScope'
+import {planRecurringCompletion} from '../../platform/itemRecurrence'
+import {todayIso} from './lib/ui'
 /*
  * The single seam between this SPA and the platform. Everything that reads or
  * writes data goes through the Traction Maestro endpoint as one action envelope:
@@ -254,6 +256,7 @@ export interface Origin { kind: string; id: string; label: string }
 
 export interface Issue {
   permanent?: boolean
+  recurrence?: import('../../platform/itemRecurrence').ItemRecurrence | null
   sourceUrl?: string
   assignedTeamIds?: string[]
   meetingSource?: MeetingSource
@@ -287,6 +290,7 @@ export interface Issue {
 
 export interface Todo {
   companyId?: string
+  recurrence?: import('../../platform/itemRecurrence').ItemRecurrence | null
   meetingSource?: MeetingSource
   sharedFrom?: MeetingDisclosure
   sharedTeamIds?: string[]
@@ -314,6 +318,7 @@ export interface Todo {
 export interface Headline {
   details?: string
   permanent?: boolean
+  recurrence?: import('../../platform/itemRecurrence').ItemRecurrence | null
   sourceUrl?: string
   sourceLabel?: string
   meetingSource?: MeetingSource
@@ -442,6 +447,76 @@ export const saveTodo = (fields: Record<string, unknown>): Promise<Todo> => post
 
 export const setTodoStatus = (id: string, status: string, rev: number): Promise<Todo> =>
   post('setTodoStatus', { id, status, rev })
+
+function isMissingAction(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  if (error.code === 'NOT_FOUND' || error.code === 'NOT_PUBLISHED' || error.status === 404) return true
+  return /unknown action|no such action|not (found|published)|unsupported|completeTodo/i.test(`${error.code} ${error.message}`)
+}
+
+/**
+ * Completes a todo. Recurring todos archive the current instance and create the
+ * next open todo with the next due date (platform/itemRecurrence.ts). Prefers the
+ * Traction `completeTodo` action; falls back to setTodoStatus + saveTodo when unpublished.
+ */
+export async function completeTodo(todo: Todo, companyId: string): Promise<{completed: Todo; next: Todo | null}> {
+  try {
+    const data = await post('completeTodo', {id: todo.id, rev: todo.rev, companyId})
+    return {completed: data.completed || data, next: data.next ?? null}
+  } catch (error) {
+    if (!isMissingAction(error)) throw error
+  }
+
+  const completed = await setTodoStatus(todo.id, 'done', todo.rev)
+  if (!todo.recurrence) return {completed, next: null}
+
+  const plan = planRecurringCompletion('todo', todo.recurrence, todo.dueDate, todayIso())
+  let archived = completed
+  try {
+    archived = await saveTodo({
+      companyId: companyId || todo.companyId,
+      id: completed.id,
+      rev: completed.rev,
+      title: todo.title,
+      description: todo.description,
+      ownerId: todo.ownerId,
+      ownerName: todo.ownerName,
+      dueDate: todo.dueDate,
+      personal: todo.personal,
+      recurrence: todo.recurrence,
+      status: 'done',
+      archivedAt: todayIso(),
+    })
+  } catch {
+    /* Endpoint may reject archivedAt until completeTodo ships; status is already done. */
+  }
+
+  if (!plan?.nextDueDate) return {completed: archived, next: null}
+  const next = await saveTodo({
+    companyId: companyId || todo.companyId,
+    title: todo.title,
+    description: todo.description,
+    ownerId: todo.ownerId,
+    ownerName: todo.ownerName,
+    dueDate: plan.nextDueDate,
+    personal: todo.personal,
+    recurrence: plan.recurrence,
+    status: 'open',
+    meetingId: todo.meetingId,
+    occurrenceDate: todo.occurrenceDate,
+  })
+  return {completed: archived, next}
+}
+
+/** Mark done (with recurrence archive+spawn) or reopen. */
+export async function toggleTodoCompletion(todo: Todo, companyId: string): Promise<{todo: Todo; next: Todo | null}> {
+  if (todo.status === 'done') {
+    const reopened = await setTodoStatus(todo.id, 'open', todo.rev)
+    return {todo: reopened, next: null}
+  }
+  const {completed, next} = await completeTodo(todo, companyId)
+  return {todo: completed, next}
+}
 
 export const createLinkedTodo = (fields: { issueId: string; companyId?: string; title: string; ownerId?: string; ownerName?: string; dueDate?: string }): Promise<{ todo: Todo; issue: Issue }> =>
   post('createLinkedTodo', fields)

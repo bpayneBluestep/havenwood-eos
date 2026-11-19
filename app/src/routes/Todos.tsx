@@ -4,7 +4,7 @@ import {useToday} from '../lib/useToday'
 import QuickCreateButtons from '../components/QuickCreateButtons'
 import FollowupContext from '../meetings/FollowupContext'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getTodos, saveTodo, setTodoStatus } from '../api'
+import { getTodos, saveTodo, toggleTodoCompletion } from '../api'
 import type { Todo } from '../api'
 import { useApp } from '../state'
 import {
@@ -12,6 +12,9 @@ import {
   dueClass, fmtDate, plusDaysIso,
 } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
+import CadenceBuilder, {recurrencePayload} from '../components/CadenceBuilder'
+import type {ItemRecurrence} from '../../../platform/itemRecurrence'
+import {recurrenceLabel} from '../../../platform/itemRecurrence'
 
 /*
  * Seven-day action items. The server owns the +7 default, because that horizon is
@@ -52,7 +55,7 @@ export default function Todos({embedded=false,companyId}:{embedded?:boolean;comp
     const next = t.status === 'done' ? 'open' : 'done'
     // Optimistic — flip locally, then reconcile from the server's copy.
     setRows(rs => rs ? rs.map(x => (x.id === t.id ? { ...x, status: next } as Todo : x)) : rs)
-    try { await setTodoStatus(t.id, next, t.rev); load() }
+    try { await toggleTodoCompletion(t, targetCompanyId); load() }
     catch (e: any) { setErr(e.message); load() }
   }
 
@@ -175,6 +178,7 @@ export function TodoRow({
         <div className="rowitem__title">
           {onEdit ? <button type="button" className="rowitem__title-link" onClick={onEdit}>{todo.title}</button> : todo.title}<FollowupContext hideOwner item={todo}/>
           {todo.personal && <span className="pill pill--muted" title="Only you can see this">personal</span>}
+          {todo.recurrence && <span className="pill pill--muted" title={recurrenceLabel(todo.recurrence)}>{recurrenceLabel(todo.recurrence)}</span>}
           {todo.origin && todo.origin.kind === 'issue' && (
             <span className="pill pill--muted" title={todo.origin.label}>from issue</span>
           )}
@@ -222,6 +226,8 @@ export function TodoModal({
   const [ownerName, setOwnerName] = useState(initial?.ownerName || defaultOwnerName || '')
   const [dueDate, setDueDate] = useState(initial?.dueDate || plusDaysIso(7))
   const [personal, setPersonal] = useState(!!initial?.personal)
+  const [recurring, setRecurring] = useState(!!initial?.recurrence)
+  const [recurrence, setRecurrence] = useState<ItemRecurrence | null>(initial?.recurrence || null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -231,9 +237,14 @@ export function TodoModal({
     if (!title.trim()) { setErr('A action item needs a title.'); return }
     setBusy(true); setErr(null)
     try {
+      let schedule: ItemRecurrence | null = null
+      try { schedule = recurrencePayload(recurring, recurrence) }
+      catch (error: any) { setErr(error.message || 'Check the recurrence settings.'); setBusy(false); return }
+      const due = schedule?.start || dueDate
       await saveTodo({
         companyId, id: initial?.id, rev: initial?.rev,
-        title: title.trim(), description, ownerId, ownerName, dueDate, personal,
+        title: title.trim(), description, ownerId, ownerName, dueDate: due, personal,
+        recurrence: schedule,
       })
       onSaved()
     } catch (e: any) {
@@ -271,7 +282,11 @@ export function TodoModal({
         </div>
         <div className="field">
           <label htmlFor="t-due">Due</label>
-          <input id="t-due" className="input" type="date" value={dueDate || ''} onChange={e => setDueDate(e.target.value)} />
+          <input id="t-due" className="input" type="date" value={dueDate || ''} onChange={e => {
+            const next = e.target.value
+            setDueDate(next)
+            if (recurring && recurrence) setRecurrence({...recurrence, start: next || recurrence.start})
+          }} />
           <div className="field__hint">Seven days out by default.</div>
         </div>
       </div>
@@ -281,6 +296,14 @@ export function TodoModal({
           Personal — only you can see it, and it stays out of the Tactical meeting
         </label>
       </div>
+      <CadenceBuilder
+        enabled={recurring}
+        value={recurrence}
+        defaultStart={dueDate || undefined}
+        onEnabledChange={setRecurring}
+        onChange={setRecurrence}
+        onStartChange={setDueDate}
+      />
       </fieldset>
     </Modal>
   )

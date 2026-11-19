@@ -55,6 +55,10 @@ New mappings must belong to the caller's accessible teams. Existing mappings out
 
 Linked To-Dos for public issues are created on the selected mapped team. Private issue actions retain their meeting context. The endpoint advertises `issueTeamMapping: 1`. The pure policy helper `platform/issueModel.ts` must match `scripts/issueModel.ts` in the endpoint. Publish the endpoint before this frontend build.
 
+## Item recurrence
+
+Create/edit dialogs for action items, issues, and headlines include a cadence builder (weekly, every 2 weeks, monthly, or custom weekdays). The schedule is stored as optional `recurrence` on each item's `dataJSON`. Completing a recurring action item archives that instance and creates the next open todo for the following due date. Pure helpers live in `platform/itemRecurrence.ts` (keep identical to `scripts/itemRecurrence.ts`). See `docs/item-recurrence.md`. Publish Traction `completeTodo` when ready; the SPA falls back to existing save/status actions until then.
+
 ## Unified meetings and action items
 
 Meetings is the single meeting entry in the sidebar. The old /l10 route redirects there. A Level 10 is the default 90-minute agenda inside Meetings. Team scorecard and review lists remain expanded and refresh every ten seconds. Scheduled private meetings remain under Meetings; their sessions require occurrence access.

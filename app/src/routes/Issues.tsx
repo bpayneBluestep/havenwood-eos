@@ -13,6 +13,9 @@ import {
   fmtDate, firstLast,
 } from '../lib/ui'
 import { LinkedTodoModal } from '../components/DropToIssue'
+import CadenceBuilder, {recurrencePayload} from '../components/CadenceBuilder'
+import type {ItemRecurrence} from '../../../platform/itemRecurrence'
+import {recurrenceLabel} from '../../../platform/itemRecurrence'
 
 /*
  * A ranked list you can drag. Short-term is what the weekly L10 works through;
@@ -171,6 +174,7 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
                   {inlineId === issue.id && !issue.readOnly ? <IssueInlineEditor issue={issue} companyId={company.id} team={team} onCancel={() => setInlineId(null)} onSaved={() => {setInlineId(null); load()}}/> : <>
                   <div className="rowitem__title">
                     {issue.readOnly ? issue.title : <button type="button" className="rowitem__title-link" aria-label={`Edit issue ${issue.title}`} onClick={() => setEditing(issue)}>{issue.title}</button>}<FollowupContext hideOwner item={issue}/>
+                    {issue.recurrence && <span className="pill pill--muted" title={recurrenceLabel(issue.recurrence)}>{recurrenceLabel(issue.recurrence)}</span>}
                     {issue.origin && issue.origin.kind !== 'manual' && (
                       <span className="pill pill--muted" title={issue.origin.label}>
                         from {issue.origin.kind}
@@ -306,6 +310,8 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   const [title, setTitle] = useState(issue.title)
   const [description, setDescription] = useState(issue.description)
   const [permanent,setPermanent]=useState(!!issue.permanent)
+  const [recurring,setRecurring]=useState(!!issue.recurrence)
+  const [recurrence,setRecurrence]=useState<ItemRecurrence|null>(issue.recurrence||null)
   const [sourceUrl,setSourceUrl]=useState(issue.sourceUrl || '')
   const [priority, setPriority] = useState(issue.priority ?? 3)
   const [ownerId, setOwnerId] = useState(issue.ownerId)
@@ -314,7 +320,12 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
   async function save() {
     if (!title.trim()) {setError('Enter an issue title.'); return}
     setBusy(true); setError(null)
-    try {await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, permanent, sourceUrl:validateSourceUrl(sourceUrl), priority, ownerId,...(issueTeamMapping && !issue.meetingId ? {assignedTeamIds:teamIds} : {})}); onSaved()}
+    try {
+      let schedule: ItemRecurrence | null = null
+      try { schedule = recurrencePayload(recurring, recurrence) }
+      catch (err: unknown) { setError(err instanceof Error ? err.message : 'Check the recurrence settings.'); setBusy(false); return }
+      await saveIssue({companyId, id: issue.id, rev: issue.rev, title: title.trim(), description, permanent, recurrence: schedule, sourceUrl:validateSourceUrl(sourceUrl), priority, ownerId,...(issueTeamMapping && !issue.meetingId ? {assignedTeamIds:teamIds} : {})}); onSaved()
+    }
     catch (error: unknown) {setError(error instanceof Error ? error.message : 'Could not save the issue.')}
     finally {setBusy(false)}
   }
@@ -326,6 +337,7 @@ export function IssueInlineEditor({issue, companyId, team, onCancel, onSaved}: {
     <label>Issue notes<textarea className="textarea" value={description} disabled={busy} onChange={event => setDescription(event.target.value)}/></label>
     <label>Link URL (optional)<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>
     <div className="inline-editor-fields"><label>Importance<select className="select" value={priority} disabled={busy} onChange={event => setPriority(Number(event.target.value))}>{[1,2,3,4,5].map(value => <option key={value} value={value}>{priorityLabels[value]}</option>)}</select></label><label>Owner<OwnerPicker team={team} value={ownerId} valueName={issue.ownerName || ''} onChange={id => {if (!busy) setOwnerId(id)}}/></label></div>
+    <CadenceBuilder enabled={recurring} value={recurrence} onEnabledChange={setRecurring} onChange={setRecurrence}/>
     </fieldset>{issueTeamMapping && !issue.meetingId && <IssueTeamPicker teams={companies} selected={teamIds} onChange={setTeamIds} disabled={busy}/>}
     <div className="inline-editor-actions"><button type="submit" className="btn btn--sm btn--primary" disabled={busy}>{busy ? 'Saving…' : 'Save issue'}</button><button type="button" className="btn btn--sm" disabled={busy} onClick={onCancel}>Cancel</button></div>
   </form>
@@ -350,6 +362,8 @@ export function IssueModal({
   const [title, setTitle] = useState(initial?.title || '')
   const [description, setDescription] = useState(initial?.description || '')
   const [permanent,setPermanent]=useState(initial?.permanent??defaultPermanent)
+  const [recurring,setRecurring]=useState(!!initial?.recurrence)
+  const [recurrence,setRecurrence]=useState<ItemRecurrence|null>(initial?.recurrence||null)
   const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl || '')
   const [issueTerm, setIssueTerm] = useState(initial?.term || term)
   const [priority, setPriority] = useState(initial?.priority ?? 3)
@@ -362,9 +376,12 @@ export function IssueModal({
     if (!title.trim()) { setErr('An issue needs a title.'); return }
     setBusy(true); setErr(null)
     try {
+      let schedule: ItemRecurrence | null = null
+      try { schedule = recurrencePayload(recurring, recurrence) }
+      catch (error: any) { setErr(error.message || 'Check the recurrence settings.'); setBusy(false); return }
       await saveIssue({
         companyId, id: initial?.id, rev: initial?.rev,
-        title: title.trim(), description, permanent, sourceUrl:validateSourceUrl(sourceUrl), term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),...(issueTeamMapping && !initial?.meetingId ? {assignedTeamIds:teamIds} : {}),
+        title: title.trim(), description, permanent, recurrence: schedule, sourceUrl:validateSourceUrl(sourceUrl), term: issueTerm, priority, ownerId, ownerName,...(meetingWorkflow?{responsibleTeamId}:{}),...(issueTeamMapping && !initial?.meetingId ? {assignedTeamIds:teamIds} : {}),
       })
       onSaved()
     } catch (e: any) {
@@ -416,6 +433,7 @@ export function IssueModal({
           <OwnerPicker team={team} value={ownerId} valueName={ownerName} onChange={(id, n) => { setOwnerId(id); setOwnerName(n) }} />
         </div>
       </div>
+      <CadenceBuilder enabled={recurring} value={recurrence} onEnabledChange={setRecurring} onChange={setRecurrence}/>
       {issueTeamMapping && !initial?.meetingId && <IssueTeamPicker teams={companies} selected={teamIds} onChange={setTeamIds} disabled={busy}/>}
     </Modal>
   )

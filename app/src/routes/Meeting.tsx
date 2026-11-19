@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
 import {
   archiveMeeting, getMeeting, getMeetingOccurrence, markHeadlineRead, saveHeadline, saveIssue,
-  saveTodo, setOccurrenceAttendees, setTodoStatus, solveIssue,
+  saveTodo, setOccurrenceAttendees, toggleTodoCompletion, solveIssue,
 } from '../api'
 import type { Meeting as MeetingT, MeetingOccurrence, Occurrence, Person } from '../api'
 import { Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, dueClass, fmtDate, firstLast, todayIso } from '../lib/ui'
@@ -234,8 +234,8 @@ function TodosCard({ occ, onChange, onError }: CardProps) {
     try { await saveTodo({ ...where(occ), title, ownerId: owner, ownerName: p ? p.name : '' }); onChange() }
     catch (e: any) { onError(e.message) }
   }
-  const toggle = async (id: string, status: string, rev: number) => {
-    try { await setTodoStatus(id, status === 'done' ? 'open' : 'done', rev); onChange() } catch (e: any) { onError(e.message) }
+  const toggle = async (todo: Todo) => {
+    try { await toggleTodoCompletion(todo, occ.meeting.companyId); onChange() } catch (e: any) { onError(e.message) }
   }
   return (
     <div className="card card__body--flush" style={{ marginBottom: 12 }}>
@@ -244,7 +244,7 @@ function TodosCard({ occ, onChange, onError }: CardProps) {
         {occ.todos.length === 0 && <Empty title="No to-dos">Anything decided here that someone has to do.</Empty>}
         {occ.todos.map(t => (
           <div className={'rowitem' + (t.status === 'done' ? ' rowitem--done' : '')} key={t.id} {...rowEditor(()=>setEditingItem(t),!!t.readOnly)}>
-            <button className={'check' + (t.status === 'done' ? ' check--on' : '')} onClick={() => toggle(t.id, t.status, t.rev)}
+            <button className={'check' + (t.status === 'done' ? ' check--on' : '')} onClick={() => toggle(t)}
               aria-label={t.status === 'done' ? 'Mark open' : 'Mark done'}>✓</button>
             <div className="rowitem__main">
               <div className="rowitem__title">{t.title}</div>

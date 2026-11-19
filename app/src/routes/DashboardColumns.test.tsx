@@ -2,7 +2,7 @@
 import {afterEach,it,expect,vi} from 'vitest'
 import {render,screen,fireEvent,within,cleanup} from '@testing-library/react'
 import {MemoryRouter} from 'react-router-dom'
-const api=vi.hoisted(()=>({getMy90:vi.fn(),setTodoStatus:vi.fn(),setRockStatus:vi.fn(),saveMilestone:vi.fn()}))
+const api=vi.hoisted(()=>({getMy90:vi.fn(),setTodoStatus:vi.fn(),toggleTodoCompletion:vi.fn(),setRockStatus:vi.fn(),saveMilestone:vi.fn()}))
 vi.mock('../api',()=>api)
 vi.mock('../state',()=>({useApp:()=>({me:{id:'a',name:'Alex Example'},multiCompany:true,teams:{one:[{id:'a',name:'Alex Example'},{id:'b',name:'Zara Example'}]}})}))
 import My90 from './My90'
@@ -21,7 +21,7 @@ it('sorts and filters each dashboard table independently',async()=>{
  const details=screen.getByRole('rowgroup',{name:'Milestones for Zulu rock'});
  expect(within(details).getAllByRole('row').map(row=>row.textContent)).toEqual(['Late milestoneJan 1, 2020','Later milestoneFeb 1, 2020','Undated milestoneNo due date']);
  fireEvent.click(within(rocks).getByRole('button',{name:'Hide milestones for Zulu rock'}));expect(screen.queryByRole('rowgroup',{name:'Milestones for Zulu rock'})).toBeNull();
- expect(api.setTodoStatus).not.toHaveBeenCalled();expect(api.saveMilestone).not.toHaveBeenCalled();
+ expect(api.setTodoStatus).not.toHaveBeenCalled();expect(api.toggleTodoCompletion).not.toHaveBeenCalled();expect(api.saveMilestone).not.toHaveBeenCalled();
 });
 it('filters dates by inclusive ranges and milestone completion state',async()=>{
  const actions=await setup();let filter=openFilter(actions,'Due date','My Action Items');fireEvent.change(filter.getByLabelText('From'),{target:{value:'2099-01-01'}});fireEvent.change(filter.getByLabelText('Through'),{target:{value:'2099-01-31'}});fireEvent.click(filter.getByRole('button',{name:'Close'}));expect(within(actions).getAllByRole('row')).toHaveLength(2);expect(within(actions).getByText('Alpha action')).toBeTruthy();

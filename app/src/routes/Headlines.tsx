@@ -8,6 +8,8 @@ import type { Headline } from '../api'
 import { useApp } from '../state'
 import { Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker,fmtDate } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
+import CadenceBuilder, {recurrencePayload} from '../components/CadenceBuilder'
+import type {ItemRecurrence} from '../../../platform/itemRecurrence'
 
 /*
  * One or two sentences. Good news and personnel news — the things a team should
@@ -158,6 +160,8 @@ export function HeadlineForm({
   const [body, setBody] = useState(initial?.body||'')
   const [details,setDetails]=useState(initial?.details||'')
   const [permanent,setPermanent]=useState(initial?.permanent??permanentDefault)
+  const [recurring,setRecurring]=useState(!!initial?.recurrence)
+  const [recurrence,setRecurrence]=useState<ItemRecurrence|null>(initial?.recurrence||null)
   const [sourceUrl,setSourceUrl]=useState(initial?.sourceUrl||'')
   const [sourceLabel,setSourceLabel]=useState(!initial?.sourceLabel||initial.sourceLabel==='Open source'?'Open link':initial.sourceLabel)
   const type = initial?.type||'customer'
@@ -167,7 +171,12 @@ export function HeadlineForm({
   const submit = async () => {
     if (!body.trim()) { setErr('A headline needs some words.'); return }
     setBusy(true); setErr(null)
-    try { await saveHeadline({ companyId, id:initial?.id,rev:initial?.rev,body: body.trim(), details, type, permanent,sourceUrl,sourceLabel,ownerId,ownerName }); setBody(''); onDone() }
+    try {
+      let schedule: ItemRecurrence | null = null
+      try { schedule = recurrencePayload(recurring, recurrence) }
+      catch (error: any) { setErr(error.message || 'Check the recurrence settings.'); setBusy(false); return }
+      await saveHeadline({ companyId, id:initial?.id,rev:initial?.rev,body: body.trim(), details, type, permanent, recurrence: schedule, sourceUrl,sourceLabel,ownerId,ownerName }); setBody(''); onDone()
+    }
     catch (e: any) { setErr(e.message); }
     finally { setBusy(false) }
   }
@@ -187,6 +196,7 @@ export function HeadlineForm({
       <div className="field"><label htmlFor="h-details">Details (optional)</label><textarea id="h-details" aria-describedby="h-details-hint" className="textarea" value={details} onChange={event=>setDetails(event.target.value)} placeholder="Add background, notes, or other details."/><span id="h-details-hint" className="field__hint">Hidden from the list. Open the headline to review these details.</span></div>
       <label className="field">Owner<OwnerPicker team={people} value={ownerId} valueName={ownerName} onChange={(id,name)=>{setOwnerId(id);setOwnerName(name)}}/></label>
       <label className="field"><span><input type="checkbox" checked={permanent} onChange={event=>setPermanent(event.target.checked)}/> Permanent review item</span></label>
+      <CadenceBuilder enabled={recurring} value={recurrence} onEnabledChange={setRecurring} onChange={setRecurrence}/>
       <label className="field">Source URL<input className="input" type="url" placeholder="https://" value={sourceUrl} onChange={event=>setSourceUrl(event.target.value)}/></label>
       <label className="field">Link button label<input className="input" value={sourceLabel} onChange={event=>setSourceLabel(event.target.value)} maxLength={60}/></label>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
