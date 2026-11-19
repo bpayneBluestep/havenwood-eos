@@ -18,3 +18,12 @@ export function completionArchiveReason(kind:CompletionKind,item:{rev?:number;ar
  if(kind==='headline'?!item.readDate:kind==='todo'?item.status!=='done':item.status!=='solved')return 'item is not complete'
  return null
 }
+
+export function checkedMeetingItem(kind:CompletionKind,item:{archivedAt?:unknown;permanent?:boolean;recurrence?:unknown;recurring?:boolean;status?:string;readDate?:unknown;personal?:boolean;meetingId?:string;occurrenceDate?:string;term?:string},session:{meetingId?:string;date:string;sections:{kind?:string;id:string}[]}):boolean {
+ const section={headline:'headlines',todo:'todos',issue:'ids'}[kind]
+ if(!session.sections.some(s=>(s.kind||s.id)===section)||item.archivedAt||item.personal||item.permanent||item.recurrence||item.recurring)return false
+ if(session.meetingId){if(item.meetingId!==session.meetingId||item.occurrenceDate!==session.date)return false}
+ else if(item.meetingId)return false
+ if(kind==='issue'&&item.term!=='short')return false
+ return kind==='headline'?!!item.readDate:kind==='todo'?item.status==='done':item.status==='solved'
+}
