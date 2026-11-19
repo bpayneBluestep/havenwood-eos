@@ -1,0 +1,6 @@
+import {it,expect} from 'vitest'
+import {meetingCompletions,completionArchiveReason} from './meetingCompletionArchive'
+const event={id:'e1',itemId:'one',action:'Action item completed',at:20,sourceRevision:3}
+it('uses only the final completion in this meeting and deduplicates',()=>{expect(meetingCompletions([event,event,{...event,id:'e2',action:'Action item reopened',at:21}],10,30)).toEqual([]);expect(meetingCompletions([event,event,{...event,itemId:'old',at:2}],10,30)).toHaveLength(1)})
+it('keeps later edits, reopened, permanent, recurring and historical items',()=>{expect(completionArchiveReason('todo',{rev:3,status:'done'},event)).toBeNull();for(const item of [{rev:4,status:'done'},{rev:3,status:'open'},{rev:3,status:'done',permanent:true},{rev:3,status:'done',recurrence:{}},{rev:3,status:'done',archivedAt:'date'}])expect(completionArchiveReason('todo',item,event)).toBeTruthy();expect(completionArchiveReason('todo',{rev:3,status:'done'},{...event,sourceRevision:undefined})).toBeTruthy()})
+it('requires the correct completion state for each family',()=>{expect(completionArchiveReason('headline',{rev:3,readDate:'date'},event)).toBeNull();expect(completionArchiveReason('issue',{rev:3,status:'solved'},event)).toBeNull();expect(meetingCompletions([{...event,action:'Permanent headline reviewed'}],10,30)).toEqual([])})
