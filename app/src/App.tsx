@@ -1,7 +1,7 @@
 import TeamSelector from './lib/TeamSelector'
-import {useEffect} from 'react'
+import {useEffect, type MouseEvent} from 'react'
 import {BHAG} from './lib/brand'
-import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppProvider, useApp } from './state'
 import { Avatar,PersonName } from './lib/ui'
 import { logout } from './api'
@@ -55,11 +55,20 @@ export default function App() {
 function Shell() {
   const { me, company, companies, setCompanyId, reload, branding } = useApp()
   const loc = useLocation()
+  const navigate = useNavigate()
   useEffect(()=>{const id=new URLSearchParams(loc.search).get('team');if(id&&companies.some(c=>c.id===id)&&id!==company.id)setCompanyId(id)},[loc.search,companies,company.id,setCompanyId])
 
   const title =
     [...NAV, ...MEETING].find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))?.label ||
     (loc.pathname.startsWith('/archive') ? 'Archive' : loc.pathname.startsWith('/my-profile') ? 'My Profile' : loc.pathname.startsWith('/my-notifications') ? 'My Notifications' : loc.pathname.startsWith('/admin') ? 'Admin' : 'TenK')
+
+  // Same-route Meetings clicks otherwise leave the open conclusion/live view mounted.
+  // Force a clean lobby entry so the nav always returns to the top-level Meetings page.
+  const openMeetingsLobby = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!loc.pathname.startsWith('/meetings')) return
+    event.preventDefault()
+    navigate('/meetings', { replace: true, state: { meetingsLobby: Date.now() } })
+  }
 
   return (
     <div className="shell">
@@ -82,7 +91,7 @@ function Shell() {
 
           <div className="nav__section">Meeting</div>
           {MEETING.map(n => (
-            <NavLink key={n.to} to={n.to}>
+            <NavLink key={n.to} to={n.to} onClick={n.to === '/meetings' ? openMeetingsLobby : undefined}>
               <span className="nav__ico" aria-hidden="true">{n.icon}</span>
               {n.label}
             </NavLink>

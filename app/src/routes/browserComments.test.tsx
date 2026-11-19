@@ -12,7 +12,7 @@ import LiveMeetings from '../meetings/LiveMeetings'
 import Todos from './Todos'
 import Headlines,{HeadlineForm} from './Headlines'
 import L10 from './L10'
-import {MemoryRouter} from 'react-router-dom'
+import {MemoryRouter,NavLink,Route,Routes,useNavigate} from 'react-router-dom'
 import Meetings,{MeetingForm} from './Meetings'
 import My90 from './My90'
 import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
@@ -338,6 +338,22 @@ describe('compact meeting review comments',()=>{
  it('places headline dates between the author and title without unread metadata',async()=>{api.getHeadlines.mockResolvedValue({rows:[{id:'news',body:'Short news',createdByName:'Owner A',createdAt:'2026-11-09',readDate:null,type:'customer'}]});render(<Headlines embedded/>);await screen.findByText('Short news');const row=document.querySelector('.headline-row')!;expect(row.querySelector('.rowitem__owner')?.nextElementSibling?.tagName).toBe('TIME');expect(row.querySelector('time')?.nextElementSibling?.classList.contains('rowitem__main')).toBe(true);expect(row.textContent).not.toContain('rolls forward');expect(row.querySelector('.rowitem__main > .rowitem__meta')).toBeNull()})
  it('uses plus and minus milestone controls',async()=>{render(<Rocks/>);await screen.findByText('Example Rock');expect(document.querySelector('.rock-group-toggle')).toBeTruthy();const user=userEvent.setup();const button=screen.getByRole('button',{name:'Show milestones'});expect(button.textContent?.trim()).toBe('+');await user.click(button);expect(screen.getByRole('button',{name:'Hide milestones'}).textContent?.trim()).toBe('−')})
  it('hides the page header and lobby introduction while a meeting is open',async()=>{state.current.liveMeetings=true;const session={id:'live',companyId:'source',meetingId:'',date:'2026-11-12',title:'Example live meeting',hostId:'a',hostName:'Owner A',status:'running',activeIndex:0,activeStartedAt:Date.now(),startedAt:Date.now(),endedAt:null,sections:defaultLiveSections(),rev:1,participants:[],joined:true,canControl:true,serverNow:Date.now()};api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()});render(<MemoryRouter><Meetings/></MemoryRouter>);const user=userEvent.setup();expect(screen.getByRole('heading',{name:'Meetings'})).toBeTruthy();await user.click(await screen.findByRole('button',{name:'Open meeting'}));await waitFor(()=>expect(screen.queryByRole('heading',{name:'Meetings'})).toBeNull());expect(screen.queryByText("Start or join your team's meeting. Only one live meeting can run per team.")).toBeNull();expect(screen.queryByRole('button',{name:'All meetings'})).toBeNull()})
+ it('returns to the top-level Meetings lobby when the Meetings nav is clicked during conclusion',async()=>{
+  state.current.liveMeetings=true
+  const session={id:'live',companyId:'source',meetingId:'',date:'2026-11-12',title:'Example live meeting',hostId:'a',hostName:'Owner A',status:'ended' as const,activeIndex:0,activeStartedAt:null,startedAt:Date.now(),endedAt:Date.now(),sections:defaultLiveSections(),rev:1,participants:[],joined:true,canControl:true,serverNow:Date.now()}
+  api.getLiveSessions.mockResolvedValue({sessions:[session],serverNow:Date.now()})
+  function MeetingsNav(){const navigate=useNavigate();return <NavLink to="/meetings" onClick={event=>{event.preventDefault();navigate('/meetings',{replace:true,state:{meetingsLobby:Date.now()}})}}>Meetings</NavLink>}
+  render(<MemoryRouter initialEntries={['/meetings']}><MeetingsNav/><Routes><Route path="/meetings" element={<Meetings/>}/></Routes></MemoryRouter>)
+  const user=userEvent.setup()
+  await user.click(await screen.findByRole('button',{name:'Past meetings'}))
+  await user.click(await screen.findByRole('button',{name:'View recap'}))
+  await screen.findByRole('heading',{name:'Conclusion',level:3})
+  expect(screen.queryByRole('heading',{name:'Meetings'})).toBeNull()
+  await user.click(screen.getByRole('link',{name:'Meetings'}))
+  await screen.findByRole('heading',{name:'Meetings'})
+  expect(screen.getByRole('button',{name:'Start a meeting'})).toBeTruthy()
+  expect(screen.queryByRole('heading',{name:'Conclusion',level:3})).toBeNull()
+ })
 })
 
 describe('meeting Back button',()=>{

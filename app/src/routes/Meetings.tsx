@@ -20,7 +20,11 @@ export default function Meetings() {
   const [adding, setAdding] = useState(false)
   const [scheduledOpen,setScheduledOpen]=useState(false)
   const nav = useNavigate()
-  const requestedSessionId=new URLSearchParams(useLocation().search).get('session')||undefined
+  const location = useLocation()
+  const lobbyKey = (location.state as { meetingsLobby?: number } | null)?.meetingsLobby || 0
+  const requestedSessionId = lobbyKey
+    ? undefined
+    : new URLSearchParams(location.search).get('session') || undefined
 
   const load = useCallback(() => {
     setErr(null)
@@ -47,7 +51,7 @@ export default function Meetings() {
 
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
-      <LiveMeetings key={company.id} companyId={company.id} onActiveChange={setLiveOpen} requestedSessionId={requestedSessionId}/>
+      <LiveMeetings key={`${company.id}:${lobbyKey}`} companyId={company.id} onActiveChange={setLiveOpen} requestedSessionId={requestedSessionId}/>
       {scheduledOpen && <Modal title="Scheduled private meetings" onClose={()=>setScheduledOpen(false)}>
       {!rows ? (
         <Loading what="Loading meetings" />
