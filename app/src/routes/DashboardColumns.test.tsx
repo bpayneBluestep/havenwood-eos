@@ -7,8 +7,8 @@ vi.mock('../api',()=>api)
 vi.mock('../state',()=>({useApp:()=>({me:{id:'a',name:'Alex Example'},multiCompany:true,teams:{one:[{id:'a',name:'Alex Example'},{id:'b',name:'Zara Example'}]}})}))
 import My90 from './My90'
 afterEach(()=>{cleanup();vi.clearAllMocks()})
-const milestone=(id:string,title:string,ownerId:string,dueDate:string,done=false)=>({id,title,ownerId,dueDate,done,completedAt:null})
-const data={todos:[{id:'t1',title:'Zulu action',ownerId:'a',ownerName:'Alex Example',dueDate:'2099-02-01',companyName:'Team A',status:'open',rev:3},{id:'t2',title:'Alpha action',ownerId:'b',ownerName:'Zara Example',dueDate:'2099-01-01',companyName:'Team B',status:'open',rev:4}],rocks:[{id:'r1',title:'Zulu rock',ownerId:'a',ownerName:'Alex Example',dueDate:'2099-02-01',companyName:'Team A',status:'on_track',milestones:[milestone('m1','Late milestone','a','2020-01-01')],rev:3},{id:'r2',title:'Alpha rock',ownerId:'b',ownerName:'Zara Example',dueDate:'2099-01-01',companyName:'Team B',status:'on_track',milestones:[milestone('m2','Future milestone','b','2099-01-01')],rev:4}],milestones:[{rockId:'r1',rockTitle:'Zulu rock',companyName:'Team A',milestone:milestone('m3','Zulu milestone','a','2099-02-01')},{rockId:'r2',rockTitle:'Alpha rock',companyName:'Team B',milestone:milestone('m4','Alpha milestone','b','2099-01-01')}],measurables:[]}
+const milestone=(id:string,title:string,ownerId:string,dueDate:string|null,done=false)=>({id,title,ownerId,dueDate,done,completedAt:null})
+const data={todos:[{id:'t1',title:'Zulu action',ownerId:'a',ownerName:'Alex Example',dueDate:'2099-02-01',companyName:'Team A',status:'open',rev:3},{id:'t2',title:'Alpha action',ownerId:'b',ownerName:'Zara Example',dueDate:'2099-01-01',companyName:'Team B',status:'open',rev:4}],rocks:[{id:'r1',title:'Zulu rock',ownerId:'a',ownerName:'Alex Example',dueDate:'2099-02-01',companyName:'Team A',status:'on_track',milestones:[milestone('m1b','Later milestone','a','2020-02-01'),milestone('m1c','Undated milestone','a',null),milestone('m1','Late milestone','a','2020-01-01')],rev:3},{id:'r2',title:'Alpha rock',ownerId:'b',ownerName:'Zara Example',dueDate:'2099-01-01',companyName:'Team B',status:'on_track',milestones:[milestone('m2','Future milestone','b','2099-01-01')],rev:4}],milestones:[{rockId:'r1',rockTitle:'Zulu rock',companyName:'Team A',milestone:milestone('m3','Zulu milestone','a','2099-02-01')},{rockId:'r2',rockTitle:'Alpha rock',companyName:'Team B',milestone:milestone('m4','Alpha milestone','b','2099-01-01')}],measurables:[]}
 async function setup(){api.getMy90.mockResolvedValue(data);render(<MemoryRouter><My90/></MemoryRouter>);return screen.findByRole('table',{name:'My Action Items'})}
 function openFilter(table:HTMLElement,label:string,name:string){fireEvent.click(within(table).getByRole('button',{name:`Filter ${label} in ${name}`}));return within(screen.getByRole('dialog',{name:`Filter ${label} in ${name}`}))}
 it('sorts and filters each dashboard table independently',async()=>{
@@ -18,7 +18,8 @@ it('sorts and filters each dashboard table independently',async()=>{
  expect(screen.queryByRole('table',{name:'My open milestones'})).toBeNull();
  expect(screen.queryByRole('rowgroup',{name:'Milestones for Zulu rock'})).toBeNull();
  fireEvent.click(within(rocks).getByRole('button',{name:'Show milestones for Zulu rock'}));
- const details=screen.getByRole('rowgroup',{name:'Milestones for Zulu rock'});expect(within(details).getByText('Late milestone')).toBeTruthy();expect(within(details).getByText('Jan 1, 2020')).toBeTruthy();
+ const details=screen.getByRole('rowgroup',{name:'Milestones for Zulu rock'});
+ expect(within(details).getAllByRole('row').map(row=>row.textContent)).toEqual(['Late milestoneJan 1, 2020','Later milestoneFeb 1, 2020','Undated milestoneNo due date']);
  fireEvent.click(within(rocks).getByRole('button',{name:'Hide milestones for Zulu rock'}));expect(screen.queryByRole('rowgroup',{name:'Milestones for Zulu rock'})).toBeNull();
  expect(api.setTodoStatus).not.toHaveBeenCalled();expect(api.saveMilestone).not.toHaveBeenCalled();
 });

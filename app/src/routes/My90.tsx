@@ -5,6 +5,7 @@ import {RockModal} from './Rocks'
 import type {Todo,Rock} from '../api'
 import {useTableColumns} from '../components/TableColumns'
 import {useNameForSort} from '../lib/memberProfiles'
+import {compareDates} from '../lib/listModel'
 import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
 import { Fragment, useCallback, useEffect, useState } from 'react'
@@ -157,7 +158,7 @@ export default function My90() {
                         </div>}
                       </div>
                     </div>{expandedRocks.has(r.id)&&<div role="rowgroup" className="dashboard-rock-details" id={`dashboard-milestones-${r.id}`} aria-label={`Milestones for ${r.title}`}>
-                      {r.milestones.map(m=><div role="row" className="dashboard-rock-child" key={m.id}><span role="cell" className={'dashboard-rock-child__title'+(m.done?' muted':'')}><span aria-label={m.done?'Complete':'Open'} className={'check'+(m.done?' check--on':'')}>{m.done?'✓':''}</span>{m.title}</span><span role="cell" className={dueClass(m.dueDate,m.done)}>{m.dueDate?fmtDate(m.dueDate):'No due date'}</span></div>)}
+                      {[...r.milestones].sort((a,b)=>compareDates(a.dueDate,b.dueDate)).map(m=><div role="row" className="dashboard-rock-child" key={m.id}><span role="cell" className={'dashboard-rock-child__title'+(m.done?' muted':'')}><span aria-label={m.done?'Complete':'Open'} className={'check'+(m.done?' check--on':'')}>{m.done?'✓':''}</span>{m.title}</span><span role="cell" className={dueClass(m.dueDate,m.done)}>{m.dueDate?fmtDate(m.dueDate):'No due date'}</span></div>)}
                       {r.milestones.length===0&&<div role="row"><span role="cell" className="muted">No milestones added.</span></div>}
                     </div>}</Fragment>
                   ))}
