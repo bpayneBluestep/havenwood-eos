@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {defaultLiveSections,changeLiveSection,liveSectionMs,validateLiveRating,uniqueLiveParticipants,liveTotalMs,validateLiveTangent} from './liveSessionModel'
+import {defaultLiveSections,changeLiveSection,liveSectionMs,validateLiveRating,uniqueLiveParticipants,liveTotalMs,validateLiveTangent,meetingArchiveSource} from './liveSessionModel'
 import type {LiveSession} from './liveSessionModel'
 const session=():LiveSession=>({id:'s',title:'Example meeting',companyId:'team',meetingId:'',date:'2026-11-12',hostId:'host',hostName:'Host',status:'running',activeIndex:0,activeStartedAt:1000,startedAt:1000,endedAt:null,sections:defaultLiveSections(),rev:1})
 describe('live meeting timer',()=>{
@@ -44,3 +44,24 @@ describe('total active time and tangent calls',()=>{
 })
 
 it('lets joined non-hosts end a meeting while keeping timer control host-only',()=>{const people=[{userId:'member',name:'Member',joinedAt:1,rating:null,updatedAt:1}];expect(changeLiveSection(session(),'member','end',6000,undefined,people).status).toBe('ended');expect(()=>changeLiveSection(session(),'member','pause',6000,undefined,people)).toThrow('facilitator');expect(()=>changeLiveSection(session(),'outsider','end',6000,undefined,people)).toThrow('facilitator')})
+
+describe('meeting archive provenance',()=>{
+ it('records the actual end session, team, actor and archive date',()=>{
+  const ended=changeLiveSection(session(),'host','end',6000)
+  expect(meetingArchiveSource(ended,'host','2026-11-18')).toEqual({kind:'meeting-end',sessionId:'s',teamId:'team',actorId:'host',archivedAt:'2026-11-18',endedAt:6000,policy:'checked-visible-v2'})
+  expect(ended.completionArchive).toBeUndefined()
+ })
+ it('rejects running sessions and incomplete provenance without inventing values',()=>{
+  expect(()=>meetingArchiveSource(session(),'host','2026-11-18')).toThrow()
+  const ended=changeLiveSection(session(),'host','end',6000)
+  expect(()=>meetingArchiveSource(ended,'','2026-11-18')).toThrow()
+  expect(()=>meetingArchiveSource({...ended,endedAt:null},'host','2026-11-18')).toThrow()
+ })
+ it('keeps a saved archive list unchanged when sessions are read or resolved',()=>{
+  const ended=changeLiveSection(session(),'host','end',6000)
+  const item={kind:'todo',id:'item',title:'Example task',ownerName:'Example owner',dueDate:'2026-11-20',archivedAt:'2026-11-18'}
+  ended.completionArchive={headline:0,todo:1,issue:0,skipped:0,items:[item],archiveSource:meetingArchiveSource(ended,'host','2026-11-18')}
+  expect(liveTotalMs(ended,9000)).toBe(5000)
+  expect(ended.completionArchive.items).toEqual([item])
+ })
+})

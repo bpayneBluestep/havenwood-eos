@@ -711,3 +711,10 @@ export const saveMeetingNotes=(fields:{companyId:string;sessionId:string;section
 
 export const emailMeetingNotes=(fields:{companyId:string;sessionId:string;recipient:string;requestId:string}):Promise<import('../../platform/meetingNotes').MeetingNotesView>=>post('emailMeetingNotes',fields)
 export const reviewMeetingHeadline=(id:string,complete:boolean):Promise<unknown>=>currentMeetingActivityScope()?post('reviewMeetingHeadline',{id,complete}):Promise.resolve(null)
+
+export type {ArchiveSummary} from '../../platform/teamArchive'
+export interface TeamArchivePage {items:import('../../platform/teamArchive').ArchiveSummary[];total:number;offset:number;limit:number;hasMore:boolean}
+export interface TeamArchiveDetail {type:string;id:string;title:string;description:string;status:string;originalDate:string|null;archivedAt:string;sourceMeetingId:string|null;sourceActorId:string|null;ownerId:string;rev:number;canRestore:boolean;linkUrl:string;milestones:{id:string;title:string;dueDate:string;done:boolean}[]}
+export const getTeamArchive=(companyId:string,filters:Partial<import('../../platform/teamArchive').ArchiveQuery>={}):Promise<TeamArchivePage>=>get('teamArchive',{companyId,...filters})
+export const getTeamArchiveDetail=(companyId:string,type:string,id:string):Promise<TeamArchiveDetail>=>get('teamArchiveDetail',{companyId,type,id})
+export const restoreArchivedItem=(companyId:string,type:string,id:string,rev:number):Promise<{type:string;id:string;teamId:string;rev:number;archivedAt:null;completionPreserved:true;warning:string|null}>=>post('restoreArchivedItem',{companyId,type,id,rev})

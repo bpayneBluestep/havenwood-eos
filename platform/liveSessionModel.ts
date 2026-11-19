@@ -1,5 +1,7 @@
 export interface LiveSection {id:string;label:string;minutes:number;spentMs:number;kind?:string;prompt?:string}
-export interface LiveSession {completionArchive?:{items?:{kind:string;id:string;title:string;ownerName:string;dueDate:string;archivedAt:string}[];policy?:string;headline:number;todo:number;issue:number;skipped:number;reasons?:Record<string,number>};teamContent?:boolean;previousSessionId?:string;supersededBy?:string;meetingTypeId?:string;meetingTypeName?:string;id:string;title:string;companyId:string;meetingId:string;date:string;hostId:string;hostName:string;status:'running'|'paused'|'ended';activeIndex:number;activeStartedAt:number|null;startedAt:number;endedAt:number|null;sections:LiveSection[];rev:number}
+export interface MeetingArchiveSource {kind:'meeting-end';sessionId:string;teamId:string;actorId:string;archivedAt:string;endedAt:number;policy:'checked-visible-v2'}
+export interface LiveCompletionArchive {items?:{kind:string;id:string;title:string;ownerName:string;dueDate:string;archivedAt:string}[];archiveSource?:MeetingArchiveSource;policy?:string;headline:number;todo:number;issue:number;skipped:number;reasons?:Record<string,number>}
+export interface LiveSession {completionArchive?:LiveCompletionArchive;teamContent?:boolean;previousSessionId?:string;supersededBy?:string;meetingTypeId?:string;meetingTypeName?:string;id:string;title:string;companyId:string;meetingId:string;date:string;hostId:string;hostName:string;status:'running'|'paused'|'ended';activeIndex:number;activeStartedAt:number|null;startedAt:number;endedAt:number|null;sections:LiveSection[];rev:number}
 export interface LiveParticipant {lastSeenAt?:number;userId:string;name:string;joinedAt:number;rating:number|null;updatedAt:number}
 export interface LiveTangent {id:string;userId:string;name:string;calledAt:number}
 export interface LiveSessionView extends LiveSession {tangents?:LiveTangent[];participants:LiveParticipant[];joined:boolean;canControl:boolean;canEnd?:boolean;serverNow:number}
@@ -65,4 +67,10 @@ export function resolveTeamSessions<T extends LiveSession>(sessions:T[]):T[] {
 
 export function validateLivePresence(session:LiveSession,actorId:string,participants:LiveParticipant[]):void {
  if(session.status==='ended'||!participants.some(person=>person.userId===actorId))throw Error('Join an active meeting before sending a connection check.')
+}
+
+/** Only an explicit, completed End transition can supply archive provenance. */
+export function meetingArchiveSource(session:LiveSession,actorId:string,archivedAt:string):MeetingArchiveSource {
+ if(session.status!=='ended'||session.endedAt===null||!Number.isFinite(session.endedAt)||!session.id||!session.companyId||!actorId||!/^\d{4}-\d{2}-\d{2}$/.test(archivedAt))throw new Error('A completed meeting and archive actor are required.')
+ return {kind:'meeting-end',sessionId:session.id,teamId:session.companyId,actorId,archivedAt,endedAt:session.endedAt,policy:'checked-visible-v2'}
 }

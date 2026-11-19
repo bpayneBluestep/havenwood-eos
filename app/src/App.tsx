@@ -22,6 +22,7 @@ import Accountability from './routes/Accountability'
 import Vision from './routes/Vision'
 import WorkDetail from './routes/WorkDetail'
 import NotFound from './routes/NotFound'
+import TeamArchive from './routes/TeamArchive'
 
 /*
  * Left nav listing the tools in EOS order — not a hamburger, not tabs. These
@@ -41,6 +42,7 @@ const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
 
 const MEETING: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: '/meetings', label: 'Meetings', icon: '◎' },
+  { to: '/archive', label: 'Team archive', icon: '▤' },
 ]
 
 export default function App() {
@@ -142,6 +144,7 @@ function Shell() {
           <Route path="/headlines" element={<Headlines />} />
           <Route path="/l10" element={<Navigate to="/meetings" replace />} />
           <Route path="/meetings" element={<Meetings />} />
+          <Route path="/archive" element={<TeamArchive />} />
           <Route path="/meetings/:id" element={<Meeting />} />
           {(me.isAdmin || me.isTeamAdmin) && <Route path="/admin" element={<Admin onChanged={reload} />} />}
           <Route path="*" element={<NotFound />} />

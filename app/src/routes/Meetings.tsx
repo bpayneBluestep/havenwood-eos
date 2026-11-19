@@ -40,6 +40,7 @@ export default function Meetings() {
           </div>
         </div>
         {!liveOpen && <div className="page__actions">
+          <Link className="btn" to={`/archive?team=${encodeURIComponent(company.id)}`}>Team archive</Link>
           <button className="btn" onClick={()=>setScheduledOpen(true)}>Scheduled meetings</button>
           <button className="btn" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
             {showArchived ? 'Hide archived' : 'Show archived'}
