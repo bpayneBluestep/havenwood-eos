@@ -829,7 +829,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .dashboard-rock-child:last-child { border-bottom:0; }
 .dashboard-rock-child__title { display:flex; align-items:center; gap:9px; min-width:0; }
 .dashboard-rock-child__title .check { flex-shrink:0; pointer-events:none; }
-.dashboard-rock-child>span:last-child { flex-shrink:0; }
+.dashboard-rock-child__due { flex-shrink:0; text-align:right; }
+.dashboard-rock-child__due .date-edit { font-size:12px; }
 
 /* Compact, read-only team archive. */
 .archive-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:14px}

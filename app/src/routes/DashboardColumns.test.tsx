@@ -19,9 +19,20 @@ it('sorts and filters each dashboard table independently',async()=>{
  expect(screen.queryByRole('rowgroup',{name:'Milestones for Zulu rock'})).toBeNull();
  fireEvent.click(within(rocks).getByRole('button',{name:'Show milestones for Zulu rock'}));
  const details=screen.getByRole('rowgroup',{name:'Milestones for Zulu rock'});
- expect(within(details).getAllByRole('row').map(row=>row.textContent)).toEqual(['Late milestoneJan 1, 2020','Later milestoneFeb 1, 2020','Undated milestoneNo due date']);
+ expect(within(details).getAllByRole('row').map(row=>row.textContent)).toEqual(['Late milestoneJan 1, 2020','Later milestoneFeb 1, 2020','Undated milestoneAdd due date']);
  fireEvent.click(within(rocks).getByRole('button',{name:'Hide milestones for Zulu rock'}));expect(screen.queryByRole('rowgroup',{name:'Milestones for Zulu rock'})).toBeNull();
  expect(api.setTodoStatus).not.toHaveBeenCalled();expect(api.toggleTodoCompletion).not.toHaveBeenCalled();expect(api.saveMilestone).not.toHaveBeenCalled();
+});
+it('saves an expanded milestone due date on Enter',async()=>{
+ api.saveMilestone.mockResolvedValue({});await setup();
+ const rocks=screen.getByRole('table',{name:'My Rocks'});
+ fireEvent.click(within(rocks).getByRole('button',{name:'Show milestones for Zulu rock'}));
+ fireEvent.click(screen.getByRole('button',{name:'Edit due date for Late milestone'}));
+ const input=screen.getByLabelText('Due date for Late milestone');
+ fireEvent.change(input,{target:{value:'2026-12-12'}});
+ fireEvent.keyDown(input,{key:'Enter'});
+ await screen.findByRole('button',{name:'Edit due date for Late milestone'});
+ expect(api.saveMilestone).toHaveBeenCalledWith('r1',{id:'m1',dueDate:'2026-12-12'},3);
 });
 it('filters dates by inclusive ranges and milestone completion state',async()=>{
  const actions=await setup();let filter=openFilter(actions,'Due date','My Action Items');fireEvent.change(filter.getByLabelText('From'),{target:{value:'2099-01-01'}});fireEvent.change(filter.getByLabelText('Through'),{target:{value:'2099-01-31'}});fireEvent.click(filter.getByRole('button',{name:'Close'}));expect(within(actions).getAllByRole('row')).toHaveLength(2);expect(within(actions).getByText('Alpha action')).toBeTruthy();

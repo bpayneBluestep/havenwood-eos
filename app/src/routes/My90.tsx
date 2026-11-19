@@ -10,13 +10,14 @@ import {rockStatus} from '../rocks/model'
 import {useToday} from '../lib/useToday'
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getMy90, toggleTodoCompletion, setRockStatus } from '../api'
+import { getMy90, toggleTodoCompletion, setRockStatus, saveMilestone } from '../api'
 import type { My90 as My90Data } from '../api'
 import { useApp } from '../state'
 import {
   Avatar, PersonName, Empty, ErrorBanner, Loading, StatusPill,
   cellClass, cellMark, dueClass, fmtDate, fmtGoal, shortPeriod,
 } from '../lib/ui'
+import MilestoneDate from '../rocks/MilestoneDate'
 
 /*
  * My 90 — the personal home page, and the only screen most people open daily.
@@ -158,7 +159,7 @@ export default function My90() {
                         </div>}
                       </div>
                     </div>{expandedRocks.has(r.id)&&<div role="rowgroup" className="dashboard-rock-details" id={`dashboard-milestones-${r.id}`} aria-label={`Milestones for ${r.title}`}>
-                      {[...r.milestones].sort((a,b)=>compareDates(a.dueDate,b.dueDate)).map(m=><div role="row" className="dashboard-rock-child" key={m.id}><span role="cell" className={'dashboard-rock-child__title'+(m.done?' muted':'')}><span aria-label={m.done?'Complete':'Open'} className={'check'+(m.done?' check--on':'')}>{m.done?'✓':''}</span>{m.title}</span><span role="cell" className={dueClass(m.dueDate,m.done)}>{m.dueDate?fmtDate(m.dueDate):'No due date'}</span></div>)}
+                      {[...r.milestones].sort((a,b)=>compareDates(a.dueDate,b.dueDate)).map(m=><div role="row" className="dashboard-rock-child" key={m.id}><span role="cell" className={'dashboard-rock-child__title'+(m.done?' muted':'')}><span aria-label={m.done?'Complete':'Open'} className={'check'+(m.done?' check--on':'')}>{m.done?'✓':''}</span>{m.title}</span><span role="cell" className="dashboard-rock-child__due"><MilestoneDate item={m} disabled={!!r.readOnly} onSave={async dueDate=>{await saveMilestone(r.id,{id:m.id,dueDate},r.rev);load()}}/></span></div>)}
                       {r.milestones.length===0&&<div role="row"><span role="cell" className="muted">No milestones added.</span></div>}
                     </div>}</Fragment>
                   ))}
