@@ -42,7 +42,6 @@ const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
 
 const MEETING: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: '/meetings', label: 'Meetings', icon: '◎' },
-  { to: '/archive', label: 'Team archive', icon: '▤' },
 ]
 
 export default function App() {
@@ -60,7 +59,7 @@ function Shell() {
 
   const title =
     [...NAV, ...MEETING].find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))?.label ||
-    (loc.pathname.startsWith('/my-profile') ? 'My Profile' : loc.pathname.startsWith('/my-notifications') ? 'My Notifications' : loc.pathname.startsWith('/admin') ? 'Admin' : 'TenK')
+    (loc.pathname.startsWith('/archive') ? 'Archive' : loc.pathname.startsWith('/my-profile') ? 'My Profile' : loc.pathname.startsWith('/my-notifications') ? 'My Notifications' : loc.pathname.startsWith('/admin') ? 'Admin' : 'TenK')
 
   return (
     <div className="shell">

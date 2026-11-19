@@ -19,14 +19,13 @@ export default function Meetings() {
   const [liveOpen,setLiveOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [scheduledOpen,setScheduledOpen]=useState(false)
-  const [showArchived, setShowArchived] = useState(false)
   const nav = useNavigate()
   const requestedSessionId=new URLSearchParams(useLocation().search).get('session')||undefined
 
   const load = useCallback(() => {
     setErr(null)
-    getMeetings(company.id, showArchived).then(r => setRows(r.rows)).catch(e => setErr(e.message))
-  }, [company.id, showArchived])
+    getMeetings(company.id, false).then(r => setRows(r.rows)).catch(e => setErr(e.message))
+  }, [company.id])
 
   useEffect(() => { setRows(null); load() }, [load])
 
@@ -40,11 +39,8 @@ export default function Meetings() {
           </div>
         </div>
         {!liveOpen && <div className="page__actions">
-          <Link className="btn" to={`/archive?team=${encodeURIComponent(company.id)}`}>Team archive</Link>
+          <Link className="btn" to={`/archive?team=${encodeURIComponent(company.id)}`}>Archive</Link>
           <button className="btn" onClick={()=>setScheduledOpen(true)}>Scheduled meetings</button>
-          <button className="btn" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
-            {showArchived ? 'Hide archived' : 'Show archived'}
-          </button>
           <button className="btn btn--primary" onClick={() => setAdding(true)}>+ Schedule meeting</button>
         </div>}
       </div>}
