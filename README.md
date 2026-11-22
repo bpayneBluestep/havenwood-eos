@@ -67,6 +67,8 @@ Live sessions use the `liveMeetings: 1` bootstrap capability. A team member can 
 
 Live session state refreshes every 3 seconds. Meeting notes refresh every 2 seconds, meeting workspace data every 5 seconds, and the Live Meetings menu every 10 seconds. Embedded Headlines, Issues, Action Items, Rocks, and L10 work lists refresh every 10 seconds. These reads pause when the browser tab is hidden. When the tab becomes visible, each poller makes one refresh. A poller does not start another read while its previous read is still running. Live timers still update once each second. Attendee connection indicators update every 5 seconds.
 
+Use the Light/Dark button in the top bar to change the color theme. TenK follows the device theme until you choose a mode. Your choice is saved in this browser.
+
 The server stores each session and each participant separately in existing EOS Meetings rows. Participant joins/ratings do not rewrite the shared timer record. Repeated participant rows are collapsed by user identity and update time. Internal rows are excluded from scheduled meeting APIs. The pure helper `platform/liveSessionModel.ts` must match `scripts/liveSessionModel.ts`. The older meeting-workflow patch remains an unused review artifact; it was not applied for these controls.
 
 Milestone date edits now save automatically after a short typing delay or when the field loses focus. Save and Cancel buttons are removed from this shared editor. Failed edits remain visible with an error. The Action Items page uses reversible Date and Name sorting buttons, and its titles use regular weight. My 90 is labeled My Dashboard.

@@ -42,8 +42,7 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root[data-theme='dark'] {
     --bg: #0e1420;
     --panel: #151d2b;
     --panel-2: #1a2333;
@@ -63,7 +62,6 @@
     --amber: #e0ab55;
     --amber-bg: #2e2210;
     color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }

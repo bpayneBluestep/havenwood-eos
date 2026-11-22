@@ -1,7 +1,9 @@
 import TeamSelector from './lib/TeamSelector'
-import {Component, lazy, Suspense, useEffect} from 'react'
+import {Component, lazy, Suspense, useEffect, useState} from 'react'
 import type {ErrorInfo, ReactNode} from 'react'
 import type {MouseEvent} from 'react'
+import {applyTheme, getPreferredTheme, saveTheme} from './lib/theme'
+import type {Theme} from './lib/theme'
 import {BHAG} from './lib/brand'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppProvider, useApp } from './state'
@@ -59,6 +61,8 @@ function Shell() {
   const { me, company, companies, setCompanyId, reload, branding } = useApp()
   const loc = useLocation()
   const navigate = useNavigate()
+  const [theme,setTheme]=useState<Theme>(getPreferredTheme)
+  useEffect(()=>applyTheme(theme),[theme])
   useEffect(()=>{const id=new URLSearchParams(loc.search).get('team');if(id&&companies.some(c=>c.id===id)&&id!==company.id)setCompanyId(id)},[loc.search,companies,company.id,setCompanyId])
 
   const title =
@@ -132,6 +136,9 @@ function Shell() {
           <span className="topbar__meta nowrap">{company.periods.week} · {company.periods.quarter}</span>
 
           <div className="topbar__end">
+            <button className="btn theme-toggle" type="button" aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} onClick={()=>{const next=theme==='dark'?'light':'dark';setTheme(next);saveTheme(next)}}>
+              <span aria-hidden="true">{theme==='dark'?'☀':'☾'}</span>{theme==='dark'?'Dark':'Light'}
+            </button>
             {me.isSuper && (
               <button className="btn" onClick={openTemporaryLogin} title="Sign in as another user to test what they see">
                 Log in as…
