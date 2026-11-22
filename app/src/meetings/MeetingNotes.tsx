@@ -3,10 +3,11 @@ import {activityLines} from '../../../platform/meetingActivity'
 import RichNotesEditor from './RichNotesEditor'
 import {NotesPreview} from './NotesText'
 export {NotesPreview} from './NotesText'
-import {useEffect,useRef,useState} from 'react'
+import {useCallback,useEffect,useRef,useState} from 'react'
 import {getMeetingNotes,saveMeetingNotes} from '../api'
 import type {LiveSessionView} from '../../../platform/liveSessionModel'
 import type {MeetingNotesView,NoteRevision} from '../../../platform/meetingNotes'
+import {useVisiblePolling} from '../lib/useVisiblePolling'
 
 const headKey=(versions:NoteRevision[])=>versions.map(version=>version.id).sort().join('|')
 function SectionEditor({label,versions,canEdit,onSave,onPendingChange}:{label:string;versions:NoteRevision[];canEdit:boolean;onSave:(text:string,parents:string[])=>Promise<NoteRevision[]>;onPendingChange?:(pending:boolean)=>void}) {
@@ -31,9 +32,11 @@ function SectionEditor({label,versions,canEdit,onSave,onPendingChange}:{label:st
 }
 export default function MeetingNotes({companyId,session}:{companyId:string;session:LiveSessionView}) {
  const [open,setOpen]=useState(false),[data,setData]=useState<MeetingNotesView|null>(null),[error,setError]=useState(''),[pending,setPending]=useState<Record<string,boolean>>({})
- const generation=useRef(0),writes=useRef(0),mounted=useRef(true)
+ const generation=useRef(0),writes=useRef(0),mounted=useRef(true),reading=useRef(false)
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[])
- useEffect(()=>{if(!open)return;let active=true,pending=false;const read=async()=>{if(pending||writes.current)return;pending=true;const ticket=generation.current;try{const result=await getMeetingNotes({companyId,sessionId:session.id});if(active&&ticket===generation.current&&!writes.current){setData(result);setError('')}}catch(error){if(active)setError((error as Error).message)}finally{pending=false}};void read();const timer=window.setInterval(()=>void read(),2000);return()=>{active=false;window.clearInterval(timer)}},[open,companyId,session.id])
+ const read=useCallback(async()=>{if(reading.current||writes.current)return;reading.current=true;const ticket=generation.current;try{const result=await getMeetingNotes({companyId,sessionId:session.id});if(mounted.current&&ticket===generation.current&&!writes.current){setData(result);setError('')}}catch(error){if(mounted.current&&ticket===generation.current)setError((error as Error).message)}finally{reading.current=false}},[companyId,session.id])
+ useEffect(()=>{if(open)void read();return()=>{++generation.current}},[open,companyId,session.id,read])
+ useVisiblePolling(read,2000,open)
  async function save(sectionId:string,text:string,parents:string[]) {++writes.current;++generation.current;try{const result=await saveMeetingNotes({companyId,sessionId:session.id,sectionId,text,parents});if(mounted.current)setData(current=>current?{...result,sections:current.sections.map(section=>section.sectionId===sectionId?(result.sections.find(value=>value.sectionId===sectionId)||section):section)}:result);return result.sections.find(section=>section.sectionId===sectionId)?.versions||[]}finally{--writes.current;++generation.current}}
  return <aside className={'meeting-notes'+(open?' meeting-notes--open':'')} aria-label="Meeting notes"><button className="btn meeting-notes__toggle" type="button" aria-expanded={open} aria-controls="meeting-notes-panel" onClick={()=>setOpen(value=>!value)}>{open?'Close notes':'Notes'}</button><div id="meeting-notes-panel" hidden={!open}><h2>Meeting notes</h2><p className="muted">Shared with meeting participants. Edits save automatically. Use the buttons to format your notes. Item actions in this meeting appear below their section. Earlier actions are not reconstructed.</p>{session.status==='ended'&&<p className="muted">Meeting ended. Notes are read-only.</p>}{error&&<p role="alert">{error}</p>}{!data&&!error&&<p role="status">Loading notes…</p>}{data&&<MeetingNotesEmail companyId={companyId} sessionId={session.id} history={data.emailHistory||[]} pending={Object.values(pending).some(Boolean)} onSent={view=>setData(current=>current?{...current,emailHistory:view.emailHistory}:view)}/>}{data&&session.sections.map((section,index)=><div key={section.id}><SectionEditor label={`${index+1}. ${section.label}`} versions={data.sections.find(notes=>notes.sectionId===section.id)?.versions||[]} canEdit={data.canEdit&&session.status!=='ended'} onPendingChange={value=>setPending(current=>current[section.id]===value?current:{...current,[section.id]:value})} onSave={(text,parents)=>save(section.id,text,parents)}/><MeetingActivityList events={(data.activities||[]).filter(event=>event.sectionIds.includes(section.id))}/></div>)}{data&&<><MeetingActivityList events={(data.activities||[]).filter(event=>!event.sectionIds.length)} label="Additional meeting activity"/></>}</div></aside>
 }

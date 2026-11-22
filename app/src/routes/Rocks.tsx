@@ -6,7 +6,7 @@ import MilestoneDate from '../rocks/MilestoneDate'
 import {useToday} from '../lib/useToday'
 import type {MilestoneStatus} from '../rocks/model'
 import FollowupContext from '../meetings/FollowupContext'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getRocks, getRocksBoard, saveRock, setRockStatus, setRockRollUp, saveMilestone, addRockNote, carryForwardRocks } from '../api'
 import type { Rock, Milestone, RockScope, RockScopeCounts } from '../api'
 import { useApp } from '../state'
@@ -15,6 +15,7 @@ import {
   dueClass, fmtDate, firstLast, plusDaysIso,
 } from '../lib/ui'
 import { DropToIssueModal } from '../components/DropToIssue'
+import {useVisiblePolling} from '../lib/useVisiblePolling'
 
 /*
  * Rocks as rows with a status pill, milestones expanding inline underneath —
@@ -37,19 +38,24 @@ export default function Rocks({embedded=false,companyId}:{embedded?:boolean;comp
   const [dropFor, setDropFor] = useState<Rock | null>(null)
   const [noteFor, setNoteFor] = useState<Rock | null>(null)
   const [carry, setCarry] = useState<Rock[] | null>(null)
+  const requestVersion=useRef(0)
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
+    const version=++requestVersion.current
     setErr(null)
-    if (view === 'list') {
-      getRocks(targetCompanyId, undefined, false, scope)
-        .then(r => { setRows(r.rows); setCounts(r.counts) })
-        .catch(e => setErr(e.message))
-    } else {
-      getRocksBoard(targetCompanyId, undefined, scope).then(setBoard).catch(e => setErr(e.message))
-    }
+    try {
+      if (view === 'list') {
+        const result=await getRocks(targetCompanyId, undefined, false, scope)
+        if(version===requestVersion.current){setRows(result.rows);setCounts(result.counts)}
+      } else {
+        const result=await getRocksBoard(targetCompanyId, undefined, scope)
+        if(version===requestVersion.current)setBoard(result)
+      }
+    } catch(e) {if(version===requestVersion.current)setErr(e instanceof Error?e.message:String(e))}
   }, [targetCompanyId, view, scope])
 
-  useEffect(() => { setRows(null); setBoard(null); load();if(!embedded)return;const timer=window.setInterval(load,10000);return()=>window.clearInterval(timer) }, [load,embedded])
+  useEffect(() => { setRows(null); setBoard(null); if(!embedded)void load(); return()=>{++requestVersion.current} }, [load,embedded])
+  useVisiblePolling(load,10000,embedded)
 
   const quarter = company.periods.quarter
   const displayRows = rows?.map(rock => ({...rock, status: rockStatus(rock, today)}))

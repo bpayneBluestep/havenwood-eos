@@ -8,7 +8,7 @@ import L10 from '../routes/L10'
 import Issues from '../routes/Issues'
 import TangentFireworks from './TangentFireworks'
 import {Modal,PersonName} from '../lib/ui'
-import {useEffect,useRef,useState} from 'react'
+import {useCallback,useEffect,useRef,useState} from 'react'
 import {getLiveSessions,liveSessionAction,getMeetingTypes,sendMeetingPresence} from '../api'
 import {useApp} from '../state'
 import {clockText} from './model'
@@ -16,13 +16,14 @@ import {liveSectionMs,liveTotalMs} from '../../../platform/liveSessionModel'
 import type {LiveSessionView} from '../../../platform/liveSessionModel'
 import {defaultMeetingTypes} from '../../../platform/meetingTypes'
 import type {MeetingType} from '../../../platform/meetingTypes'
+import {useVisiblePolling} from '../lib/useVisiblePolling'
 import './live.css'
 function MeetingControlIcon({kind}:{kind:'pause'|'play'|'back'|'next'}) {
  return <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">{kind==='pause'?<><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></>:kind==='play'?<path d="M7 4v16l13-8z"/>:kind==='back'?<><rect x="4" y="4" width="3" height="16" rx="1"/><path d="M20 4v16L8 12z"/></>:<><path d="M4 4v16l12-8z"/><rect x="17" y="4" width="3" height="16" rx="1"/></>}</svg>
 }
 export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fixedMeetingTypeId,requestedSessionId}:{requestedSessionId?:string;fixedMeetingTypeId?:string;companyId:string;meetingId?:string;date?:string;onActiveChange?:(active:boolean)=>void}) {
  const {me,liveMeetings,teams,team,company,multiCompany}=useApp()
- const [sessions,setSessions]=useState<LiveSessionView[]>([]),[selected,setSelected]=useState<string|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[clock,setClock]=useState(Date.now())
+ const [sessions,setSessions]=useState<LiveSessionView[]>([]),[selected,setSelected]=useState<string|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
  const [meetingTypes,setMeetingTypes]=useState<MeetingType[]>(defaultMeetingTypes),[meetingTypeId,setMeetingTypeId]=useState(fixedMeetingTypeId || (meetingId?'one-on-one':'l10')),[teamBusy,setTeamBusy]=useState(false),[showRecaps,setShowRecaps]=useState(false)
  useEffect(()=>{let active=true;void getMeetingTypes(companyId).then(catalog=>{if(active)setMeetingTypes(catalog.types)}).catch(()=>{});return()=>{active=false}},[companyId])
  const [viewedIndex,setViewedIndex]=useState<number|null>(null)
@@ -34,9 +35,10 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fi
  useEffect(()=>setEndFor(null),[selected,companyId])
  const [tangentAlert,setTangentAlert]=useState<{id:string;name:string}|null>(null)
  const tangentSeen=useRef<{sessionId:string;ids:Set<string>}>({sessionId:'',ids:new Set()})
- const offset=useRef(0),writing=useRef(false),version=useRef(0),mounted=useRef(true)
- useEffect(()=>{if(!liveMeetings)return;let active=true,reading=false;mounted.current=true;setSessions([]);setSelected(null);const read=async()=>{if(writing.current||reading)return;reading=true;const ticket=++version.current;try{const result=await getLiveSessions({companyId,meetingId,date});if(active&&!writing.current&&ticket===version.current){setSessions(result.sessions);setTeamBusy(!!result.teamBusy||result.sessions.some(session=>session.status!=='ended'));offset.current=result.serverNow-Date.now()}}catch(error){if(active)setError((error as Error).message)}finally{reading=false}};void read();const poll=window.setInterval(()=>void read(),1000);return()=>{active=false;mounted.current=false;++version.current;window.clearInterval(poll)}},[companyId,meetingId,date,liveMeetings])
- useEffect(()=>{const tick=window.setInterval(()=>setClock(Date.now()),1000);return()=>window.clearInterval(tick)},[])
+ const offset=useRef(0),writing=useRef(false),reading=useRef(false),version=useRef(0),mounted=useRef(true)
+ const readSessions=useCallback(async()=>{if(!liveMeetings||writing.current||reading.current)return;reading.current=true;const ticket=++version.current;try{const result=await getLiveSessions({companyId,meetingId,date});if(mounted.current&&!writing.current&&ticket===version.current){setSessions(result.sessions);setTeamBusy(!!result.teamBusy||result.sessions.some(session=>session.status!=='ended'));offset.current=result.serverNow-Date.now()}}catch(error){if(mounted.current)setError((error as Error).message)}finally{reading.current=false}},[companyId,meetingId,date,liveMeetings])
+ useEffect(()=>{if(!liveMeetings)return;mounted.current=true;setSessions([]);setSelected(null);setError('');++version.current;void readSessions();return()=>{mounted.current=false;++version.current}},[companyId,meetingId,date,liveMeetings,readSessions])
+ useVisiblePolling(readSessions,3000,liveMeetings)
  async function act(command:string,session?:LiveSessionView,extra:Record<string,unknown>={}){
   if(writing.current)return;writing.current=true;const ticket=++version.current;setBusy(true);setError('')
   try{const result=await liveSessionAction({companyId,meetingId,date,command,sessionId:session?.id,rev:session?.rev,...extra});if(!mounted.current||ticket!==version.current)return;offset.current=result.serverNow-Date.now();setSessions(rows=>[result,...rows.filter(row=>row.id!==result.id)]);setSelected(result.id)}catch(error){if(mounted.current)setError((error as Error).message)}finally{writing.current=false;if(mounted.current)setBusy(false)}
@@ -80,7 +82,6 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fi
  },[session])
  useEffect(()=>{if(!tangentAlert)return;const timer=window.setTimeout(()=>setTangentAlert(null),10000);return()=>window.clearTimeout(timer)},[tangentAlert])
  if(!liveMeetings)return null
- const now=clock+offset.current
  // Older sessions keep their original stored indexes; new sessions use their snapshot order.
  const legacyOrder=['segue','headlines','todos','scorecard','ids','conclude']
  const legacyLabels=['Segue','Headlines','Action Items','Scorecard','Issues','Conclusion']
@@ -95,11 +96,12 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fi
  const types=meetingTypes.filter(type=>fixedMeetingTypeId?type.id===fixedMeetingTypeId:type.scope===(meetingId?'private':'team'))
  const listed=sessions.filter(session=>showRecaps||session.status!=='ended')
  const sidebar=document.getElementById('live-meeting-sidebar')
- const agendaView=session && <aside className="live-meeting__sidebar" aria-label="Meeting agenda"><h3>Agenda and time spent</h3><ol className="live-meeting__agenda">{agenda.map(section=><li key={section.id} className={section.index===reviewIndex?'is-active':''}><button aria-current={section.index===reviewIndex?'step':undefined} disabled={!session.joined||session.status==='ended'||(session.canControl&&busy)} onClick={()=>session.canControl?void act('select',session,{index:section.index}):setViewedIndex(section.index)}>{section.label}<span>{clockText(liveSectionMs(session,section.index,now))} / {session.sections[section.index].minutes} min</span></button></li>)}</ol></aside>
+ const roster=teams?.[companyId]||(company?.id===companyId?team:[])||[]
+ const agendaView=session && <LiveMeetingAgenda session={session} agenda={agenda} reviewIndex={reviewIndex} busy={busy} serverOffset={offset.current} onSelect={index=>session.canControl?void act('select',session,{index}):setViewedIndex(index)}/>
 
  return <section className={"live-meetings"+(session?" live-meetings--active":"")} aria-label="Live meetings"><div className="live-meeting-layout"><div className={"card card__body"+(!session?" meeting-lobby":"")}>{!session&&<><div className="meeting-lobby__heading"><div className="meeting-lobby__intro"><span className="meeting-lobby__symbol" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M16 10l5-3v10l-5-3"/><rect x="3" y="6" width="13" height="12" rx="3"/></svg></span><div><h2>Live meetings</h2></div></div></div><div className="meeting-lobby__setup">{!meetingId&&multiCompany&&<label>Team<TeamSelector /></label>}<label>Meeting template<select aria-label="Meeting type" className="select" value={meetingTypeId} disabled={busy||teamBusy} onChange={event=>setMeetingTypeId(event.target.value)}>{types.map(type=><option key={type.id} value={type.id}>{type.name}</option>)}</select></label><button className="btn btn--primary" disabled={busy||!me.id||teamBusy||!types.some(type=>type.id===meetingTypeId)} onClick={()=>void act('start',undefined,{meetingTypeId})}>Start a meeting</button><button className="btn btn--primary" aria-pressed={showRecaps} onClick={()=>setShowRecaps(value=>!value)}>{showRecaps?'Hide past meetings':'Past meetings'}</button></div></>}{error&&<p role="alert" className="overdue">{error}</p>}
  {!session?<div className="rows">{teamBusy&&!sessions.some(row=>row.status!=='ended')&&<p className="muted">This team already has a live meeting in progress. Open it from Meetings, or wait for it to end.</p>}{listed.length===0?(showRecaps?<p className="meeting-lobby__empty">No past meetings for this team.</p>:null):listed.map(row=><div className="rowitem" key={row.id}><div className="rowitem__main"><div className="rowitem__title">{row.title} <span className="pill pill--muted">{row.status==='ended'?'Ended':row.status==='paused'?'Paused':'Live'}</span></div><div className="rowitem__meta"><PersonName name={row.hostName} id={row.hostId}/> · {new Date(row.startedAt).toLocaleString()} · {row.participants.length} joined</div></div><button className="btn" disabled={busy} onClick={()=>row.joined||row.status==='ended'?setSelected(row.id):void act('join',row)}>{row.status==='ended'?'View recap':row.joined?'Open meeting':'Join meeting'}</button></div>)}</div>:<>
- <div className="live-meeting__timer"><div><span className="muted">{session.status==='ended'?'Meeting ended':session.status==='paused'?'Paused':'Live'} · <PersonName name={session.hostName} id={session.hostId}/></span><h3>{currentLabel}</h3>{!session.canControl&&viewedIndex!==null&&<div className="meeting-local-view">Browsing independently · Meeting on {session.sections[session.activeIndex]?.label}<button className="btn btn--sm" onClick={()=>setViewedIndex(null)}>Follow host</button></div>}</div><div className="live-meeting__clocks"><div><span>Total time</span><strong aria-label="Total time spent">{clockText(liveTotalMs(session,now))}</strong></div><div><span>Section time</span><strong aria-label="Section time spent">{clockText(liveSectionMs(session,reviewIndex,now))}</strong></div></div></div>
+ <LiveMeetingTimer session={session} currentLabel={currentLabel} reviewIndex={reviewIndex} serverOffset={offset.current} viewedIndex={viewedIndex} onFollowHost={()=>setViewedIndex(null)}/>
  {session.status==='ended'&&<section className="meeting-archive-summary" aria-label="Items archived at meeting end">
   <h3>Archived items</h3>
   {session.completionArchive?<>
@@ -113,7 +115,7 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fi
   <div className="live-meeting__controls">{session.joined&&session.status!=='ended'&&<button className="btn live-meeting__tangent" disabled={tangentBusy} onClick={()=>void callTangent(session)}>Tangent</button>}{!session.joined&&session.status!=='ended'&&<button className="btn btn--primary" disabled={busy} onClick={()=>void act('join',session)}>Join meeting</button>}{session.canControl&&session.status!=='ended'&&<><button className="btn live-meeting__icon" aria-label={session.status==='paused'?'Resume':'Pause'} title={session.status==='paused'?'Resume':'Pause'} disabled={busy} onClick={()=>void act(session.status==='paused'?'resume':'pause',session)}><MeetingControlIcon kind={session.status==='paused'?'play':'pause'}/></button><button className="btn live-meeting__icon" aria-label="Back" title="Previous section" disabled={busy||!previous} onClick={()=>previous&&void act('select',session,{index:previous.index})}><MeetingControlIcon kind="back"/></button><button className="btn live-meeting__icon" aria-label="Next" title="Next section" disabled={busy||!next} onClick={()=>next&&void act('select',session,{index:next.index})}><MeetingControlIcon kind="next"/></button></>}{(session.canEnd||session.canControl)&&session.status!=='ended'&&<button className="btn live-meeting__end" aria-label="End meeting" title="End meeting" disabled={busy} onClick={()=>setEndFor(session.id)}>End</button>}</div>
  {tangentAlert&&<TangentFireworks key={'fireworks-'+tangentAlert.id}/>}
  {tangentAlert&&<div key={'alert-'+tangentAlert.id} className="live-meeting__alert" role="alert" aria-live="assertive"><strong>Tangent called.</strong><PersonName name={tangentAlert.name}/><button className="btn btn--sm" aria-label="Dismiss tangent alert" onClick={()=>setTangentAlert(null)}>Dismiss</button></div>}
- {sidebar?createPortal(<><MeetingAttendees session={session} roster={teams?.[companyId]||(company?.id===companyId?team:[])||[]} now={now} unavailable={presenceUnavailable}/>{agendaView}</>,sidebar):<><MeetingAttendees session={session} roster={teams?.[companyId]||(company?.id===companyId?team:[])||[]} now={now} unavailable={presenceUnavailable}/>{agendaView}</>}
+ {sidebar?createPortal(<><LiveMeetingAttendees session={session} roster={roster} serverOffset={offset.current} unavailable={presenceUnavailable}/>{agendaView}</>,sidebar):<><LiveMeetingAttendees session={session} roster={roster} serverOffset={offset.current} unavailable={presenceUnavailable}/>{agendaView}</>}
  <div className="live-meeting__content">
  {session.supersededBy&&<p className="muted">This earlier session was superseded. Its recorded history is retained.</p>}
  {active?.prompt&&currentKind!=='notes'&&<p className="live-meeting__prompt">{active.prompt}</p>}
@@ -126,4 +128,34 @@ export default function LiveMeetings({companyId,meetingId,date,onActiveChange,fi
  </>}
  {endFor&&session?.id===endFor&&session.status!=='ended'&&<Modal title="End meeting?" onClose={()=>setEndFor(null)}><p>This will end the current meeting. All checked ordinary items visible in this meeting will be archived, including items checked earlier. Permanent and recurring items will stay active. Are you sure you want to continue?</p><div className="live-meeting__controls"><button autoFocus className="btn" onClick={()=>setEndFor(null)}>Cancel</button><button className="btn live-meeting__end" disabled={busy||!(session.canEnd||session.canControl)} onClick={()=>{setEndFor(null);void act('end',session)}}>End meeting</button></div></Modal>}
  </div>{session?.joined&&<MeetingNotes key={companyId+session.id} companyId={companyId} session={session}/>}</div></section>
+}
+
+function LiveMeetingTimer({session,currentLabel,reviewIndex,serverOffset,viewedIndex,onFollowHost}:{session:LiveSessionView;currentLabel:string;reviewIndex:number;serverOffset:number;viewedIndex:number|null;onFollowHost:()=>void}) {
+ const [clock,setClock]=useState(Date.now())
+ useEffect(()=>{
+  setClock(Date.now())
+  if(session.status!=='running')return
+  const timer=window.setInterval(()=>setClock(Date.now()),1000)
+  return()=>window.clearInterval(timer)
+ },[session.id,session.status])
+ const now=clock+serverOffset
+ return <div className="live-meeting__timer"><div><span className="muted">{session.status==='ended'?'Meeting ended':session.status==='paused'?'Paused':'Live'} · <PersonName name={session.hostName} id={session.hostId}/></span><h3>{currentLabel}</h3>{!session.canControl&&viewedIndex!==null&&<div className="meeting-local-view">Browsing independently · Meeting on {session.sections[session.activeIndex]?.label}<button className="btn btn--sm" onClick={onFollowHost}>Follow host</button></div>}</div><div className="live-meeting__clocks"><div><span>Total time</span><strong aria-label="Total time spent">{clockText(liveTotalMs(session,now))}</strong></div><div><span>Section time</span><strong aria-label="Section time spent">{clockText(liveSectionMs(session,reviewIndex,now))}</strong></div></div></div>
+}
+
+function LiveMeetingAgenda({session,agenda,reviewIndex,busy,serverOffset,onSelect}:{session:LiveSessionView;agenda:{id:string;label:string;index:number}[];busy:boolean;reviewIndex:number;serverOffset:number;onSelect:(index:number)=>void}) {
+ const [clock,setClock]=useState(Date.now())
+ useEffect(()=>{
+  setClock(Date.now())
+  if(session.status!=='running')return
+  const timer=window.setInterval(()=>setClock(Date.now()),1000)
+  return()=>window.clearInterval(timer)
+ },[session.id,session.status])
+ const now=clock+serverOffset
+ return <aside className="live-meeting__sidebar" aria-label="Meeting agenda"><h3>Agenda and time spent</h3><ol className="live-meeting__agenda">{agenda.map(section=><li key={section.id} className={section.index===reviewIndex?'is-active':''}><button aria-current={section.index===reviewIndex?'step':undefined} disabled={!session.joined||session.status==='ended'||(session.canControl&&busy)} onClick={()=>onSelect(section.index)}>{section.label}<span>{clockText(liveSectionMs(session,section.index,now))} / {session.sections[section.index].minutes} min</span></button></li>)}</ol></aside>
+}
+
+function LiveMeetingAttendees({session,roster,serverOffset,unavailable}:{session:LiveSessionView;roster:{id:string;name:string}[];serverOffset:number;unavailable:boolean}) {
+ const [clock,setClock]=useState(Date.now)
+ useEffect(()=>{const timer=window.setInterval(()=>setClock(Date.now()),5000);return()=>window.clearInterval(timer)},[])
+ return <MeetingAttendees session={session} roster={roster} now={clock+serverOffset} unavailable={unavailable}/>
 }

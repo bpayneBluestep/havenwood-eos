@@ -4,7 +4,7 @@ import Rocks from './Rocks'
 import Todos from './Todos'
 import Headlines from './Headlines'
 import FollowupContext from '../meetings/FollowupContext'
-import { createContext, useContext, useCallback, useEffect, useState } from 'react'
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react'
 import { getL10 } from '../api'
 import type { L10 as L10Data, Issue } from '../api'
 import { useApp } from '../state'
@@ -12,6 +12,7 @@ import {
   Avatar, Empty, ErrorBanner, Loading,
 } from '../lib/ui'
 import { DropToIssueModal, LinkedTodoModal } from '../components/DropToIssue'
+import {useVisiblePolling} from '../lib/useVisiblePolling'
 
 /* Team review data supports the lobby and the active live section. */
 const ActiveReviewSection = createContext<{id:string;label?:string;number?:number} | undefined>(undefined)
@@ -23,14 +24,18 @@ export default function L10({embedded=false,section,sectionLabel,sectionNumber,c
   const [err, setErr] = useState<string | null>(null)
   const [drop, setDrop] = useState<{ kind: string; id: string; label: string; title: string } | null>(null)
   const [linkFor, setLinkFor] = useState<Issue | null>(null)
+  const requestVersion=useRef(0)
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
+    const version=++requestVersion.current
     setErr(null)
     if(section==='vision')return
-    getL10(companyId || company.id).then(setData).catch(e => setErr(e.message))
+    try {const result=await getL10(companyId || company.id);if(version===requestVersion.current)setData(result)}
+    catch(e){if(version===requestVersion.current)setErr(e instanceof Error?e.message:String(e))}
   }, [company.id,companyId,section])
 
-  useEffect(() => { setData(null); load(); if (!embedded||section==='vision') return; const timer=window.setInterval(load,10000); return()=>window.clearInterval(timer) }, [load,embedded])
+  useEffect(() => { setData(null); if(!embedded)void load(); return()=>{++requestVersion.current} }, [load,embedded])
+  useVisiblePolling(load,10000,embedded&&section!=='vision')
 
   if(section==='vision'){
     const selectedTeam=companies?.find(team=>team.id===(companyId||company.id))||company

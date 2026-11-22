@@ -1,10 +1,11 @@
-import { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import { Component, createContext, lazy, Suspense, useContext, useCallback, useEffect, useMemo, useState } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import { bootstrap, ApiError } from './api'
 import type { Bootstrap, CompanyBrief, Me, Person } from './api'
 import { Login, NoAccess } from './Login'
-import Admin from './routes/Admin'
 import {MemberProfilesContext} from './lib/memberProfiles'
+
+const Admin = lazy(() => import('./routes/Admin'))
 
 /*
  * One bootstrap call carries the whole app shell: who I am, which TEAMS I'm on
@@ -124,7 +125,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
               meetings once you add yourself to it.
             </div>
           </div>
-          <Admin onChanged={reload} />
+          <AdminChunkBoundary>
+            <Suspense fallback={<div className="loading" role="status"><span className="spinner" aria-hidden="true"/><span>Loading admin…</span></div>}>
+              <Admin onChanged={reload} />
+            </Suspense>
+          </AdminChunkBoundary>
         </div>
       )
     }
@@ -170,6 +175,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const profilePeople=[...new Map([...Object.values(data.teams||{current:team}).flat(),data.me].map(person=>[person.id,person])).values()]
   return <MemberProfilesContext.Provider value={{enabled:data.capabilities?.memberProfiles===1,profiles:data.memberProfiles||{},people:profilePeople}}><AppCtx.Provider value={value}>{children}</AppCtx.Provider></MemberProfilesContext.Provider>
+}
+
+class AdminChunkBoundary extends Component<{children: ReactNode},{failed: boolean}> {
+  state = {failed: false}
+
+  static getDerivedStateFromError() {
+    return {failed: true}
+  }
+
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    // Reload after a failed lazy chunk so the browser requests current assets.
+  }
+
+  render() {
+    if (this.state.failed) {
+      return <div className="banner banner--error" role="alert"><div><div className="banner__b">Admin could not load.</div>Reload the page and try again.</div><button className="btn" onClick={()=>window.location.reload()}>Reload page</button></div>
+    }
+    return this.props.children
+  }
 }
 
 /*

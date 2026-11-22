@@ -2,7 +2,7 @@ import {rowEditor} from '../lib/rowEditor'
 import QuickCreateButtons from '../components/QuickCreateButtons'
 import {compareNames, compareDates} from '../lib/listModel'
 import FollowupContext from '../meetings/FollowupContext'
-import { Fragment, useCallback, useEffect, useState, useId } from 'react'
+import { Fragment, useCallback, useEffect, useState, useId, useRef } from 'react'
 import { getHeadlines, saveHeadline, getHeadlineCascadeTeams, cascadeHeadline, markHeadlineRead, reviewMeetingHeadline } from '../api'
 import type { Headline } from '../api'
 import { useApp } from '../state'
@@ -10,6 +10,7 @@ import { Avatar, PersonName, Empty, ErrorBanner, Loading, Modal, OwnerPicker,fmt
 import { DropToIssueModal } from '../components/DropToIssue'
 import CadenceBuilder, {recurrencePayload} from '../components/CadenceBuilder'
 import type {ItemRecurrence} from '../../../platform/itemRecurrence'
+import {useVisiblePolling} from '../lib/useVisiblePolling'
 
 /*
  * One or two sentences. Good news and personnel news — the things a team should
@@ -48,13 +49,17 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
   const [sort, setSort] = useState('newest')
   const [permanentSort,setPermanentSort]=useState('newest')
   const [dropFor, setDropFor] = useState<Headline | null>(null)
+  const requestVersion=useRef(0)
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
+    const version=++requestVersion.current
     setErr(null)
-    getHeadlines(targetCompanyId, unreadOnly).then(r => setRows(r.rows)).catch(e => setErr(e.message))
+    try {const result=await getHeadlines(targetCompanyId, unreadOnly);if(version===requestVersion.current)setRows(result.rows)}
+    catch(e){if(version===requestVersion.current)setErr(e instanceof Error?e.message:String(e))}
   }, [targetCompanyId, unreadOnly])
 
-  useEffect(() => { setRows(null); load();if(!embedded)return;const timer=window.setInterval(load,10000);return()=>window.clearInterval(timer) }, [load,embedded])
+  useEffect(() => { setRows(null); if(!embedded)void load(); return()=>{++requestVersion.current} }, [load,embedded])
+  useVisiblePolling(load,10000,embedded)
 
   const unread = rows ? rows.filter(r => !r.readDate) : []
   const ordered=(order:string)=>[...(rows||[])].sort((a,b)=>order === 'author' ? compareNames(a.createdByName, b.createdByName) : order === 'author-desc' ? compareNames(b.createdByName, a.createdByName) : compareDates(a.createdAt, b.createdAt, order === 'newest'))

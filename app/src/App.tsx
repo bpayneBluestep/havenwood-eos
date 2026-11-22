@@ -1,28 +1,31 @@
 import TeamSelector from './lib/TeamSelector'
-import {useEffect, type MouseEvent} from 'react'
+import {Component, lazy, Suspense, useEffect} from 'react'
+import type {ErrorInfo, ReactNode} from 'react'
+import type {MouseEvent} from 'react'
 import {BHAG} from './lib/brand'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppProvider, useApp } from './state'
 import { Avatar,PersonName } from './lib/ui'
 import { logout } from './api'
-import My90 from './routes/My90'
-import Scorecard from './routes/Scorecard'
-import Rocks from './routes/Rocks'
-import Issues from './routes/Issues'
-import Todos from './routes/Todos'
-import Headlines from './routes/Headlines'
-import Meetings from './routes/Meetings'
-import Meeting from './routes/Meeting'
-import Admin from './routes/Admin'
 import LiveMeetingLink from './components/LiveMeetingLink'
-import MyNotifications from './routes/MyNotifications'
-import MyProfile from './routes/MyProfile'
-import Directory from './routes/Directory'
-import Accountability from './routes/Accountability'
-import Vision from './routes/Vision'
-import WorkDetail from './routes/WorkDetail'
-import NotFound from './routes/NotFound'
-import TeamArchive from './routes/TeamArchive'
+
+const My90 = lazy(() => import('./routes/My90'))
+const Scorecard = lazy(() => import('./routes/Scorecard'))
+const Rocks = lazy(() => import('./routes/Rocks'))
+const Issues = lazy(() => import('./routes/Issues'))
+const Todos = lazy(() => import('./routes/Todos'))
+const Headlines = lazy(() => import('./routes/Headlines'))
+const Meetings = lazy(() => import('./routes/Meetings'))
+const Meeting = lazy(() => import('./routes/Meeting'))
+const MyNotifications = lazy(() => import('./routes/MyNotifications'))
+const MyProfile = lazy(() => import('./routes/MyProfile'))
+const Directory = lazy(() => import('./routes/Directory'))
+const Accountability = lazy(() => import('./routes/Accountability'))
+const Vision = lazy(() => import('./routes/Vision'))
+const WorkDetail = lazy(() => import('./routes/WorkDetail'))
+const NotFound = lazy(() => import('./routes/NotFound'))
+const TeamArchive = lazy(() => import('./routes/TeamArchive'))
+const Admin = lazy(() => import('./routes/Admin'))
 
 /*
  * Left nav listing the tools in EOS order — not a hamburger, not tabs. These
@@ -140,6 +143,8 @@ function Shell() {
           </div>
         </header>
 
+        <RouteChunkBoundary key={loc.pathname}>
+        <Suspense fallback={<div className="loading" role="status"><span className="spinner" aria-hidden="true"/><span>Loading page…</span></div>}>
         <Routes>
           <Route path="/" element={<My90 />} />
           <Route path="/scorecard" element={<Scorecard />} />
@@ -157,9 +162,31 @@ function Shell() {
           {(me.isAdmin || me.isTeamAdmin) && <Route path="/admin" element={<Admin onChanged={reload} />} />}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
+        </RouteChunkBoundary>
       </div>
     </div>
   )
+}
+
+class RouteChunkBoundary extends Component<{children: ReactNode},{failed: boolean}> {
+  state = {failed: false}
+
+  static getDerivedStateFromError() {
+    return {failed: true}
+  }
+
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    // A chunk can be missing after a deployment or fail during a network drop.
+    // A full reload asks GitSite for the current index and asset manifest again.
+  }
+
+  render() {
+    if (this.state.failed) {
+      return <div className="page"><div className="banner banner--error" role="alert"><div><div className="banner__b">This page could not load.</div>Reload the page and try again.</div><button className="btn" onClick={()=>window.location.reload()}>Reload page</button></div></div>
+    }
+    return this.props.children
+  }
 }
 
 /*

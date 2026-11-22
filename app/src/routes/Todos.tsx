@@ -15,6 +15,7 @@ import { DropToIssueModal } from '../components/DropToIssue'
 import CadenceBuilder, {recurrencePayload} from '../components/CadenceBuilder'
 import type {ItemRecurrence} from '../../../platform/itemRecurrence'
 import {recurrenceLabel} from '../../../platform/itemRecurrence'
+import {useVisiblePolling} from '../lib/useVisiblePolling'
 
 /*
  * Seven-day action items. The server owns the +7 default, because that horizon is
@@ -40,16 +41,16 @@ export default function Todos({embedded=false,companyId}:{embedded?:boolean;comp
   const [editing, setEditing] = useState<Todo | 'new' | null>(null)
   const [dropFor, setDropFor] = useState<Todo | null>(null)
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     const version=++requestVersion.current
     setErr(null)
     const request=embedded?getTodos(targetCompanyId,mine,showDone?undefined:'open',trackRange,true):getTodos(targetCompanyId,mine,showDone?undefined:'open',trackRange)
-    request
-      .then(r => {if(version!==requestVersion.current)return;setRows(embedded?r.rows.filter(row=>!row.personal&&!row.meetingId):r.rows);setTrackRecord(r.trackRecord?.rows || null)})
-      .catch(e => {if(version===requestVersion.current)setErr(e.message)})
+    try {const result=await request;if(version===requestVersion.current){setRows(embedded?result.rows.filter(row=>!row.personal&&!row.meetingId):result.rows);setTrackRecord(result.trackRecord?.rows || null)}}
+    catch(e){if(version===requestVersion.current)setErr(e instanceof Error?e.message:String(e))}
   }, [targetCompanyId, mine, showDone,trackRange,embedded])
 
-  useEffect(() => { setRows(null); setTrackRecord(null); load();if(!embedded)return;const timer=window.setInterval(load,10000);return()=>window.clearInterval(timer) }, [load,embedded])
+  useEffect(() => { setRows(null); setTrackRecord(null); if(!embedded)void load(); return()=>{++requestVersion.current} }, [load,embedded])
+  useVisiblePolling(load,10000,embedded)
 
   const toggle = async (t: Todo) => {
     const next = t.status === 'done' ? 'open' : 'done'

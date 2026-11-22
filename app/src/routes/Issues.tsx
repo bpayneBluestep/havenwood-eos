@@ -16,6 +16,7 @@ import { LinkedTodoModal } from '../components/DropToIssue'
 import CadenceBuilder, {recurrencePayload} from '../components/CadenceBuilder'
 import type {ItemRecurrence} from '../../../platform/itemRecurrence'
 import {recurrenceLabel} from '../../../platform/itemRecurrence'
+import {useVisiblePolling} from '../lib/useVisiblePolling'
 
 /*
  * A ranked list you can drag. Short-term is what the weekly L10 works through;
@@ -39,21 +40,18 @@ export default function Issues({embedded=false,headingLabel='Issues'}:{embedded?
   const [solving, setSolving] = useState<Issue | null>(null)
   const [linkFor, setLinkFor] = useState<Issue | null>(null)
   const dragId = useRef<string | null>(null)
+  const requestVersion=useRef(0)
   const [overId, setOverId] = useState<string | null>(null)
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
+    const version=++requestVersion.current
     setErr(null)
-    getIssues(company.id, term, showSolved ? undefined : 'open')
-      .then(r => setRows(r.rows))
-      .catch(e => setErr(e.message))
+    try {const result=await getIssues(company.id, term, showSolved ? undefined : 'open');if(version===requestVersion.current)setRows(result.rows)}
+    catch(e){if(version===requestVersion.current)setErr(e instanceof Error?e.message:String(e))}
   }, [company.id, term, showSolved])
 
-  useEffect(() => { setRows(null); load() }, [load])
-  useEffect(() => {
-    if (!embedded || inlineId || editing || solving || linkFor) return
-    const timer=window.setInterval(load,10000)
-    return()=>window.clearInterval(timer)
-  },[embedded,inlineId,editing,solving,linkFor,load])
+  useEffect(() => { setRows(null); if(!embedded)void load(); return()=>{++requestVersion.current} }, [load,embedded])
+  useVisiblePolling(load,10000,embedded&&!inlineId&&!editing&&!solving&&!linkFor)
 
   const onDrop = async (targetId: string, sort:string, sectionRows:Issue[]) => {
     const from = dragId.current
