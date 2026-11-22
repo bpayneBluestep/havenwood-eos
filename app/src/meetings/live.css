@@ -121,10 +121,10 @@
 .meeting-lobby__intro { display:flex; align-items:center; gap:14px; }
 .meeting-lobby__symbol { display:grid; place-items:center; width:46px; height:46px; flex-shrink:0; border-radius:14px; background:#edf4ff; color:#2468c7; }
 .meeting-lobby__intro h2 { margin:0; font-size:18px; font-weight:600; letter-spacing:-.3px; }
-.meeting-lobby__setup { display:flex; align-items:flex-end; flex-wrap:wrap; width:800px; max-width:100%; box-sizing:border-box; gap:14px; padding:16px; border:1px solid #e6ebf2; border-radius:12px; background:#f8fafc; }
-.meeting-lobby__setup label { display:flex; flex-direction:column; gap:8px; flex:0 1 210px; min-width:160px; font-size:12px; font-weight:500; color:#53667f; }
-.meeting-lobby__setup .select { width:100% !important; max-width:none !important; min-height:40px; background-color:#fff; border-radius:8px; color:#17263c; font-size:14px; }
+.meeting-lobby__setup { display:flex; align-items:flex-end; flex-wrap:wrap; width:800px; max-width:100%; box-sizing:border-box; gap:14px; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--panel-2); }
+.meeting-lobby__setup label { display:flex; flex-direction:column; gap:8px; flex:0 1 210px; min-width:160px; font-size:12px; font-weight:500; color:var(--muted); }
+.meeting-lobby__setup .select { width:100% !important; max-width:none !important; min-height:40px; background-color:var(--panel); border-color:var(--border-2); border-radius:8px; color:var(--fg); font-size:14px; }
 .meeting-lobby__setup>.btn { min-height:40px; padding:0 22px; border-radius:8px; white-space:nowrap; }
-.meeting-lobby__empty { margin:16px 0 0; color:#718096; font-size:12px; }
-.meeting-lobby>.rows .rowitem { margin-top:16px; border:1px solid #e6ebf2; border-radius:10px; padding:14px; }
+.meeting-lobby__empty { margin:16px 0 0; color:var(--muted); font-size:12px; }
+.meeting-lobby>.rows .rowitem { margin-top:16px; border:1px solid var(--border); border-radius:10px; padding:14px; }
 @media(max-width:650px) { .meeting-lobby { padding:18px !important; } .meeting-lobby__heading { align-items:flex-start; gap:12px; } .meeting-lobby__setup { flex-wrap:wrap; padding:14px; } .meeting-lobby__setup label { min-width:120px; } .meeting-lobby__setup>.btn { width:100%; } .meeting-lobby__intro p { max-width:180px; line-height:1.5; } }
