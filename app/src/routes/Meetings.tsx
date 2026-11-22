@@ -73,7 +73,7 @@ export default function Meetings() {
                   </div>
                   <div className="rowitem__meta">
                     <span>{m.attendees.map(a => firstLast({ name: a.name }) || 'Unknown').join(', ')}</span>
-                    {m.nextDate && <span>next {fmtDate(m.nextDate)}</span>}
+                    {m.nextDate && <span>next {fmtDate(m.nextDate)}{m.recurrence.startTime ? ` · ${formatMeetingTime(m.recurrence.startTime)}` : ''}</span>}
                     {m.archivedAt && <span>archived</span>}
                   </div>
                 </div>
@@ -107,6 +107,13 @@ export function freqLabel(r: Recurrence): string {
   return 'One-time'
 }
 
+function formatMeetingTime(value: string): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return value
+  const date = new Date(2000, 0, 1, Number(match[1]), Number(match[2]))
+  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)
+}
+
 /*
  * Create or edit a meeting series. Attendees come from the company roster
  * (everyone with access to this company); the server re-checks every one.
@@ -129,6 +136,7 @@ export function MeetingForm({
   useEffect(()=>{let active=true;setTypes(null);getMeetingTypes(selectedTeamId).then(catalog=>{if(active){setTypes(catalog.types);setMeetingTypeId(current=>catalog.types.some(type=>type.id===current)?current:(meeting&&!meeting.meetingTypeId?'':catalog.types.find(type=>type.id==='l10')?.id || catalog.types[0]?.id || ''))}}).catch(error=>{if(active)setErr(error.message)});return()=>{active=false}},[selectedTeamId,meeting])
   const [freq, setFreq] = useState<MeetingFreq>(meeting?.recurrence.freq || 'weekly')
   const [start, setStart] = useState(meeting?.recurrence.start || todayIso())
+  const [startTime, setStartTime] = useState(meeting?.recurrence.startTime || '')
   const [until, setUntil] = useState(meeting?.recurrence.until || '')
   const [ids, setIds] = useState<string[]>(
     meeting ? meeting.attendees.map(a => a.id) : people.map(person=>person.id),
@@ -141,6 +149,7 @@ export function MeetingForm({
   const submit = async () => {
     if (!title.trim()) { setErr('A meeting needs a title.'); return }
     if (!ids.length) { setErr('Invite at least one person.'); return }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)) { setErr('Choose a start time.'); return }
     setBusy(true); setErr(null)
     try {
       const m = await saveMeeting({
@@ -149,7 +158,7 @@ export function MeetingForm({
         meetingTypeId:meetingTypeId || undefined,
         title: title.trim(),
         attendeeIds: ids,
-        recurrence: { freq, start, until },
+        recurrence: { freq, start, startTime, until },
         rev: meeting?.rev,
       })
       onDone(m)
@@ -176,6 +185,10 @@ export function MeetingForm({
           <label htmlFor="m-start">{freq === 'none' ? 'Date' : 'First meeting'}</label>
           <input id="m-start" type="date" className="input" value={start} onChange={e => setStart(e.target.value)} />
         </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label htmlFor="m-start-time">Start time</label>
+          <input id="m-start-time" type="time" className="input" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+        </div>
         {freq !== 'none' && (
           <div className="field" style={{ flex: 1 }}>
             <label htmlFor="m-until">Ends (optional)</label>
@@ -200,7 +213,7 @@ export function MeetingForm({
       </fieldset>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         {onCancel && <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>}
-        <button className="btn btn--primary" onClick={submit} disabled={busy || !types || !title.trim()}>
+        <button className="btn btn--primary" onClick={submit} disabled={busy || !types || !title.trim() || !startTime}>
           {busy ? 'Saving…' : meeting ? 'Save meeting' : 'Create meeting'}
         </button>
       </div>

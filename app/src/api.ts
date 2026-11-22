@@ -603,7 +603,7 @@ export const searchStaff = (q: string, companyId?: string): Promise<{ rows: Pers
 
 export type MeetingFreq = 'none' | 'weekly' | 'biweekly' | 'monthly'
 
-export interface Recurrence { freq: MeetingFreq; start: string; until: string }
+export interface Recurrence { freq: MeetingFreq; start: string; startTime?: string; until: string }
 
 export interface PersonRef { id: string; name: string }
 
