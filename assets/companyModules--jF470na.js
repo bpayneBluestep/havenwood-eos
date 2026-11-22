@@ -1,0 +1,1 @@
+function e(t){return typeof t=="string"&&/^[A-Za-z0-9_-]{1,120}$/.test(t)&&["__proto__","constructor","prototype","toString","toLocaleString","valueOf","hasOwnProperty","isPrototypeOf","propertyIsEnumerable","__defineGetter__","__defineSetter__","__lookupGetter__","__lookupSetter__"].indexOf(t)<0}export{e as v};
