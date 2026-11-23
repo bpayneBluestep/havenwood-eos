@@ -24,6 +24,8 @@ interface Ctx {
   scorecardEditing: boolean
   milestoneWorkflow: boolean
   meetingWorkflow: boolean
+  /** The backend has the admin email and text testing actions. */
+  notifyTest: boolean
   me: Me
   companies: CompanyBrief[]
   company: CompanyBrief
@@ -162,6 +164,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     scorecardEditing: data.capabilities?.scorecardEditing === 1,
     meetingWorkflow: data.capabilities?.meetingWorkflow === 1,
     milestoneWorkflow: data.capabilities?.milestoneWorkflow === 1,
+    notifyTest: data.capabilities?.notifyTest === 1,
     me: data.me,
     companies: data.companies,
     company,

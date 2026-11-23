@@ -5,6 +5,7 @@ import type { AdminMember, AdminPerson, AdminTeam, AuditRow } from '../api'
 import { Avatar, Empty, ErrorBanner, Loading, Modal, RowMenu, firstLast } from '../lib/ui'
 import {MemberProfileEditor} from './MyProfile'
 import MyNotifications from './MyNotifications'
+import NotifyTesting from './NotifyTesting'
 import SettingsForm from './Settings'
 import ModuleScopeSettings from './ModuleScopeSettings'
 import SeatTemplates from '../modules/SeatTemplates'
@@ -23,12 +24,12 @@ import MeetingTypesAdmin from '../meetings/MeetingTypesAdmin'
  * themselves to the team. Every change lands in the audit log.
  */
 
-type Tab = 'teams' | 'people' | 'settings' | 'agendas' | 'notifications' | 'audit'
+type Tab = 'teams' | 'people' | 'settings' | 'agendas' | 'notifications' | 'notifyTesting' | 'audit'
 
 interface Overview { teams: AdminTeam[]; companies: { id: string; name: string }[]; admins: { id: string; name: string }[]; reach: string }
 
 export default function Admin({ onChanged }: { onChanged?: () => void }) {
-  const {me}=useApp()
+  const {me,notifyTest}=useApp()
   const systemAdmin=!!me.isAdmin
   const [tab, setTab] = useState<Tab>('teams')
   const [ov, setOv] = useState<Overview | null>(null)
@@ -58,9 +59,9 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
         </div>
         <div className="page__actions">
           <div className="seg" role="group" aria-label="Admin section">
-            {((systemAdmin?['teams', 'people', 'settings', 'agendas', 'notifications', 'audit']:['teams']) as Tab[]).map(t => (
+            {((systemAdmin?['teams', 'people', 'settings', 'agendas', 'notifications', ...(notifyTest?['notifyTesting']:[]), 'audit']:['teams']) as Tab[]).map(t => (
               <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
-                {t==='notifications'?'My Notifications':t==='agendas'?'Meeting templates':t[0].toUpperCase() + t.slice(1)}
+                {t==='notifications'?'My Notifications':t==='notifyTesting'?'Email and Text Testing':t==='agendas'?'Meeting templates':t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
           </div>
@@ -70,7 +71,8 @@ export default function Admin({ onChanged }: { onChanged?: () => void }) {
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
 
       {tab==='notifications'&&<MyNotifications embedded/>}
-      {tab==='notifications'?null:!ov ? <Loading what="Loading teams" /> : (
+      {tab==='notifyTesting'&&systemAdmin&&notifyTest&&<NotifyTesting/>}
+      {tab==='notifications'||tab==='notifyTesting'?null:!ov ? <Loading what="Loading teams" /> : (
         <>
           {tab === 'teams' && <TeamsTab ov={ov} onChanged={changed} onError={setErr} />}
           {systemAdmin && tab === 'people' && <PeopleTab ov={ov} onChanged={changed} onError={setErr} />}

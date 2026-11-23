@@ -846,3 +846,21 @@ input, select, textarea { font: inherit; color: inherit; }
 .archive-sort{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
 .archive-sort:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 .archive-description{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Admin → Email and Text Testing */
+.notify-testing .card { margin-bottom:14px; }
+.notify-testing h2 { font-size:16px; margin:0 0 8px; }
+.notify-testing__cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+.notify-card label { display:flex; flex-direction:column; gap:4px; margin:10px 0 0; font-weight:600; }
+.notify-card textarea { resize:vertical; font:inherit; }
+.notify-card__actions { margin-top:12px; }
+.notify-result { margin:10px 0 0; }
+.notify-result--sent { color:var(--green); }
+.notify-result--failed { color:var(--red); }
+.notify-recent__head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.notify-recent { width:100%; border-collapse:collapse; margin-top:8px; }
+.notify-recent th, .notify-recent td { text-align:left; padding:6px 8px; border-top:1px solid var(--border); vertical-align:top; }
+.notify-status { font-weight:600; }
+.notify-status--sent { color:var(--green); }
+.notify-status--failed { color:var(--red); }
+@media (max-width:640px) { .notify-recent th:nth-child(2), .notify-recent td:nth-child(2) { display:none; } }

@@ -152,7 +152,7 @@ export interface Me { id: string; userId: string; name: string; email: string; u
 export interface Bootstrap {
   branding?:{logo:string;rev:number}
   memberProfiles?:Record<string,import('../../platform/memberProfile').MemberProfile>
-  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number;liveMeetings?:number;memberProfiles?:number;companyModules?:number}
+  capabilities?: {meetingWorkflow?:number;milestoneWorkflow?:number;scorecardEditing?:number;issueTeamMapping?:number;liveMeetings?:number;memberProfiles?:number;companyModules?:number;notifyTest?:number}
   me: Me
   companies: CompanyBrief[]
   /** Roster of the default company. Prefer `teams[companyId]`. */
@@ -793,3 +793,31 @@ export interface TeamArchiveDetail {type:string;id:string;title:string;descripti
 export const getTeamArchive=(companyId:string,filters:Partial<import('../../platform/teamArchive').ArchiveQuery>={}):Promise<TeamArchivePage>=>get('teamArchive',{companyId,...filters})
 export const getTeamArchiveDetail=(companyId:string,type:string,id:string):Promise<TeamArchiveDetail>=>get('teamArchiveDetail',{companyId,type,id})
 export const restoreArchivedItem=(companyId:string,type:string,id:string,rev:number):Promise<{type:string;id:string;teamId:string;rev:number;archivedAt:null;completionPreserved:true;warning:string|null}>=>post('restoreArchivedItem',{companyId,type,id,rev})
+
+// ------------------------------------------------- email and text testing (admin)
+// Sending = saving an entry: an email is a System Notification History entry, a text is a
+// Twilio Log entry; each form's post-save formula sends it. See platform/notifications.ts.
+
+export type NotifyChannel = 'email' | 'text'
+export interface NotifySend {
+  /** The platform entry id. */
+  id: string
+  channel: NotifyChannel
+  to: string
+  subject: string
+  message: string
+  /** ISO timestamp the entry was saved. */
+  at: string
+  status: 'sent' | 'failed' | 'pending'
+  detail: string
+}
+
+export async function notifyTestSend(input: {channel: NotifyChannel; to: string; subject?: string; message: string}): Promise<NotifySend> {
+  const data = await post('notifyTestSend', input)
+  return data.send as NotifySend
+}
+
+export async function notifyTestRecent(): Promise<NotifySend[]> {
+  const data = await get('notifyTestRecent')
+  return (data.sends || []) as NotifySend[]
+}
