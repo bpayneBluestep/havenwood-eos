@@ -29,6 +29,7 @@ export default function My90() {
   const [editTodo,setEditTodo]=useState<Todo|null>(null)
   const [editRock,setEditRock]=useState<Rock|null>(null)
   const [expandedRocks,setExpandedRocks]=useState<Set<string>>(()=>new Set())
+  const [busyMilestones,setBusyMilestones]=useState<Set<string>>(()=>new Set())
   const sortName=useNameForSort()
   const [data, setData] = useState<My90Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -159,7 +160,7 @@ export default function My90() {
                         </div>}
                       </div>
                     </div>{expandedRocks.has(r.id)&&<div role="rowgroup" className="dashboard-rock-details" id={`dashboard-milestones-${r.id}`} aria-label={`Milestones for ${r.title}`}>
-                      {[...r.milestones].sort((a,b)=>compareDates(a.dueDate,b.dueDate)).map(m=><div role="row" className="dashboard-rock-child" key={m.id}><span role="cell" className={'dashboard-rock-child__title'+(m.done?' muted':'')}><span aria-label={m.done?'Complete':'Open'} className={'check'+(m.done?' check--on':'')}>{m.done?'✓':''}</span>{m.title}</span><span role="cell" className="dashboard-rock-child__due"><MilestoneDate item={m} disabled={!!r.readOnly} onSave={async dueDate=>{await saveMilestone(r.id,{id:m.id,dueDate},r.rev);load()}}/></span></div>)}
+                      {[...r.milestones].sort((a,b)=>compareDates(a.dueDate,b.dueDate)).map(m=>{const key=`${r.id}:${m.id}`;return <div role="row" className="dashboard-rock-child" key={m.id}><span role="cell" className={'dashboard-rock-child__title'+(m.done?' muted':'')}><button type="button" aria-label={`Mark "${m.title}" ${m.done?'open':'complete'}`} aria-pressed={m.done} title={m.done?'Mark as open':'Mark as complete'} disabled={!!r.readOnly||!r.companyId||busyMilestones.has(key)} className={'check'+(m.done?' check--on':'')} onClick={async event=>{event.stopPropagation();setBusyMilestones(current=>new Set(current).add(key));try{await saveMilestone(r.id,{id:m.id,status:m.done?'not_started':'complete',done:!m.done},r.rev);load()}catch(error){setErr((error as Error).message)}finally{setBusyMilestones(current=>{const next=new Set(current);next.delete(key);return next})}}}>{m.done?'✓':''}</button>{m.title}</span><span role="cell" className="dashboard-rock-child__due"><MilestoneDate item={m} disabled={!!r.readOnly} onSave={async dueDate=>{await saveMilestone(r.id,{id:m.id,dueDate},r.rev);load()}}/></span></div>})}
                       {r.milestones.length===0&&<div role="row"><span role="cell" className="muted">No milestones added.</span></div>}
                     </div>}</Fragment>
                   ))}
