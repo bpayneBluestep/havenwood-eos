@@ -131,9 +131,10 @@ export function MeetingForm({
   const people=meeting ? (roster || teams?.[selectedTeamId] || team) : (teams?.[selectedTeamId] || (selectedTeamId===company.id?team:[]))
   const [types,setTypes]=useState<import('../../../platform/meetingTypes').MeetingType[]|null>(null)
   const [meetingTypeId,setMeetingTypeId]=useState(meeting?.meetingTypeId || '')
-  const selectedType=types?.find(type=>type.id===meetingTypeId)
+  const selectableTypes=types?.filter(type=>!type.templateOnly)
+  const selectedType=selectableTypes?.find(type=>type.id===meetingTypeId)
   const title=selectedType?.name || (meeting && !meetingTypeId ? meeting.title : '')
-  useEffect(()=>{let active=true;setTypes(null);getMeetingTypes(selectedTeamId).then(catalog=>{if(active){setTypes(catalog.types);setMeetingTypeId(current=>catalog.types.some(type=>type.id===current)?current:(meeting&&!meeting.meetingTypeId?'':catalog.types.find(type=>type.id==='l10')?.id || catalog.types[0]?.id || ''))}}).catch(error=>{if(active)setErr(error.message)});return()=>{active=false}},[selectedTeamId,meeting])
+  useEffect(()=>{let active=true;setTypes(null);getMeetingTypes(selectedTeamId).then(catalog=>{if(active){const selectable=catalog.types.filter(type=>!type.templateOnly);setTypes(catalog.types);setMeetingTypeId(current=>selectable.some(type=>type.id===current)?current:(meeting&&!meeting.meetingTypeId?'':selectable.find(type=>type.id==='l10')?.id || selectable[0]?.id || ''))}}).catch(error=>{if(active)setErr(error.message)});return()=>{active=false}},[selectedTeamId,meeting])
   const [freq, setFreq] = useState<MeetingFreq>(meeting?.recurrence.freq || 'weekly')
   const [start, setStart] = useState(meeting?.recurrence.start || todayIso())
   const [startTime, setStartTime] = useState(meeting?.recurrence.startTime || '')
@@ -169,8 +170,8 @@ export function MeetingForm({
   return (
     <>
       <ErrorBanner error={err} onDismiss={() => setErr(null)} />
-      <div className="row2"><div className="field"><label htmlFor="schedule-team">Team</label><select id="schedule-team" aria-label="Meeting team" className="select" value={selectedTeamId} disabled={!!meeting||busy} onChange={event=>{const id=event.target.value;setSelectedTeamId(id);setIds((teams?.[id] || (id===company.id?team:[])).map(person=>person.id));setMeetingTypeId('');setErr(null)}}>{companies.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}</select></div><div className="field"><label htmlFor="schedule-type">Meeting template</label><select id="schedule-type" aria-label="Scheduled meeting type" className="select" value={meetingTypeId} disabled={!types||busy} onChange={event=>setMeetingTypeId(event.target.value)}>{meeting&&!meeting.meetingTypeId&&<option value="">Existing custom meeting</option>}{!types&&<option value="">Loading templates…</option>}{types?.map(type=><option key={type.id} value={type.id}>{type.name}</option>)}</select></div></div>
-      <div className="field"><label htmlFor="m-title">Title</label><input id="m-title" className="input" value={title} readOnly/><div className="field__hint">The title comes from the selected meeting template.</div></div>
+      <div className="row2"><div className="field"><label htmlFor="schedule-team">Team</label><select id="schedule-team" aria-label="Meeting team" className="select" value={selectedTeamId} disabled={!!meeting||busy} onChange={event=>{const id=event.target.value;setSelectedTeamId(id);setIds((teams?.[id] || (id===company.id?team:[])).map(person=>person.id));setMeetingTypeId('');setErr(null)}}>{companies.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}</select></div><div className="field"><label htmlFor="schedule-type">Meeting type</label><select id="schedule-type" aria-label="Scheduled meeting type" className="select" value={meetingTypeId} disabled={!types||busy} onChange={event=>setMeetingTypeId(event.target.value)}>{meeting&&!meeting.meetingTypeId&&<option value="">Existing custom meeting</option>}{!types&&<option value="">Loading meeting types…</option>}{selectableTypes?.map(type=><option key={type.id} value={type.id}>{type.name}</option>)}</select></div></div>
+      <div className="field"><label htmlFor="m-title">Title</label><input id="m-title" className="input" value={title} readOnly/><div className="field__hint">The title comes from the selected meeting type.</div></div>
       <div className="field">
         <label htmlFor="m-freq">Repeats</label>
         <select id="m-freq" className="select" value={freq} onChange={e => setFreq(e.target.value as MeetingFreq)}>

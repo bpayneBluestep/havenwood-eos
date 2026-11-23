@@ -1,11 +1,11 @@
 import {defaultLiveSections} from './liveSessionModel'
 import type {LiveSection} from './liveSessionModel'
-export interface MeetingType {id:string;name:string;scope:'team'|'private';shared?:boolean;sections:LiveSection[]}
+export interface MeetingType {id:string;name:string;scope:'team'|'private';templateId?:string;templateOnly?:boolean;shared?:boolean;sections:LiveSection[]}
 export interface MeetingTypeCatalog {rev:number;l10Rev?:number;templateRev?:number;types:MeetingType[]}
 export const sectionKinds=['segue','headlines','todos','scorecard','rocks','vision','ids','conclude','notes']
 export function defaultMeetingTypes():MeetingType[] {return [
- {id:'l10',name:'Tactical',scope:'team',sections:defaultLiveSections().map(section=>({...section,kind:section.id,prompt:''}))},
- {id:'one-on-one',name:'One-on-one',scope:'private',sections:[{id:'check-in',kind:'segue',label:'Check-in',minutes:5,spentMs:0,prompt:'Share a personal and professional update.'},{id:'actions',kind:'todos',label:'Action Items',minutes:10,spentMs:0,prompt:''},{id:'discussion',kind:'notes',label:'Discussion',minutes:25,spentMs:0,prompt:'Discuss progress, concerns, and support needed.'},{id:'conclusion',kind:'conclude',label:'Conclusion',minutes:5,spentMs:0,prompt:'Confirm next steps and rate the meeting.'}]}
+ {id:'l10',name:'Tactical',scope:'team',templateId:'l10',sections:defaultLiveSections().map(section=>({...section,kind:section.id,prompt:''}))},
+ {id:'one-on-one',name:'One-on-one',scope:'private',templateId:'one-on-one',sections:[{id:'check-in',kind:'segue',label:'Check-in',minutes:5,spentMs:0,prompt:'Share a personal and professional update.'},{id:'actions',kind:'todos',label:'Action Items',minutes:10,spentMs:0,prompt:''},{id:'discussion',kind:'notes',label:'Discussion',minutes:25,spentMs:0,prompt:'Discuss progress, concerns, and support needed.'},{id:'conclusion',kind:'conclude',label:'Conclusion',minutes:5,spentMs:0,prompt:'Confirm next steps and rate the meeting.'}]}
 ]}
 export function validateMeetingTypes(input:unknown):MeetingType[] {
  if(!Array.isArray(input)||input.length<2||input.length>20)throw new Error('Keep 2 to 20 meeting types, including Tactical and One-on-one.')
@@ -31,9 +31,14 @@ export function validateMeetingTypes(input:unknown):MeetingType[] {
   if(sections.reduce((sum,section)=>sum+section.minutes,0)>480)throw new Error('An agenda cannot exceed 480 minutes.')
   if(value.shared!==undefined&&typeof value.shared!=='boolean')throw new Error('Choose a valid template availability.')
   if(value.shared&&(value.id==='l10'||value.id==='one-on-one'))throw new Error('Use a copy to share a built-in template.')
-  return {id:value.id,name:value.name.trim(),scope:value.scope as 'team'|'private',...(value.shared?{shared:true}:{}),sections}
+  const templateId=typeof value.templateId==='string'&&value.templateId?value.templateId:value.id
+  if(!/^[a-zA-Z0-9_-]{1,80}$/.test(templateId))throw new Error('Choose a valid meeting template.')
+  if(value.templateOnly!==undefined&&typeof value.templateOnly!=='boolean')throw new Error('Choose a valid template setting.')
+  return {id:value.id,name:value.name.trim(),scope:value.scope as 'team'|'private',templateId,...(value.templateOnly?{templateOnly:true}:{}),...(value.shared?{shared:true}:{}),sections}
  })
- if(!types.some(type=>type.id==='l10'&&type.scope==='team')||!types.some(type=>type.id==='one-on-one'&&type.scope==='private'))throw new Error('Keep Tactical as a team type and One-on-one as a private type.')
+ const idsSet=new Set(types.map(type=>type.id))
+ if(types.some(type=>!idsSet.has(type.templateId||type.id)))throw new Error('Each meeting type must use an available meeting template.')
+ if(!types.some(type=>type.id==='l10'&&type.scope==='team'&&!type.templateOnly)||!types.some(type=>type.id==='one-on-one'&&type.scope==='private'&&!type.templateOnly))throw new Error('Keep Tactical as a team type and One-on-one as a private type.')
  return types
 }
 
@@ -63,5 +68,5 @@ export function copyMeetingTemplate(source:MeetingType|undefined,existing:Meetin
  const base=source?`${source.name.slice(0,65)} copy`:'New template'
  let name=base,n=2
  while(existing.some(type=>type.name.toLowerCase()===name.toLowerCase()))name=`${base} ${n++}`
- return {id,name:name.slice(0,80),scope:source?.scope||'team',shared:true,sections:source?source.sections.map(section=>({...section,spentMs:0})):[{id:'discussion',label:'Discussion',kind:'notes',minutes:25,spentMs:0,prompt:''},{id:'conclusion',label:'Conclusion',kind:'conclude',minutes:5,spentMs:0,prompt:''}]}
+ return {id,name:name.slice(0,80),scope:source?.scope||'team',templateId:id,templateOnly:true,shared:true,sections:source?source.sections.map(section=>({...section,spentMs:0})):[{id:'discussion',label:'Discussion',kind:'notes',minutes:25,spentMs:0,prompt:''},{id:'conclusion',label:'Conclusion',kind:'conclude',minutes:5,spentMs:0,prompt:''}]}
 }
