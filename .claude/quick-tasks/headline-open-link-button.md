@@ -3,7 +3,7 @@
 **Type:** small change
 **Component:** TenK GitSite
 **Tracking:** none
-**Status:** ready to publish
+**Status:** done
 
 ## Summary
 
@@ -18,7 +18,7 @@ Show an **Open Link** button on every headline row that has a valid source URL.
 
 ## Verification
 
-`npm run build` passes in a clean worktree based on the current published source. It runs TypeScript checking and Vite production build. The build output contains the Open Link control in `assets/Todos-B0q-2FuC.js`. `git diff --check` passes. No tests were run. Review the live headline list after publish.
+`npm run build` passes in a clean worktree based on the current published source. It runs TypeScript checking and Vite production build. The build output contains the Open Link control in `assets/Todos-B0q-2FuC.js`. `git diff --check` passes. No tests were run. The live Headlines page shows Open Link on linked permanent and new headlines.
 
 ## Notes
 
