@@ -23,7 +23,7 @@ Commit the build output and push to `main`. The BlueStep GitSite
 
 Rocks with milestones calculate status from dates and completion. All complete means Done. An incomplete milestone due before today means Off Track. Other Rocks with milestones are On Track. Rocks without milestones retain manual status. The Rocks list recalculates when the date changes. Milestone due dates have inline Save and Cancel controls and retain failed edits for correction.
 
-Issues show full owner names on the left, optional owner/date sorting, saved importance from 1 (lowest) to 5 (highest), and collapsed details. Drag reordering is available in manual order only. To-Dos support owner/date sorting and an Overdue filter that combines with Team or Mine. Titles open the Notes editor. Read-only To-Dos open a locked detail view. Headlines support author/date sorting and show full note text in a detail dialog.
+Issues show full owner names on the left, optional owner/date sorting, saved importance from 1 (lowest) to 5 (highest), and collapsed details. Drag reordering is available in manual order only. To-Dos support owner/date sorting and an Overdue filter that combines with Team or Mine. Titles open the Notes editor. Read-only To-Dos open a locked detail view. Headlines support author/date sorting and show full note text in a detail dialog. Headline rows with a source URL show an Open Link button.
 
 Scorecard periods run newest first. Cells match headings by period key. Shared action menus render in a portal outside scroll containers, support Escape and arrow keys, and remain within the viewport.
 

@@ -91,7 +91,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
           <input type="checkbox" aria-label={`Reviewed: ${h.body}`} checked={!!checked[h.id]} onChange={async event=>{const complete=event.target.checked;try{await reviewMeetingHeadline(h.id,complete);setChecked(current=>({...current,[h.id]:complete}))}catch(error:any){setErr(error.message)}}}/>
           <button className="rowitem__title-link" title={h.body} onClick={()=>h.readOnly?setDetail(h):setEditing(h)}>{h.body.split(/\r?\n/)[0].replace(/\s*\(PERMANENT AGENDA ITEM\)/ig,'')}</button>
           {detailToggle(h)}
-          {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">{(!h.sourceLabel||h.sourceLabel==='Open source')?'Open link':h.sourceLabel}</a>}
+          {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()}>Open Link</a>}
           <button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button><button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>
         </div>{detailsBody(h)}</Fragment>)}
         {rows&&!rows.some(h=>h.permanent??/PERMANENT AGENDA ITEM/i.test(h.body))&&<p className="muted">Add recurring review items and source links here.</p>}
@@ -125,6 +125,7 @@ export default function Headlines({embedded=false,companyId}:{embedded?:boolean;
 
                 </div>
                 {<div className="rowitem__end" onClick={event => event.stopPropagation()}>
+                  {h.sourceUrl&&/^https?:\/\//i.test(h.sourceUrl)&&<a className="btn btn--sm" href={h.sourceUrl} target="_blank" rel="noopener noreferrer">Open Link</a>}
                   {detailToggle(h)}
                   {!h.readOnly&&<button className="btn btn--sm" onClick={()=>setDropFor(h)}>Drop to Issues</button>}
                   {!h.readOnly&&<button className="btn btn--sm" onClick={()=>{setTargetTeam('');setCascadeFor(h)}}>Cascade</button>}
