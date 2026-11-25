@@ -3,7 +3,8 @@ import {validModuleId} from './companyModules'
 
 export interface PlanSection {id:string;title:string;body:string}
 export type PlanTargetUnit='number'|'currency'|'percent'|'text'
-export interface PlanTarget {id:string;label:string;period:string;unit:PlanTargetUnit;value:number|null;currency:string;rawText:string}
+export type PlanTargetHorizon='threeYear'|'oneYear'
+export interface PlanTarget {id:string;label:string;period:string;horizon:PlanTargetHorizon;unit:PlanTargetUnit;value:number|null;currency:string;rawText:string}
 export interface PlanData {
  title:string;year:number;mission:string;purpose:string;values:string[];bhag:string;threeYearVision:string;threeYearTargetDate?:string;
  horizons:PlanSection[];targets:PlanTarget[];extended:PlanSection[];
@@ -66,6 +67,8 @@ export function emptyCompanyPlan(planYear:number):PlanData {
 export function validatePlanTarget(input:unknown):PlanTarget {
  const value=object(input,'target'),unit=value.unit
  if(['number','currency','percent','text'].indexOf(String(unit))<0)throw Error('Choose a target unit.')
+ const horizon=value.horizon===undefined?'oneYear':value.horizon
+ if(horizon!=='oneYear'&&horizon!=='threeYear')throw Error('Choose a one-year or three-year target.')
  const amount=value.value===undefined?null:value.value
  if(amount!==null&&(typeof amount!=='number'||!Number.isFinite(amount)||Math.abs(amount)>1e15))throw Error('Use a finite target value.')
  if(unit==='text'&&amount!==null)throw Error('Keep an unconverted text target separate from a numeric value.')
@@ -76,7 +79,7 @@ export function validatePlanTarget(input:unknown):PlanTarget {
  if(!label.trim())throw Error('Enter a target label.')
  const period=text(value.period,'target period',100)
  if(!period.trim())throw Error('Enter the target period.')
- return {id:id(value.id,'target identity'),label:label,period:period,unit:unit as PlanTargetUnit,value:amount as number|null,currency:currency,rawText:text(value.rawText,'target source text',10000)}
+ return {id:id(value.id,'target identity'),label:label,period:period,horizon:horizon,unit:unit as PlanTargetUnit,value:amount as number|null,currency:currency,rawText:text(value.rawText,'target source text',10000)}
 }
 function bounded<T>(value:T):T {
  if(JSON.stringify(value).length>150000)throw Error('Plan content is too large. Reduce the text before saving.')
