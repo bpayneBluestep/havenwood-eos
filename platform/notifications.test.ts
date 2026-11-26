@@ -59,9 +59,12 @@ describe('status',()=>{
   expect(emailStatus(false,'').status).toBe('pending')
   expect(emailStatus(true,'Send failed: bad address')).toEqual({status:'failed',detail:'Send failed: bad address'})
  })
- it('reads text status',()=>{
-  expect(textStatus(true,'').status).toBe('sent')
+ it('reads text status from the Twilio reply, not the Complete flag',()=>{
   expect(textStatus(null,'').status).toBe('pending')
-  expect(textStatus(false,'21211 invalid To')).toEqual({status:'failed',detail:'21211 invalid To'})
+  expect(textStatus(true,'').status).toBe('failed')
+  expect(textStatus(true,'{"sid":"SM0001","status":"queued","error_code":null}')).toMatchObject({status:'sent',detail:/queued/})
+  expect(textStatus(true,'{"code":21211,"message":"The To number is not a valid phone number.","status":400}')).toEqual({status:'failed',detail:'The To number is not a valid phone number. (Twilio error 21211)'})
+  expect(textStatus(true,'{"sid":"SM0002","status":"failed","error_code":30003,"error_message":"Unreachable"}')).toMatchObject({status:'failed',detail:/Unreachable/})
+  expect(textStatus(true,'<html>oops')).toMatchObject({status:'failed'})
  })
 })

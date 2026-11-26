@@ -9,6 +9,13 @@
 
 export const LIMITS = {to: 254, toName: 120, subject: 200, emailBody: 10000, textBody: 600}
 
+/**
+ * Sender for TenK emails. The Notification Generator passes From straight to the mail send and
+ * marks the entry processed either way, so a blank From fails silently. Every Hope Group email
+ * notification uses this address; the display name says the email came from TenK.
+ */
+export const EMAIL_FROM = {address: 'application@bluestep.net', name: 'TenK'}
+
 /** UserAssignedID prefix on System Notification History entries created by TenK. */
 export const EMAIL_TAG_PREFIX = 'tenk:'
 /** Text Message prefix on Twilio Log entries sent from the testing page. */
@@ -111,10 +118,23 @@ export function emailStatus(processed: boolean | null, status: string): {status:
   return {status: 'pending', detail: s || 'Saved. Waiting for the notification sender to process it.'}
 }
 
-/** Text status from a Twilio Log entry. */
-export function textStatus(complete: boolean | null, error: string): {status: SendStatus; detail: string} {
-  const e = (error || '').trim()
-  if (e) return {status: 'failed', detail: e}
-  if (complete === true) return {status: 'sent', detail: 'Accepted by Twilio. Delivery to the phone is not confirmed.'}
-  return {status: 'pending', detail: 'Saved. Waiting for the Twilio sender to report back.'}
+/**
+ * Text status from a Twilio Log entry. The Twilio formula always sets Complete = true and stores
+ * Twilio's whole JSON reply in Error Response, success or not, so the reply decides:
+ * a message sid and no error code = accepted; a code/message = failed.
+ */
+export function textStatus(complete: boolean | null, response: string): {status: SendStatus; detail: string} {
+  const raw = (response || '').trim()
+  if (!raw) return complete === true
+    ? {status: 'failed', detail: 'Twilio returned no reply.'}
+    : {status: 'pending', detail: 'Saved. Waiting for the Twilio sender to report back.'}
+  let reply: any = null
+  try { reply = JSON.parse(raw) } catch (e) { reply = null }
+  if (!reply || typeof reply !== 'object') return {status: 'failed', detail: raw.slice(0, 300)}
+  const state = typeof reply.status === 'string' ? reply.status : ''
+  if (reply.sid && !reply.error_code && state !== 'failed' && state !== 'undelivered')
+    return {status: 'sent', detail: 'Accepted by Twilio' + (state ? ' (' + state + ')' : '') + '. Delivery to the phone is not confirmed.'}
+  const code = reply.code || reply.error_code
+  const message = typeof reply.message === 'string' ? reply.message : typeof reply.error_message === 'string' ? reply.error_message : ''
+  return {status: 'failed', detail: (message || 'Twilio refused the text.') + (code ? ' (Twilio error ' + code + ')' : '')}
 }
